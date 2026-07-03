@@ -463,7 +463,7 @@ local COLOR_GREEN = Color3.fromRGB(52, 211, 153)
 local COLOR_RED = Color3.fromRGB(248, 113, 113)
 
 local toolbar = plugin:CreateToolbar("Bloxsmith")
-local toggleButton = toolbar:CreateButton("Bloxsmith", "Open the Bloxsmith panel", "rbxassetid://0")
+local toggleButton = toolbar:CreateButton("Bloxsmith", "Open the Bloxsmith panel", "rbxassetid://71727317891946")
 
 local widget = plugin:CreateDockWidgetPluginGui(
 	"BloxsmithDock",
