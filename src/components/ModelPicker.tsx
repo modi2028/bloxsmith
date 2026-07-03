@@ -88,7 +88,7 @@ export function ModelPicker({
               <>
                 <ProviderIcon
                   provider={m.provider}
-                  className={`mt-0.5 size-4 shrink-0 ${m.locked ? "opacity-50" : ""}`}
+                  className={`size-4 shrink-0 ${m.locked ? "opacity-50" : ""}`}
                 />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="flex items-center gap-2 text-sm">
@@ -114,20 +114,17 @@ export function ModelPicker({
                       </span>
                     )}
                   </span>
-                  {m.description && (
-                    <span className="text-xs text-muted">{m.description}</span>
-                  )}
                   <span className="text-[11px] text-faint">
                     {m.locked
                       ? "Upgrade to Pro to use this model →"
-                      : `~${formatCredits(m.reserve)} credits max per request`}
+                      : `~${formatCredits(m.reserve)} credits max / request`}
                   </span>
                 </span>
                 {m.locked && (
                   <svg
                     viewBox="0 0 16 16"
                     fill="none"
-                    className="mt-0.5 size-3.5 shrink-0 text-faint"
+                    className="size-3.5 shrink-0 text-faint"
                   >
                     <rect
                       x="3.5"
@@ -147,7 +144,7 @@ export function ModelPicker({
                 )}
               </>
             );
-            const cls = `flex w-full items-start gap-2.5 px-3.5 py-2.5 text-left transition hover:bg-surface ${
+            const cls = `flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left transition hover:bg-surface ${
               selected ? "bg-ember-soft" : ""
             }`;
             return m.locked ? (
