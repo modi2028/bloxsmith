@@ -60,7 +60,9 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 });
 
-function loadEnv() {
+export type Env = z.infer<typeof envSchema>;
+
+function loadEnv(): Env {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
     const issues = parsed.error.issues
@@ -71,5 +73,19 @@ function loadEnv() {
   return parsed.data;
 }
 
-export const env = loadEnv();
-export type Env = ReturnType<typeof loadEnv>;
+/**
+ * Validated on FIRST ACCESS at runtime — not at module import — so that
+ * `next build` (which evaluates route modules to collect page data) doesn't
+ * require production secrets. Hosts inject secrets at runtime; the build
+ * artifact stays portable.
+ */
+let cached: Env | undefined;
+function getEnv(): Env {
+  if (!cached) cached = loadEnv();
+  return cached;
+}
+
+export const env = new Proxy({} as Env, {
+  get: (_target, prop: string) => getEnv()[prop as keyof Env],
+  has: (_target, prop: string) => prop in getEnv(),
+});

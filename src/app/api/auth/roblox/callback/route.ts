@@ -7,7 +7,7 @@ import { provisionUser } from "@/server/auth/provision";
 import {
   SESSION_COOKIE,
   createSession,
-  sessionCookieOptions,
+  getSessionCookieOptions,
 } from "@/server/auth/session";
 
 function fail(reason: string) {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.redirect(new URL("/", env.APP_URL));
     response.cookies.set(SESSION_COOKIE, token, {
-      ...sessionCookieOptions,
+      ...getSessionCookieOptions(),
       expires: expiresAt,
     });
     return response;

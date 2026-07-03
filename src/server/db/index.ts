@@ -13,14 +13,23 @@ const globalForDb = globalThis as unknown as {
   pgClient?: ReturnType<typeof postgres>;
 };
 
-const client =
-  globalForDb.pgClient ??
-  postgres(env.DATABASE_URL, {
-    prepare: false,
-    max: 10,
-  });
+type Db = ReturnType<typeof drizzle<typeof schema>>;
 
-if (env.NODE_ENV !== "production") globalForDb.pgClient = client;
+// Lazily create the client + drizzle instance on first query, so importing
+// this module (e.g. during `next build`) doesn't read DATABASE_URL or open a
+// connection. postgres.js connects lazily anyway; this defers the env read.
+let cachedDb: Db | undefined;
+function getDb(): Db {
+  if (cachedDb) return cachedDb;
+  const client =
+    globalForDb.pgClient ??
+    postgres(env.DATABASE_URL, { prepare: false, max: 10 });
+  if (env.NODE_ENV !== "production") globalForDb.pgClient = client;
+  cachedDb = drizzle(client, { schema });
+  return cachedDb;
+}
 
-export const db = drizzle(client, { schema });
+export const db = new Proxy({} as Db, {
+  get: (_target, prop) => getDb()[prop as keyof Db],
+});
 export { schema };

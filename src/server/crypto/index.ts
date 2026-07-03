@@ -13,11 +13,15 @@ export {
   tokensEqual,
 } from "./aes";
 
-const masterKey = Buffer.from(env.MASTER_ENCRYPTION_KEY, "base64");
+let masterKey: Buffer | undefined;
+function getMasterKey(): Buffer {
+  if (!masterKey) masterKey = Buffer.from(env.MASTER_ENCRYPTION_KEY, "base64");
+  return masterKey;
+}
 
 /** Encrypt a secret (provider API key, TOTP secret) with the master key. */
 export function encryptSecret(plaintext: string): string {
-  return encryptWithKey(plaintext, masterKey);
+  return encryptWithKey(plaintext, getMasterKey());
 }
 
 /**
@@ -25,5 +29,5 @@ export function encryptSecret(plaintext: string): string {
  * a provider API call) and never write the result to logs or responses.
  */
 export function decryptSecret(envelope: string): string {
-  return decryptWithKey(envelope, masterKey);
+  return decryptWithKey(envelope, getMasterKey());
 }

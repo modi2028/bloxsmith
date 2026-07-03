@@ -10,12 +10,15 @@ const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export type SessionUser = typeof schema.users.$inferSelect;
 
-export const sessionCookieOptions = {
-  httpOnly: true,
-  sameSite: "lax",
-  secure: env.NODE_ENV === "production",
-  path: "/",
-} as const;
+/** Cookie options — computed lazily so importing this module doesn't read env. */
+export function getSessionCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: env.NODE_ENV === "production",
+    path: "/",
+  } as const;
+}
 
 /**
  * Create a DB-backed session and return the raw token for the caller to set

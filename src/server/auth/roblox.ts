@@ -13,7 +13,9 @@ const AUTHORIZE_URL = "https://apis.roblox.com/oauth/v1/authorize";
 const TOKEN_URL = "https://apis.roblox.com/oauth/v1/token";
 const USERINFO_URL = "https://apis.roblox.com/oauth/v1/userinfo";
 
-export const REDIRECT_URI = `${env.APP_URL}/api/auth/roblox/callback`;
+export function getRedirectUri(): string {
+  return `${env.APP_URL}/api/auth/roblox/callback`;
+}
 
 export function generatePkce(): { verifier: string; challenge: string } {
   const verifier = generateToken(48); // base64url, 64 chars
@@ -26,7 +28,7 @@ export function generatePkce(): { verifier: string; challenge: string } {
 export function buildAuthorizeUrl(state: string, challenge: string): string {
   const url = new URL(AUTHORIZE_URL);
   url.searchParams.set("client_id", env.ROBLOX_CLIENT_ID);
-  url.searchParams.set("redirect_uri", REDIRECT_URI);
+  url.searchParams.set("redirect_uri", getRedirectUri());
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", "openid profile");
   url.searchParams.set("state", state);
