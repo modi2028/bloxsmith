@@ -17,49 +17,78 @@ export default async function PairPage() {
       </Link>
 
       <h1 className="mb-2 text-2xl font-semibold tracking-tight">
-        Pair your Studio plugin
+        Set up the Studio plugin
       </h1>
       <p className="mb-8 text-sm text-muted">
-        Pairing links the {BRAND.name} plugin in Roblox Studio to your account
-        (@{user.username}) so chat requests build in your open place.
+        The {BRAND.name} plugin lets us build inside your open Roblox Studio
+        session. Install it once, then pair it to your account (@
+        {user.username}).
       </p>
 
-      <ol className="mb-8 flex flex-col gap-5 text-sm">
-        <li className="flex gap-3">
+      {/* Step 1 — install */}
+      <div className="mb-6 rounded-2xl border border-line bg-surface-raised p-5">
+        <div className="mb-3 flex items-center gap-3">
           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-ember-soft text-xs font-semibold text-ember">
             1
           </span>
-          <span>
-            Install the plugin: copy{" "}
-            <code className="rounded bg-surface-raised px-1.5 py-0.5 text-xs">
-              bloxsmith.server.lua
-            </code>{" "}
-            from the project&apos;s <code className="rounded bg-surface-raised px-1.5 py-0.5 text-xs">plugin/</code> folder into your local plugins folder
-            (Studio → <strong>Plugins</strong> tab → <strong>Plugins Folder</strong>),
-            then restart Studio.
-          </span>
-        </li>
-        <li className="flex gap-3">
+          <h2 className="text-sm font-semibold">Install the plugin</h2>
+        </div>
+        <p className="mb-4 pl-9 text-sm text-muted">
+          Get the {BRAND.name} plugin from the Roblox Creator Store — it installs
+          straight into your Studio Plugins tab. You only do this once.
+        </p>
+        <div className="pl-9">
+          <a
+            href={BRAND.pluginUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+          >
+            Install on Roblox
+            <svg viewBox="0 0 20 20" fill="none" className="size-4">
+              <path
+                d="M7 5h8v8M15 5 5 15"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      {/* Step 2 — open the dock */}
+      <div className="mb-6 rounded-2xl border border-line bg-surface-raised p-5">
+        <div className="mb-2 flex items-center gap-3">
           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-ember-soft text-xs font-semibold text-ember">
             2
           </span>
-          <span>
-            In Studio, click the <strong>{BRAND.name}</strong> button in the
-            Plugins toolbar to open the dock.
-          </span>
-        </li>
-        <li className="flex gap-3">
+          <h2 className="text-sm font-semibold">Open it in Studio</h2>
+        </div>
+        <p className="pl-9 text-sm text-muted">
+          Open any place in Roblox Studio, go to the <strong>Plugins</strong>{" "}
+          tab in the toolbar, and click the <strong>{BRAND.name}</strong> button
+          to open its panel.
+        </p>
+      </div>
+
+      {/* Step 3 — pair */}
+      <div className="rounded-2xl border border-line bg-surface-raised p-5">
+        <div className="mb-2 flex items-center gap-3">
           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-ember-soft text-xs font-semibold text-ember">
             3
           </span>
-          <span>
-            Generate a code below and type it into the dock, then press{" "}
-            <strong>Connect</strong>. You only do this once per computer.
-          </span>
-        </li>
-      </ol>
-
-      <PairCode />
+          <h2 className="text-sm font-semibold">Pair it to your account</h2>
+        </div>
+        <p className="mb-4 pl-9 text-sm text-muted">
+          Generate a code below, type it into the plugin panel in Studio, and
+          press <strong>Connect</strong>. You only pair once per computer.
+        </p>
+        <div className="pl-9">
+          <PairCode />
+        </div>
+      </div>
     </div>
   );
 }

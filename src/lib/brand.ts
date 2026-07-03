@@ -9,4 +9,6 @@ export const BRAND = {
   // Change these to your real contact + domain before publishing.
   contactEmail: "support@bloxsmith.online",
   websiteUrl: "https://bloxsmith.online",
+  // Roblox Creator Store page for the published Studio plugin.
+  pluginUrl: "https://create.roblox.com/store/asset/83532318504563/Bloxsmith",
 } as const;
