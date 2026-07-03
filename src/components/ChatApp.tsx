@@ -7,6 +7,7 @@ import type { UiMessage, UiPart, UiToolPart } from "@/lib/chat-ui";
 import { formatCredits } from "@/lib/credits-format";
 import { PoweredByBanner } from "./BrandMarks";
 import { ChatComposer } from "./ChatComposer";
+import { Markdown } from "./Markdown";
 import { Modal } from "./Modal";
 import type { ChatModel } from "./ModelPicker";
 import { PENDING_TITLE_KEY } from "./NewProjectButton";
@@ -440,14 +441,7 @@ export function ChatApp({
               <div key={i} className="flex flex-col gap-2.5">
                 {msg.parts.map((part, j) => {
                   if (part.t === "text") {
-                    return (
-                      <div
-                        key={j}
-                        className="whitespace-pre-wrap text-[15px] leading-relaxed"
-                      >
-                        {part.text}
-                      </div>
-                    );
+                    return <Markdown key={j}>{part.text}</Markdown>;
                   }
                   if (part.t === "error") {
                     return (

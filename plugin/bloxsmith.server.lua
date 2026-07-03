@@ -106,7 +106,10 @@ local function resolveRef(ref: unknown): Instance
 	end
 
 	if not inst then
+		-- Accept ref:i_<id> and also a bare ref:<id> in case the id prefix was
+		-- dropped, then re-discover by the persisted BSRef attribute.
 		local id = string.match(refStr, "^ref:i_(.+)$")
+			or string.match(refStr, "^ref:(.+)$")
 		if id then
 			inst = findByRefId(id)
 			if inst then
@@ -308,6 +311,24 @@ handlers.set_property = function(args)
 	return {}
 end
 
+-- Writing to Script.Source requires the user to grant this plugin "Script
+-- Injection" permission (marketplace plugins only). Surface a clear, actionable
+-- error if it's denied instead of a raw Roblox message.
+local function writeScriptSource(scriptInst: Instance, source: string)
+	local ok, err = pcall(function()
+		(scriptInst :: any).Source = source
+	end)
+	if not ok then
+		toolError(
+			"script_error",
+			"Bloxsmith needs permission to edit scripts. In Roblox Studio, allow the "
+				.. "'Script Injection' / 'edit scripts' prompt for Bloxsmith (a blue banner or "
+				.. "notification), then try again. You can also enable it under Plugins → Manage "
+				.. "Plugins → Bloxsmith. (" .. tostring(err) .. ")"
+		)
+	end
+end
+
 handlers.write_script = function(args)
 	local source = args.source :: string
 	local lineCount = 1
@@ -320,7 +341,7 @@ handlers.write_script = function(args)
 		if not inst:IsA("LuaSourceContainer") then
 			toolError("invalid_args", "Target is not a script")
 		end
-		(inst :: any).Source = source
+		writeScriptSource(inst, source)
 		return { ref = mintRef(inst), lineCount = lineCount }
 	end
 
@@ -329,9 +350,9 @@ handlers.write_script = function(args)
 		toolError("invalid_args", "Unknown script type " .. tostring(args.scriptType))
 	end
 	local script = created :: Instance
-	script.Name = args.name;
-	(script :: any).Source = source
+	script.Name = args.name
 	script.Parent = resolveRef(args.parent)
+	writeScriptSource(script, source)
 	return { ref = mintRef(script), lineCount = lineCount }
 end
 

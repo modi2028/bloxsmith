@@ -83,11 +83,13 @@ export function CreditNotifier() {
             now: string;
           };
           if (data.events?.length) {
-            since = data.events[0].createdAt; // newest (desc order)
-            localStorage.setItem(SINCE_KEY, since);
             enqueue(data.events);
             router.refresh(); // update header balance everywhere
-          } else if (data.now) {
+          }
+          // Always advance the cursor to the server's clock, so an event is
+          // returned exactly once (advancing to the event's own timestamp lost
+          // sub-millisecond precision and re-returned it — the duplicate bug).
+          if (data.now) {
             since = data.now;
             localStorage.setItem(SINCE_KEY, since);
           }
