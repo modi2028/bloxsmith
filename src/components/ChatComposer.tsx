@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { formatCredits } from "@/lib/credits-format";
 import { CoinStack } from "./BrandMarks";
 import { ModelPicker, type ChatModel } from "./ModelPicker";
+import { StudioStatus } from "./StudioStatus";
 
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_IMAGES = 4;
@@ -34,6 +35,7 @@ export function ChatComposer({
   autoFocus = false,
   initialText,
   balance,
+  studioConnected,
 }: {
   onSend: (text: string) => void;
   onStop?: () => void;
@@ -46,6 +48,8 @@ export function ChatComposer({
   /** Initial text (suggestion chips) — pair with a `key` to re-seed. */
   initialText?: string;
   balance?: number;
+  /** Plugin connection at render time — shows the live green/red chip. */
+  studioConnected?: boolean | null;
 }) {
   const [text, setText] = useState(initialText ?? "");
   const [images, setImages] = useState<PendingImage[]>([]);
@@ -216,6 +220,9 @@ export function ChatComposer({
                   {formatCredits(balance)}
                 </span>
               </span>
+            )}
+            {studioConnected != null && (
+              <StudioStatus initial={studioConnected} />
             )}
           </div>
 

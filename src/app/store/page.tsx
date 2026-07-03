@@ -53,23 +53,28 @@ export default async function StorePage({
   }));
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-6 py-10">
+    <div className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col px-6 py-10">
       <Link href="/" className="mb-8 text-sm text-muted hover:text-foreground">
         ← Back to {BRAND.name}
       </Link>
 
-      <div className="mb-8 flex items-end justify-between">
+      <div className="mb-10 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Store</h1>
-          <p className="mt-1 text-sm text-muted">
+          <h1 className="text-3xl font-semibold tracking-tight">Store</h1>
+          <p className="mt-1.5 text-sm text-muted">
             Credits and Pro for building with {BRAND.name}.
           </p>
         </div>
-        <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted">
+        <span className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs text-muted">
           <span className="font-semibold text-ember">
             {formatCredits(balance)}
           </span>{" "}
-          credits{isPro && <span className="ml-2 text-ember">· Pro</span>}
+          credits
+          {isPro && (
+            <span className="rounded-full border border-ember/50 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-ember">
+              Pro
+            </span>
+          )}
         </span>
       </div>
 
@@ -84,7 +89,10 @@ export default async function StorePage({
         </p>
       )}
 
-      <div className="mb-8">
+      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+        Subscription
+      </h2>
+      <div className="mb-10">
         <ProCard
           isPro={isPro}
           proPurchasable={proConfigured}
@@ -93,10 +101,15 @@ export default async function StorePage({
         />
       </div>
 
-      <h2 className="mb-3 text-sm font-medium text-muted">Credit packs</h2>
+      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+        Credit packs
+      </h2>
+      <p className="-mt-1 mb-4 text-xs text-muted">
+        One-time top-ups — they stack with your monthly Pro credits.
+      </p>
       <CreditPacks packs={packs} />
 
-      <div className="mt-8">
+      <div className="mt-10">
         <RedeemBox />
       </div>
 
@@ -107,7 +120,7 @@ export default async function StorePage({
         </p>
       )}
 
-      <p className="mt-8 text-center text-xs text-faint">
+      <p className="mt-10 text-center text-xs text-faint">
         Purchases are subject to our{" "}
         <Link href="/terms" className="text-ember hover:underline">
           Terms

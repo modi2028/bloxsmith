@@ -73,6 +73,7 @@ export function ChatApp({
   tagline,
   models,
   balance,
+  pluginConnected = null,
   initialSessionId,
   initialMessages,
 }: {
@@ -81,6 +82,8 @@ export function ChatApp({
   tagline: string;
   models: ChatModel[];
   balance: number;
+  /** Studio plugin connection at render time (null = unknown/signed out). */
+  pluginConnected?: boolean | null;
   initialSessionId?: string;
   initialMessages?: UiMessage[];
 }) {
@@ -386,6 +389,7 @@ export function ChatApp({
             modelId={modelId}
             onModelChange={changeModel}
             balance={balance}
+            studioConnected={pluginConnected}
             initialText={seedText}
             autoFocus
           />
@@ -527,6 +531,7 @@ export function ChatApp({
             modelId={modelId}
             onModelChange={changeModel}
             balance={balance}
+            studioConnected={pluginConnected}
             compact
           />
         </div>

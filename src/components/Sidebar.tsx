@@ -4,6 +4,12 @@ import { LogoMark } from "./Logo";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectList, type ProjectItem } from "./ProjectList";
 
+/**
+ * App sidebar: brand, new-project CTA, a single Projects section with an
+ * archived toggle, and a compact plugin-pairing row. The live green/red
+ * connection indicator lives in the chat composer (StudioStatus); the footer
+ * here is just the entry point to pairing.
+ */
 export function Sidebar({
   pluginConnected = null,
   projects = [],
@@ -18,56 +24,40 @@ export function Sidebar({
 }) {
   return (
     <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-line bg-surface/60">
-      <Link href="/" className="flex items-center gap-2.5 px-5 h-16">
-        <LogoMark size={30} />
-        <span className="text-[17px] font-semibold tracking-tight">
+      <Link href="/" className="flex h-16 items-center gap-2.5 px-5">
+        <LogoMark size={28} />
+        <span className="text-[16px] font-semibold tracking-tight">
           {BRAND.name}
         </span>
       </Link>
 
-      <div className="px-4">
+      <div className="px-3">
         <NewProjectButton pluginConnected={pluginConnected} />
       </div>
 
-      <nav className="mt-5 flex flex-col gap-1 px-3">
+      <div className="mb-1.5 mt-6 flex items-center justify-between pl-6 pr-3">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+          {viewArchived ? "Archived" : "Projects"}
+        </span>
         <Link
-          href="/"
-          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
-            !viewArchived
-              ? "bg-ember-soft text-foreground"
-              : "text-muted hover:bg-surface-raised hover:text-foreground"
+          href={viewArchived ? "/" : "/?view=archived"}
+          title={viewArchived ? "Back to projects" : "Show archived"}
+          className={`flex size-6 items-center justify-center rounded-md transition hover:bg-surface-raised hover:text-foreground ${
+            viewArchived ? "text-ember" : "text-faint"
           }`}
         >
-          <svg viewBox="0 0 20 20" fill="none" className="size-4">
+          <svg viewBox="0 0 16 16" fill="none" className="size-3.5">
             <path
-              d="M3 5.5A1.5 1.5 0 0 1 4.5 4h3.4c.4 0 .8.16 1.06.44l1.1 1.12c.28.28.66.44 1.06.44h4.38A1.5 1.5 0 0 1 17 7.5v7A1.5 1.5 0 0 1 15.5 16h-11A1.5 1.5 0 0 1 3 14.5v-9Z"
+              d="M2.5 4h11v2h-11V4Zm1 2h9v6.5a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1V6Zm3 2.5h3"
               stroke="currentColor"
-              strokeWidth="1.5"
-            />
-          </svg>
-          Projects
-        </Link>
-        <Link
-          href="/?view=archived"
-          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
-            viewArchived
-              ? "bg-ember-soft text-foreground"
-              : "text-muted hover:bg-surface-raised hover:text-foreground"
-          }`}
-        >
-          <svg viewBox="0 0 20 20" fill="none" className="size-4">
-            <path
-              d="M3 5h14v3H3V5Zm1 3h12v6.5A1.5 1.5 0 0 1 14.5 16h-9A1.5 1.5 0 0 1 4 14.5V8Zm4.5 3h3"
-              stroke="currentColor"
-              strokeWidth="1.5"
+              strokeWidth="1.3"
               strokeLinecap="round"
             />
           </svg>
-          Archived
         </Link>
-      </nav>
+      </div>
 
-      <div className="mt-4 min-h-0 flex-1">
+      <div className="min-h-0 flex-1">
         <ProjectList
           projects={projects}
           activeId={activeProjectId}
@@ -75,22 +65,39 @@ export function Sidebar({
         />
       </div>
 
-      <div className="border-t border-line px-5 py-4">
-        <div className="flex items-center gap-2 text-xs text-muted">
-          <span
-            className={`size-2 rounded-full ${
-              pluginConnected
-                ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
-                : "bg-faint"
-            }`}
-          />
-          Studio plugin: {pluginConnected ? "connected" : "not connected"}
-        </div>
+      <div className="border-t border-line p-3">
         <Link
           href="/pair"
-          className="mt-1 inline-block text-xs text-ember hover:underline"
+          className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition hover:bg-surface-raised"
         >
-          {pluginConnected ? "Manage pairing →" : "Pair your plugin →"}
+          <span
+            className={`size-2 shrink-0 rounded-full ${
+              pluginConnected
+                ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+                : "bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.7)]"
+            }`}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-foreground/90">
+              Studio plugin
+            </span>
+            <span className="block truncate text-[11px] text-faint">
+              {pluginConnected ? "Connected" : "Not connected — set up"}
+            </span>
+          </span>
+          <svg
+            viewBox="0 0 16 16"
+            fill="none"
+            className="size-3.5 shrink-0 text-faint transition group-hover:text-muted"
+          >
+            <path
+              d="m6 3.5 4.5 4.5L6 12.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </Link>
       </div>
     </aside>

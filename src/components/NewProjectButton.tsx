@@ -26,9 +26,17 @@ export function NewProjectButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="block w-full rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-center text-sm font-semibold text-stone-950 shadow-[0_0_24px_-6px_rgba(245,158,11,0.5)] transition hover:brightness-110"
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110"
       >
-        + New Project
+        <svg viewBox="0 0 16 16" fill="none" className="size-3.5">
+          <path
+            d="M8 3.5v9M3.5 8h9"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
+        New project
       </button>
 
       <Modal open={open} onClose={() => setOpen(false)}>
@@ -60,7 +68,7 @@ export function NewProjectButton({
             className={`size-2 shrink-0 rounded-full ${
               pluginConnected
                 ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
-                : "bg-faint"
+                : "bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.7)]"
             }`}
           />
           {pluginConnected ? (

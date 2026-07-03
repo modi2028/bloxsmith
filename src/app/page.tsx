@@ -1,6 +1,10 @@
 import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import Link from "next/link";
-import { AnthropicWordmark, RobloxMark } from "@/components/BrandMarks";
+import {
+  AnthropicWordmark,
+  CoinStack,
+  RobloxMark,
+} from "@/components/BrandMarks";
 import { ChatApp } from "@/components/ChatApp";
 import { HistoryMenu } from "@/components/HistoryMenu";
 import { Landing } from "@/components/Landing";
@@ -37,7 +41,7 @@ function BackdropCards() {
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
       <div
-        className="float-card absolute left-[6%] top-[13%] h-36 w-60 rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-45"
+        className="float-card absolute left-[6%] top-[13%] h-36 w-60 rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-30"
         style={{ ["--card-rot" as string]: "-6deg", animationDelay: "-1s" }}
       >
         <div className="grid h-full grid-cols-4 gap-1.5 p-3">
@@ -48,14 +52,14 @@ function BackdropCards() {
       </div>
 
       <div
-        className="float-card absolute right-[8%] top-[11%] flex h-32 w-52 items-center justify-center rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-45"
+        className="float-card absolute right-[8%] top-[11%] flex h-32 w-52 items-center justify-center rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-30"
         style={{ ["--card-rot" as string]: "3deg", animationDelay: "-3.5s" }}
       >
         <AnthropicWordmark className="text-sm text-stone-500" />
       </div>
 
       <div
-        className="float-card absolute bottom-[16%] left-[11%] flex h-32 w-52 items-center justify-center gap-2.5 rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-45"
+        className="float-card absolute bottom-[16%] left-[11%] flex h-32 w-52 items-center justify-center gap-2.5 rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-30"
         style={{ ["--card-rot" as string]: "2deg", animationDelay: "-6s" }}
       >
         <RobloxMark className="size-7 text-stone-500" />
@@ -65,7 +69,7 @@ function BackdropCards() {
       </div>
 
       <div
-        className="float-card absolute bottom-[20%] right-[10%] h-40 w-60 rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-45"
+        className="float-card absolute bottom-[20%] right-[10%] h-40 w-60 rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-30"
         style={{ ["--card-rot" as string]: "-3deg", animationDelay: "-2s" }}
       >
         <div className="m-3 h-2 w-1/3 rounded bg-stone-800" />
@@ -110,20 +114,16 @@ function Header({
               Upgrade
             </Link>
           ) : null}
-          <span
-            className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted"
-            title="Your credit balance"
+          <Link
+            href="/store"
+            title="Store — buy credits or Pro"
+            className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-foreground"
           >
+            <CoinStack className="size-3.5 text-ember" />
             <span className="font-semibold text-ember">
               {formatCredits(balance)}
             </span>{" "}
             credits
-          </span>
-          <Link
-            href="/store"
-            className="shine-btn rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 px-3.5 py-1.5 text-sm font-semibold text-stone-950 shadow-[0_0_18px_-4px_rgba(16,185,129,0.6)] transition hover:brightness-110"
-          >
-            Store Purchases
           </Link>
           <HistoryMenu items={recentProjects} />
           <Link
@@ -311,6 +311,7 @@ export default async function Home({
             tagline={BRAND.tagline}
             models={models}
             balance={balance}
+            pluginConnected={pluginConnected}
             initialSessionId={initialSessionId}
             initialMessages={initialMessages}
           />
