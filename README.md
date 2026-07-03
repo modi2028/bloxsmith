@@ -1,36 +1,143 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bloxsmith
 
-## Getting Started
+**Your AI pair-builder for Roblox Studio.** Describe a game mechanic in a chat
+box on the web; a companion Studio plugin executes the build live in your open
+Roblox Studio session.
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+[Browser: chat / store / admin]
+        | session cookie
+        v
+[Next.js backend]  <-- encrypted provider keys, credit ledger,
+        |              tool-call queue (Supabase Postgres)
+        | agentic loop (Claude / Gemini with Studio tools)
+        v
+[tool_call_queue]  <-- Studio plugin polls (~1s), executes in the
+                       DataModel, POSTs structured results back
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Status
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Phase 1 of 10 — scaffold, database schema, secrets handling, brand, app shell.
+See [Build plan](#build-plan).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Stack
 
-## Learn More
+- **Next.js (App Router) + TypeScript + Tailwind** — frontend and backend in
+  one deployable. Deploy as a **long-running Node process** (Docker /
+  Railway / Fly / VPS): agent-loop turns hold requests open for minutes, which
+  rules out short serverless timeouts.
+- **Supabase Postgres via Drizzle ORM**, accessed server-side only (RLS
+  deny-all; the browser never talks to Supabase directly). Supabase Storage
+  holds chat image attachments.
+- **Own Roblox OAuth 2.0 (PKCE) + httpOnly cookie sessions** — no Supabase
+  Auth.
+- **Claude + Gemini** behind one provider interface; all model calls are
+  proxied server-side. The browser and the plugin never see a provider key.
+- **Luau Studio plugin** (Rojo project in `plugin/`, from Phase 4).
 
-To learn more about Next.js, take a look at the following resources:
+## Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Install deps**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```sh
+   npm install
+   ```
 
-## Deploy on Vercel
+2. **Create a Supabase project** (or reuse one). From the dashboard collect:
+   - the **transaction pooler** connection string (port 6543) → `DATABASE_URL`
+   - project URL + service-role key → `SUPABASE_URL`,
+     `SUPABASE_SERVICE_ROLE_KEY`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. **Configure env**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```sh
+   cp .env.example .env.local
+   openssl rand -base64 32   # -> MASTER_ENCRYPTION_KEY
+   openssl rand -base64 32   # -> SESSION_SECRET
+   ```
+
+4. **Register the Roblox OAuth app** at
+   [create.roblox.com/dashboard/credentials](https://create.roblox.com/dashboard/credentials):
+   - scopes: `openid`, `profile`
+   - redirect URL: `http://localhost:3000/api/auth/roblox/callback`
+   - copy client ID + secret into `.env.local`
+
+   > Unreviewed Roblox OAuth apps are limited to **10 unique users** (private
+   > mode) until Roblox approves the app. The registering account must be
+   > ID-verified; only 13+ users can authorize apps.
+
+5. **Apply schema + seed defaults**
+
+   ```sh
+   npm run db:migrate   # applies drizzle/ migrations to DATABASE_URL
+   npm run db:seed      # default model pricing + app settings (idempotent)
+   ```
+
+6. **Run**
+
+   ```sh
+   npm run dev
+   ```
+
+## Scripts
+
+| Script                | What it does                                      |
+| --------------------- | ------------------------------------------------- |
+| `npm run dev`         | Dev server                                        |
+| `npm run build/start` | Production build / serve                          |
+| `npm test`            | Unit tests (crypto vault, and growing)            |
+| `npm run db:generate` | Regenerate SQL migrations after schema changes    |
+| `npm run db:migrate`  | Apply migrations to `DATABASE_URL`                |
+| `npm run db:seed`     | Seed model pricing + settings (skips existing)    |
+
+## Credits system
+
+Everything money-shaped is an append-only ledger (`credit_transactions`);
+balance is always `SUM(delta)`. Spending is **reserve → settle/refund**: a
+request reserves the model's `max_credits_per_request` up front (inside a
+transaction with the user row locked, so concurrent requests can't overdraw),
+then settles to actual token usage on completion or refunds fully on failure.
+
+- **Better models cost more** — `model_pricing` holds per-model
+  input/output credit rates + a base cost, all editable in the admin panel.
+  Defaults are seeded tiered: Opus 4.8 > Sonnet 5 > Haiku 4.5.
+- **Admin credit controls** — adjust any user's balance (audited
+  `admin_adjustment` rows) and set per-user `daily_spend_limit` /
+  `monthly_spend_limit` caps, enforced at reserve time.
+- Purchases (webhook) and redemption codes append `purchase` / `redeem` rows.
+
+## Security model (summary)
+
+- Provider API keys: AES-256-GCM at rest (`src/server/crypto`), write-only
+  admin API, masked display (`…last4`), decrypted in-memory only at call time.
+- Admin: env allowlist of Roblox user IDs **and** TOTP verification on top of
+  login, optional IP allowlist, every action audited (`admin_audit_log`).
+- Sessions and plugin tokens stored as SHA-256 hashes; plugin tokens are
+  revocable per device.
+- `run_luau` tool is off by default (global setting + per-user override).
+
+## Repo layout
+
+```
+drizzle/            generated SQL migrations
+docs/               tool-contract.md, context-design.md
+src/app/            routes (App Router) — UI + /api/*
+src/components/     UI components
+src/lib/            shared types, zod schemas, brand config
+src/server/         backend-only code (env, db, crypto, credits, ai, bridge)
+plugin/             Luau Studio plugin (Rojo) — from Phase 4
+```
+
+## Build plan
+
+1. ✅ Scaffold, schema, env/secrets, brand, app shell
+2. Roblox OAuth login/logout + sessions + roles
+3. AI proxy + agentic tool-loop (Claude) with a mocked plugin + queue contract
+4. Studio plugin MVP: pairing, polling, core tools
+5. Chat UI with streaming + live tool-call activity, wired end-to-end
+6. Credits ledger enforcement + balance display
+7. Store + fulfillment (codes first, then Stripe webhook)
+8. Admin panel with full hardening
+9. Gemini provider behind the same tool-loop interface
+10. Polish: rate limits, audit coverage, docs, deploy guide

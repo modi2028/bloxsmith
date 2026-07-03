@@ -1,63 +1,319 @@
-import Image from "next/image";
+import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import Link from "next/link";
+import { AnthropicWordmark, RobloxMark } from "@/components/BrandMarks";
+import { ChatApp } from "@/components/ChatApp";
+import { HistoryMenu } from "@/components/HistoryMenu";
+import { Landing } from "@/components/Landing";
+import { Sidebar } from "@/components/Sidebar";
+import { BRAND } from "@/lib/brand";
+import { formatCredits } from "@/lib/credits-format";
+import { mapDbMessagesToUi, type UiMessage } from "@/lib/chat-ui";
+import { getSessionUser, type SessionUser } from "@/server/auth/session";
+import { getBalance } from "@/server/credits/ledger";
+import { db, schema } from "@/server/db";
 
-export default function Home() {
+/**
+ * Decorative floating cards behind the composer — two brand cards plus a
+ * game-mosaic card, gently bobbing.
+ */
+function BackdropCards() {
+  const mosaicTints = [
+    "bg-ember/15",
+    "bg-stone-800",
+    "bg-orange-900/40",
+    "bg-stone-800/70",
+    "bg-amber-900/30",
+    "bg-stone-700/50",
+    "bg-ember/10",
+    "bg-stone-800",
+    "bg-red-900/25",
+    "bg-stone-800/60",
+    "bg-amber-800/25",
+    "bg-stone-700/40",
+  ];
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+    >
+      <div
+        className="float-card absolute left-[6%] top-[13%] h-36 w-60 rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-45"
+        style={{ ["--card-rot" as string]: "-6deg", animationDelay: "-1s" }}
+      >
+        <div className="grid h-full grid-cols-4 gap-1.5 p-3">
+          {mosaicTints.map((tint, i) => (
+            <div key={i} className={`rounded ${tint}`} />
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </div>
+
+      <div
+        className="float-card absolute right-[8%] top-[11%] flex h-32 w-52 items-center justify-center rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-45"
+        style={{ ["--card-rot" as string]: "3deg", animationDelay: "-3.5s" }}
+      >
+        <AnthropicWordmark className="text-sm text-stone-500" />
+      </div>
+
+      <div
+        className="float-card absolute bottom-[16%] left-[11%] flex h-32 w-52 items-center justify-center gap-2.5 rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-45"
+        style={{ ["--card-rot" as string]: "2deg", animationDelay: "-6s" }}
+      >
+        <RobloxMark className="size-7 text-stone-500" />
+        <span className="text-sm font-bold tracking-[0.25em] text-stone-500">
+          ROBLOX
+        </span>
+      </div>
+
+      <div
+        className="float-card absolute bottom-[20%] right-[10%] h-40 w-60 rounded-xl border border-line bg-gradient-to-br from-surface-raised to-surface opacity-45"
+        style={{ ["--card-rot" as string]: "-3deg", animationDelay: "-2s" }}
+      >
+        <div className="m-3 h-2 w-1/3 rounded bg-stone-800" />
+        <div className="mx-3 h-2 w-1/2 rounded bg-stone-800/70" />
+        <div className="mx-3 mt-4 grid grid-cols-3 gap-1.5">
+          {mosaicTints.slice(0, 6).map((tint, i) => (
+            <div key={i} className={`h-8 rounded ${tint}`} />
+          ))}
+        </div>
+      </div>
+
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,var(--background)_75%)]" />
+    </div>
+  );
+}
+
+function Header({
+  user,
+  balance,
+  hasProPlan,
+  recentProjects,
+}: {
+  user: SessionUser | null;
+  balance: number;
+  /** True only for an actual active Pro subscription (NOT admins). */
+  hasProPlan: boolean;
+  recentProjects: { id: string; title: string }[];
+}) {
+  return (
+    <header className="flex h-16 shrink-0 items-center justify-end gap-3 px-6">
+      {user ? (
+        <>
+          {hasProPlan ? (
+            <span className="rounded-full border border-ember/50 bg-ember-soft px-2.5 py-1 text-xs font-semibold text-ember">
+              Pro
+            </span>
+          ) : user.role !== "admin" ? (
+            <Link
+              href="/store"
+              className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-ember"
+            >
+              Upgrade
+            </Link>
+          ) : null}
+          <span
+            className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted"
+            title="Your credit balance"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <span className="font-semibold text-ember">
+              {formatCredits(balance)}
+            </span>{" "}
+            credits
+          </span>
+          <Link
+            href="/store"
+            className="shine-btn rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 px-3.5 py-1.5 text-sm font-semibold text-stone-950 shadow-[0_0_18px_-4px_rgba(16,185,129,0.6)] transition hover:brightness-110"
           >
-            Documentation
-          </a>
+            Store Purchases
+          </Link>
+          <HistoryMenu items={recentProjects} />
+          <Link
+            href="/settings"
+            title="Settings"
+            className="transition hover:brightness-110"
+          >
+            {user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatarUrl}
+                alt={`${user.username} — settings`}
+                className="size-9 rounded-full border border-line-strong object-cover"
+              />
+            ) : (
+              <span className="flex size-9 items-center justify-center rounded-full border border-line bg-surface-raised text-xs font-semibold">
+                {user.username.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+          </Link>
+        </>
+      ) : (
+        <a
+          href="/api/auth/roblox/login"
+          className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+        >
+          Sign in with Roblox
+        </a>
+      )}
+    </header>
+  );
+}
+
+const AUTH_ERRORS: Record<string, string> = {
+  denied: "Sign-in was cancelled.",
+  invalid_response: "Roblox returned an unexpected response — try again.",
+  expired: "That sign-in attempt expired — try again.",
+  exchange_failed: "Sign-in failed on our side — try again in a moment.",
+};
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    auth_error?: string;
+    project?: string;
+    view?: string;
+  }>;
+}) {
+  const user = await getSessionUser();
+  const balance = user ? await getBalance(user.id) : 0;
+  const params = await searchParams;
+  const authError = params.auth_error ? AUTH_ERRORS[params.auth_error] : undefined;
+  const viewArchived = params.view === "archived";
+
+  // Signed-out visitors get the marketing landing page.
+  if (!user) {
+    return <Landing />;
+  }
+
+  // Two distinct notions of "Pro":
+  //   proAccess   — can use Pro models (admins OR active Pro plan). Drives locks.
+  //   hasProPlan  — an actual paid/active Pro subscription (NOT admins). Drives
+  //                 the "Pro" badge, so admins on the free plan aren't shown as
+  //                 subscribers.
+  let proAccess = false;
+  let hasProPlan = false;
+  if (user) {
+    const [row] = await db
+      .select({
+        access: sql<boolean>`(${schema.users.role} = 'admin' OR (${schema.users.plan} = 'pro' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now())))`,
+        plan: sql<boolean>`(${schema.users.plan} = 'pro' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now()))`,
+      })
+      .from(schema.users)
+      .where(eq(schema.users.id, user.id));
+    proAccess = !!row?.access;
+    hasProPlan = !!row?.plan;
+  }
+
+  // Plugin considered connected if any active token polled in the last 15s.
+  let pluginConnected: boolean | null = null;
+  if (user) {
+    const [liveToken] = await db
+      .select({ id: schema.pluginTokens.id })
+      .from(schema.pluginTokens)
+      .where(
+        and(
+          eq(schema.pluginTokens.userId, user.id),
+          isNull(schema.pluginTokens.revokedAt),
+          sql`${schema.pluginTokens.lastSeenAt} > now() - interval '15 seconds'`,
+        ),
+      )
+      .limit(1);
+    pluginConnected = !!liveToken;
+  }
+
+  // Sidebar project list (active or archived view) + header history menu.
+  const projectRows = user
+    ? await db.query.chatSessions.findMany({
+        where: and(
+          eq(schema.chatSessions.userId, user.id),
+          viewArchived
+            ? isNotNull(schema.chatSessions.archivedAt)
+            : isNull(schema.chatSessions.archivedAt),
+        ),
+        orderBy: [desc(schema.chatSessions.updatedAt)],
+        limit: 40,
+        columns: { id: true, title: true, archivedAt: true },
+      })
+    : [];
+  const projects = projectRows.map((p) => ({
+    id: p.id,
+    title: p.title,
+    archived: p.archivedAt != null,
+  }));
+
+  // Resume a project: load and map its full message history.
+  let initialMessages: UiMessage[] | undefined;
+  let initialSessionId: string | undefined;
+  if (user && params.project) {
+    const project = await db.query.chatSessions.findFirst({
+      where: and(
+        eq(schema.chatSessions.id, params.project),
+        eq(schema.chatSessions.userId, user.id),
+      ),
+    });
+    if (project) {
+      const rows = await db.query.chatMessages.findMany({
+        where: eq(schema.chatMessages.sessionId, project.id),
+        orderBy: [asc(schema.chatMessages.createdAt)],
+        columns: { role: true, content: true },
+      });
+      initialMessages = mapDbMessagesToUi(rows);
+      initialSessionId = project.id;
+    }
+  }
+
+  const models = (
+    await db.query.modelPricing.findMany({
+      where: eq(schema.modelPricing.enabled, true),
+      orderBy: [asc(schema.modelPricing.sort)],
+    })
+  ).map((m) => ({
+    id: m.modelId,
+    name: m.displayName,
+    provider: m.provider,
+    description: m.description,
+    tier: m.tier,
+    reserve: m.maxCreditsPerRequest,
+    isDefault: m.isDefault,
+    proOnly: m.proOnly,
+    locked: m.proOnly && !proAccess,
+  }));
+
+  return (
+    <div className="flex h-dvh w-full overflow-hidden">
+      <Sidebar
+        pluginConnected={pluginConnected}
+        projects={projects}
+        activeProjectId={initialSessionId}
+        viewArchived={viewArchived}
+      />
+      <main className="relative flex min-w-0 flex-1 flex-col">
+        <BackdropCards />
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+          <Header
+            user={user}
+            balance={balance}
+            hasProPlan={hasProPlan}
+            recentProjects={projects.slice(0, 8)}
+          />
+          {authError && (
+            <p className="mx-auto mb-2 rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-2 text-sm text-red-300">
+              {authError}
+            </p>
+          )}
+          <ChatApp
+            key={initialSessionId ?? "new"}
+            signedIn={!!user}
+            greetName={
+              user
+                ? (user.nickname ?? user.displayName ?? user.username)
+                : null
+            }
+            tagline={BRAND.tagline}
+            models={models}
+            balance={balance}
+            initialSessionId={initialSessionId}
+            initialMessages={initialMessages}
+          />
         </div>
       </main>
     </div>

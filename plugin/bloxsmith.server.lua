@@ -1,0 +1,667 @@
+--!strict
+-- Bloxsmith Studio plugin — pairs with the Bloxsmith web app, polls the
+-- backend for tool calls, executes them in the open place (each call is one
+-- undo step), and posts structured results back.
+--
+-- Install: drop this file into your local plugins folder
+-- (Studio -> Plugins tab -> "Plugins Folder"), then restart Studio.
+--
+-- Contract: docs/tool-contract.md (v1). Local plugins have unrestricted
+-- HttpService access, so no game setting or permission prompt is needed.
+
+if not plugin then
+	return
+end
+
+local HttpService = game:GetService("HttpService")
+local ChangeHistoryService = game:GetService("ChangeHistoryService")
+local Selection = game:GetService("Selection")
+
+-- The Bloxsmith website URL the plugin talks to.
+--   • For the PUBLISHED plugin, set BASE_URL_DEFAULT to your live domain
+--     (e.g. "https://bloxsmith.app") before saving/publishing.
+--   • For local development, override it without editing this file by running
+--     this once in the Studio Command Bar:
+--       plugin:SetSetting("BloxsmithBaseUrl", "http://localhost:3000")
+--     (set it back with plugin:SetSetting("BloxsmithBaseUrl", nil))
+local BASE_URL_DEFAULT = "https://YOUR-BLOXSMITH-DOMAIN"
+local BASE_URL = plugin:GetSetting("BloxsmithBaseUrl") or BASE_URL_DEFAULT
+local POLL_INTERVAL = 1
+local RETRY_INTERVAL = 3
+local CONTRACT_VERSION = 1
+local TOKEN_SETTING = "BloxsmithToken"
+
+--------------------------------------------------------------------------
+-- Ref registry: opaque handles <-> Instances
+--------------------------------------------------------------------------
+
+-- Refs are persisted as an attribute ON the instance itself, so they survive
+-- Studio restarts, plugin reloads, undo/redo, and place saves. The in-memory
+-- maps are just a cache; on a miss we re-discover by attribute scan.
+local REF_ATTRIBUTE = "BSRef"
+
+local refToInstance: { [string]: Instance } = {}
+local instanceToRef: { [Instance]: string } = {}
+
+local WELL_KNOWN: { [string]: Instance } = {
+	["ref:workspace"] = workspace,
+	["ref:replicated_storage"] = game:GetService("ReplicatedStorage"),
+	["ref:server_script_service"] = game:GetService("ServerScriptService"),
+	["ref:server_storage"] = game:GetService("ServerStorage"),
+	["ref:starter_gui"] = game:GetService("StarterGui"),
+	["ref:starter_player"] = game:GetService("StarterPlayer"),
+	["ref:lighting"] = game:GetService("Lighting"),
+}
+
+local function mintRef(inst: Instance): string
+	local existing = instanceToRef[inst]
+	if existing then
+		return existing
+	end
+	-- Reuse the persisted id if this instance was tagged in an earlier
+	-- session; otherwise mint a globally unique one and tag it.
+	local id = inst:GetAttribute(REF_ATTRIBUTE)
+	if typeof(id) ~= "string" or #(id :: string) == 0 then
+		id = string.lower(
+			string.sub(string.gsub(HttpService:GenerateGUID(false), "-", ""), 1, 8)
+		)
+		pcall(function()
+			inst:SetAttribute(REF_ATTRIBUTE, id)
+		end)
+	end
+	local ref = "ref:i_" .. (id :: string)
+	refToInstance[ref] = inst
+	instanceToRef[inst] = ref
+	return ref
+end
+
+local function toolError(code: string, message: string)
+	error({ __toolError = true, code = code, message = message }, 0)
+end
+
+local function findByRefId(id: string): Instance?
+	for _, root in WELL_KNOWN do
+		for _, desc in root:GetDescendants() do
+			if desc:GetAttribute(REF_ATTRIBUTE) == id then
+				return desc
+			end
+		end
+	end
+	return nil
+end
+
+local function resolveRef(ref: unknown): Instance
+	if typeof(ref) ~= "string" then
+		toolError("invalid_args", "Expected an instance ref string")
+	end
+	local refStr = ref :: string
+	local inst: Instance? = WELL_KNOWN[refStr] or refToInstance[refStr]
+
+	-- Cache hit on a destroyed instance -> treat as a miss and rescan
+	-- (undo/redo can bring back an equivalent instance carrying the same
+	-- persisted attribute).
+	if inst and not WELL_KNOWN[refStr] and not inst:IsDescendantOf(game) then
+		refToInstance[refStr] = nil
+		inst = nil
+	end
+
+	if not inst then
+		local id = string.match(refStr, "^ref:i_(.+)$")
+		if id then
+			inst = findByRefId(id)
+			if inst then
+				refToInstance[refStr] = inst
+				instanceToRef[inst] = refStr
+			end
+		end
+	end
+
+	if not inst then
+		toolError(
+			"not_found",
+			refStr
+				.. " does not exist (deleted, undone, or from an older session) — re-discover it with list_children from a root like ref:workspace"
+		)
+	end
+	return inst :: Instance
+end
+
+--------------------------------------------------------------------------
+-- Property value encoding (contract <-> Roblox types)
+--------------------------------------------------------------------------
+
+local function decodeValue(v: unknown): unknown
+	if typeof(v) == "table" then
+		local t = v :: { [string]: any }
+		local kind = t["$type"]
+		local val = t.value
+		if kind == "Vector3" then
+			return Vector3.new(val[1], val[2], val[3])
+		elseif kind == "Vector2" then
+			return Vector2.new(val[1], val[2])
+		elseif kind == "Color3" then
+			return Color3.new(val[1], val[2], val[3])
+		elseif kind == "CFrame" then
+			return CFrame.new(table.unpack(val))
+		elseif kind == "UDim2" then
+			return UDim2.new(val[1], val[2], val[3], val[4])
+		elseif kind == "UDim" then
+			return UDim.new(val[1], val[2])
+		elseif kind == "Enum" then
+			local okEnum, enumItem = pcall(function()
+				return (Enum :: any)[t.enum][t.item]
+			end)
+			if not okEnum then
+				toolError("invalid_args", "Unknown enum " .. tostring(t.enum) .. "." .. tostring(t.item))
+			end
+			return enumItem
+		end
+		toolError("invalid_args", "Unsupported value wrapper: " .. tostring(kind))
+	elseif typeof(v) == "string" and string.sub(v :: string, 1, 4) == "ref:" then
+		return resolveRef(v)
+	end
+	return v
+end
+
+local function encodeValue(v: unknown): unknown
+	local t = typeof(v)
+	if t == "Vector3" then
+		local vec = v :: Vector3
+		return { ["$type"] = "Vector3", value = { vec.X, vec.Y, vec.Z } }
+	elseif t == "Vector2" then
+		local vec = v :: Vector2
+		return { ["$type"] = "Vector2", value = { vec.X, vec.Y } }
+	elseif t == "Color3" then
+		local c = v :: Color3
+		return { ["$type"] = "Color3", value = { c.R, c.G, c.B } }
+	elseif t == "CFrame" then
+		return { ["$type"] = "CFrame", value = { (v :: CFrame):GetComponents() } }
+	elseif t == "UDim2" then
+		local u = v :: UDim2
+		return { ["$type"] = "UDim2", value = { u.X.Scale, u.X.Offset, u.Y.Scale, u.Y.Offset } }
+	elseif t == "UDim" then
+		local u = v :: UDim
+		return { ["$type"] = "UDim", value = { u.Scale, u.Offset } }
+	elseif t == "EnumItem" then
+		local e = v :: EnumItem
+		return { ["$type"] = "Enum", enum = tostring(e.EnumType), item = e.Name }
+	elseif t == "Instance" then
+		return mintRef(v :: Instance)
+	elseif t == "number" or t == "string" or t == "boolean" or t == "nil" then
+		return v
+	end
+	return tostring(v)
+end
+
+--------------------------------------------------------------------------
+-- Tool executors
+--------------------------------------------------------------------------
+
+local DEFAULT_PROPS: { [string]: { string } } = {
+	BasePart = { "Position", "Size", "Color", "Material", "Anchored", "CanCollide", "Transparency" },
+	Model = { "PrimaryPart" },
+	Light = { "Color", "Brightness", "Range", "Enabled" },
+}
+
+local function readProperty(inst: Instance, name: string): (boolean, unknown)
+	return pcall(function()
+		return (inst :: any)[name]
+	end)
+end
+
+local function setProperty(inst: Instance, name: string, rawValue: unknown)
+	local value = decodeValue(rawValue)
+	local ok, err = pcall(function()
+		(inst :: any)[name] = value
+	end)
+	if not ok then
+		toolError("invalid_args", "Could not set " .. name .. ": " .. tostring(err))
+	end
+end
+
+local handlers: { [string]: (args: { [string]: any }) -> unknown } = {}
+
+handlers.get_selection = function(_args)
+	local items = {}
+	for _, inst in Selection:Get() do
+		table.insert(items, { ref = mintRef(inst), className = inst.ClassName, name = inst.Name })
+	end
+	return { items = items }
+end
+
+handlers.list_children = function(args)
+	local parent = resolveRef(args.parent)
+	local depth = tonumber(args.depth) or 1
+	local items = {}
+	local function walk(inst: Instance, level: number, parentRef: string?)
+		for _, child in inst:GetChildren() do
+			local entry: { [string]: any } = {
+				ref = mintRef(child),
+				className = child.ClassName,
+				name = child.Name,
+				childCount = #child:GetChildren(),
+			}
+			if parentRef then
+				entry.parent = parentRef
+			end
+			table.insert(items, entry)
+			if level < depth and #items < 200 then
+				walk(child, level + 1, entry.ref)
+			end
+		end
+	end
+	walk(parent, 1, nil)
+	return { items = items }
+end
+
+handlers.get_properties = function(args)
+	local inst = resolveRef(args.target)
+	local names: { string } = args.names
+	if not names then
+		names = {}
+		if inst:IsA("BasePart") then
+			for _, n in DEFAULT_PROPS.BasePart do
+				table.insert(names, n)
+			end
+		elseif inst:IsA("Light") then
+			for _, n in DEFAULT_PROPS.Light do
+				table.insert(names, n)
+			end
+		elseif inst:IsA("LuaSourceContainer") then
+			table.insert(names, "Source")
+		end
+	end
+	local properties: { [string]: unknown } = {
+		Name = inst.Name,
+		ClassName = inst.ClassName,
+	}
+	for _, name in names do
+		local ok, value = readProperty(inst, name)
+		if ok then
+			properties[name] = encodeValue(value)
+		end
+	end
+	return { properties = properties }
+end
+
+handlers.create_instance = function(args)
+	local okNew, inst = pcall(Instance.new, args.className)
+	if not okNew then
+		toolError("forbidden_class", "Cannot create instances of class " .. tostring(args.className))
+	end
+	local instance = inst :: Instance
+	if args.name then
+		instance.Name = args.name
+	end
+	if typeof(args.properties) == "table" then
+		for name, rawValue in args.properties :: { [string]: unknown } do
+			setProperty(instance, name, rawValue)
+		end
+	end
+	instance.Parent = resolveRef(args.parent)
+	return { ref = mintRef(instance) }
+end
+
+handlers.set_property = function(args)
+	local inst = resolveRef(args.target)
+	setProperty(inst, args.name, args.value)
+	return {}
+end
+
+handlers.write_script = function(args)
+	local source = args.source :: string
+	local lineCount = 1
+	for _ in string.gmatch(source, "\n") do
+		lineCount += 1
+	end
+
+	if args.target then
+		local inst = resolveRef(args.target)
+		if not inst:IsA("LuaSourceContainer") then
+			toolError("invalid_args", "Target is not a script")
+		end
+		(inst :: any).Source = source
+		return { ref = mintRef(inst), lineCount = lineCount }
+	end
+
+	local okNew, created = pcall(Instance.new, args.scriptType)
+	if not okNew then
+		toolError("invalid_args", "Unknown script type " .. tostring(args.scriptType))
+	end
+	local script = created :: Instance
+	script.Name = args.name;
+	(script :: any).Source = source
+	script.Parent = resolveRef(args.parent)
+	return { ref = mintRef(script), lineCount = lineCount }
+end
+
+handlers.delete_instance = function(args)
+	local inst = resolveRef(args.target)
+	if WELL_KNOWN[args.target] then
+		toolError("invalid_args", "Refusing to delete a service root")
+	end
+	inst:Destroy()
+	return {}
+end
+
+handlers.run_luau = function(args)
+	local fn, compileErr = loadstring(args.source)
+	if not fn then
+		toolError("script_error", "Compile error: " .. tostring(compileErr))
+	end
+	local results = { pcall(fn :: () -> ...unknown) }
+	local ok = table.remove(results, 1)
+	if not ok then
+		toolError("script_error", "Runtime error: " .. tostring(results[1]))
+	end
+	local output = {}
+	for _, value in results do
+		table.insert(output, tostring(value))
+	end
+	if #output == 0 then
+		table.insert(output, "(completed with no return value)")
+	end
+	return { output = output }
+end
+
+local MUTATING: { [string]: boolean } = {
+	create_instance = true,
+	set_property = true,
+	write_script = true,
+	delete_instance = true,
+	run_luau = true,
+}
+
+local function executeCall(call: { [string]: any }): { [string]: any }
+	local started = os.clock()
+	local handler = handlers[call.tool]
+
+	local function finish(ok: boolean, payload: any): { [string]: any }
+		local durationMs = math.floor((os.clock() - started) * 1000)
+		if ok then
+			return { v = CONTRACT_VERSION, id = call.id, ok = true, value = payload, durationMs = durationMs }
+		end
+		local code, message = "internal", tostring(payload)
+		if typeof(payload) == "table" and payload.__toolError then
+			code = payload.code
+			message = payload.message
+		end
+		return {
+			v = CONTRACT_VERSION,
+			id = call.id,
+			ok = false,
+			error = { code = code, message = message },
+			durationMs = durationMs,
+		}
+	end
+
+	if call.v ~= CONTRACT_VERSION then
+		return finish(false, { __toolError = true, code = "unsupported_version", message = "Plugin update required" })
+	end
+	if not handler then
+		return finish(false, { __toolError = true, code = "internal", message = "Unknown tool " .. tostring(call.tool) })
+	end
+
+	local recording: string? = nil
+	if MUTATING[call.tool] then
+		recording = ChangeHistoryService:TryBeginRecording("Bloxsmith: " .. call.tool)
+	end
+
+	local ok, payload = pcall(handler, call.args or {})
+
+	if recording then
+		ChangeHistoryService:FinishRecording(
+			recording,
+			ok and Enum.FinishRecordingOperation.Commit or Enum.FinishRecordingOperation.Cancel
+		)
+	end
+
+	return finish(ok, payload)
+end
+
+--------------------------------------------------------------------------
+-- HTTP
+--------------------------------------------------------------------------
+
+local function request(method: string, path: string, body: any, token: string?): (any, string?)
+	local headers: { [string]: string } = { ["Content-Type"] = "application/json" }
+	if token then
+		headers.Authorization = "Bearer " .. token
+	end
+	local ok, res = pcall(function()
+		return HttpService:RequestAsync({
+			Url = BASE_URL .. path,
+			Method = method,
+			Headers = headers,
+			Body = body and HttpService:JSONEncode(body) or nil,
+		})
+	end)
+	if not ok then
+		return nil, tostring(res)
+	end
+	local response = res :: { Success: boolean, StatusCode: number, Body: string }
+	local okDecode, decoded = pcall(function()
+		return HttpService:JSONDecode(response.Body)
+	end)
+	if not response.Success then
+		local detail = okDecode and typeof(decoded) == "table" and decoded.error or nil
+		return nil, "HTTP " .. response.StatusCode .. (detail and (": " .. tostring(detail)) or "")
+	end
+	return okDecode and decoded or {}, nil
+end
+
+--------------------------------------------------------------------------
+-- Dock UI
+--------------------------------------------------------------------------
+
+local COLOR_BG = Color3.fromRGB(12, 10, 9)
+local COLOR_SURFACE = Color3.fromRGB(28, 25, 23)
+local COLOR_TEXT = Color3.fromRGB(231, 229, 228)
+local COLOR_MUTED = Color3.fromRGB(168, 162, 158)
+local COLOR_EMBER = Color3.fromRGB(245, 158, 11)
+local COLOR_GREEN = Color3.fromRGB(52, 211, 153)
+local COLOR_RED = Color3.fromRGB(248, 113, 113)
+
+local toolbar = plugin:CreateToolbar("Bloxsmith")
+local toggleButton = toolbar:CreateButton("Bloxsmith", "Open the Bloxsmith panel", "rbxassetid://0")
+
+local widget = plugin:CreateDockWidgetPluginGui(
+	"BloxsmithDock",
+	DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 300, 240, 260, 200)
+)
+widget.Title = "Bloxsmith"
+
+local root = Instance.new("Frame")
+root.Size = UDim2.new(1, 0, 1, 0)
+root.BackgroundColor3 = COLOR_BG
+root.BorderSizePixel = 0
+root.Parent = widget
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 8)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = root
+
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 12)
+padding.PaddingBottom = UDim.new(0, 12)
+padding.PaddingLeft = UDim.new(0, 12)
+padding.PaddingRight = UDim.new(0, 12)
+padding.Parent = root
+
+local function makeLabel(text: string, order: number, color: Color3, size: number): TextLabel
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, size)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 13
+	label.TextColor3 = color
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextWrapped = true
+	label.Text = text
+	label.LayoutOrder = order
+	label.Parent = root
+	return label
+end
+
+local titleLabel = makeLabel("Bloxsmith", 1, COLOR_EMBER, 20)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 16
+
+local statusLabel = makeLabel("Not connected", 2, COLOR_MUTED, 18)
+
+local codeBox = Instance.new("TextBox")
+codeBox.Size = UDim2.new(1, 0, 0, 32)
+codeBox.BackgroundColor3 = COLOR_SURFACE
+codeBox.BorderSizePixel = 0
+codeBox.Font = Enum.Font.Code
+codeBox.TextSize = 14
+codeBox.TextColor3 = COLOR_TEXT
+codeBox.PlaceholderText = "Pairing code (e.g. 7KQ2-M9XF)"
+codeBox.PlaceholderColor3 = COLOR_MUTED
+codeBox.ClearTextOnFocus = false
+codeBox.Text = ""
+codeBox.LayoutOrder = 3
+codeBox.Parent = root
+
+local actionButton = Instance.new("TextButton")
+actionButton.Size = UDim2.new(1, 0, 0, 32)
+actionButton.BackgroundColor3 = COLOR_EMBER
+actionButton.BorderSizePixel = 0
+actionButton.Font = Enum.Font.GothamBold
+actionButton.TextSize = 14
+actionButton.TextColor3 = COLOR_BG
+actionButton.Text = "Connect"
+actionButton.LayoutOrder = 4
+actionButton.Parent = root
+
+local hintLabel = makeLabel(
+	"Get a pairing code at " .. BASE_URL .. "/pair",
+	5,
+	COLOR_MUTED,
+	30
+)
+hintLabel.TextSize = 12
+
+local lastActionLabel = makeLabel("", 6, COLOR_MUTED, 34)
+lastActionLabel.TextSize = 12
+
+toggleButton.Click:Connect(function()
+	widget.Enabled = not widget.Enabled
+end)
+
+--------------------------------------------------------------------------
+-- Connection state machine
+--------------------------------------------------------------------------
+
+local token: string? = nil
+local storedToken = plugin:GetSetting(TOKEN_SETTING)
+if typeof(storedToken) == "string" and #storedToken > 0 then
+	token = storedToken
+end
+
+local generation = 0
+
+local function setDisconnectedUi(message: string?)
+	statusLabel.Text = message or "Not connected"
+	statusLabel.TextColor3 = COLOR_MUTED
+	codeBox.Visible = true
+	hintLabel.Visible = true
+	actionButton.Text = "Connect"
+end
+
+local function setConnectedUi(username: string?)
+	statusLabel.Text = "● Connected" .. (username and (" as @" .. username) or "")
+	statusLabel.TextColor3 = COLOR_GREEN
+	codeBox.Visible = false
+	hintLabel.Visible = false
+	actionButton.Text = "Disconnect"
+end
+
+local function startPolling(username: string?)
+	generation += 1
+	local myGeneration = generation
+	setConnectedUi(username)
+
+	task.spawn(function()
+		while myGeneration == generation and token do
+			local data, err = request("GET", "/api/plugin/poll", nil, token)
+			if myGeneration ~= generation then
+				return
+			end
+
+			if err then
+				if string.find(err, "HTTP 401") then
+					token = nil
+					plugin:SetSetting(TOKEN_SETTING, "")
+					setDisconnectedUi("Pairing expired — reconnect")
+					return
+				end
+				statusLabel.Text = "● Reconnecting… (" .. err .. ")"
+				statusLabel.TextColor3 = COLOR_RED
+				task.wait(RETRY_INTERVAL)
+				continue
+			end
+
+			setConnectedUi(username)
+
+			local calls = data and data.calls
+			if typeof(calls) == "table" and #calls > 0 then
+				local results = {}
+				for _, call in calls :: { any } do
+					local envelope = executeCall(call)
+					table.insert(results, envelope)
+					local okText = envelope.ok and "✓" or "✕"
+					lastActionLabel.Text = "Last: " .. okText .. " " .. tostring(call.tool)
+				end
+				local _, postErr = request("POST", "/api/plugin/results", { results = results }, token)
+				if postErr then
+					lastActionLabel.Text = "Failed to post results: " .. postErr
+				end
+			end
+
+			task.wait(POLL_INTERVAL)
+		end
+	end)
+end
+
+local function pair(code: string)
+	actionButton.Text = "Connecting…"
+	local data, err = request("POST", "/api/plugin/pair", { code = code })
+	if err or not (data and data.token) then
+		setDisconnectedUi("Pairing failed: " .. (err or "invalid code"))
+		return
+	end
+	token = data.token
+	plugin:SetSetting(TOKEN_SETTING, token)
+	codeBox.Text = ""
+	startPolling(data.username)
+end
+
+actionButton.MouseButton1Click:Connect(function()
+	if token then
+		-- Disconnect
+		generation += 1
+		token = nil
+		plugin:SetSetting(TOKEN_SETTING, "")
+		lastActionLabel.Text = ""
+		setDisconnectedUi()
+	else
+		local code = string.gsub(codeBox.Text, "%s", "")
+		if #code < 8 then
+			setDisconnectedUi("Enter the full pairing code first")
+			return
+		end
+		pair(code)
+	end
+end)
+
+plugin.Unloading:Connect(function()
+	generation += 1
+end)
+
+if token then
+	startPolling(nil)
+else
+	setDisconnectedUi()
+end
