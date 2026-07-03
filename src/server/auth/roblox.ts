@@ -55,11 +55,19 @@ export async function exchangeCode(
       grant_type: "authorization_code",
       code,
       code_verifier: codeVerifier,
+      // Required by Roblox when more than one redirect URI is registered;
+      // must match the one used in the authorize request.
+      redirect_uri: getRedirectUri(),
     }),
   });
   if (!res.ok) {
-    // Never log the body verbatim in prod paths — it can echo request params.
-    throw new Error(`Roblox token exchange failed (${res.status})`);
+    // Roblox's OAuth error body (e.g. {"error":"invalid_grant",...}) contains
+    // no secrets — surface it in server logs to aid diagnosis. It is never
+    // returned to the browser.
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `Roblox token exchange failed (${res.status}): ${detail.slice(0, 400)}`,
+    );
   }
   const parsed = tokenResponseSchema.parse(await res.json());
   return { accessToken: parsed.access_token };
