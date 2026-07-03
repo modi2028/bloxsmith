@@ -243,6 +243,7 @@ export default async function Home({
   // Resume a project: load and map its full message history.
   let initialMessages: UiMessage[] | undefined;
   let initialSessionId: string | undefined;
+  let interrupted = false;
   if (user && params.project) {
     const project = await db.query.chatSessions.findFirst({
       where: and(
@@ -258,6 +259,25 @@ export default async function Home({
       });
       initialMessages = mapDbMessagesToUi(rows);
       initialSessionId = project.id;
+
+      // Did the last run finish cleanly? If it was stopped, failed, died with
+      // the tab (cancelled), or is a long-stale "running" row from a server
+      // restart, offer a Continue banner in the chat.
+      const [lastRun] = await db
+        .select({
+          status: schema.aiRequests.status,
+          stale: sql<boolean>`${schema.aiRequests.createdAt} < now() - interval '10 minutes'`,
+        })
+        .from(schema.aiRequests)
+        .where(eq(schema.aiRequests.sessionId, project.id))
+        .orderBy(desc(schema.aiRequests.createdAt))
+        .limit(1);
+      const staleRunning = lastRun?.status === "running" && !!lastRun.stale;
+      interrupted =
+        lastRun?.status === "cancelled" ||
+        lastRun?.status === "failed" ||
+        staleRunning ||
+        rows[rows.length - 1]?.role === "user";
     }
   }
 
@@ -314,6 +334,7 @@ export default async function Home({
             pluginConnected={pluginConnected}
             initialSessionId={initialSessionId}
             initialMessages={initialMessages}
+            interrupted={interrupted}
           />
         </div>
       </main>

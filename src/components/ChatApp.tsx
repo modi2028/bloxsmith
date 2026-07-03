@@ -20,6 +20,10 @@ const SUGGESTIONS = [
 
 const MODEL_STORAGE_KEY = "bloxsmith-model";
 
+/** Sent when the user presses "Continue building" after an interrupted run. */
+const CONTINUE_PROMPT =
+  "Continue from where you left off and finish the remaining work.";
+
 function toolLabel(part: UiToolPart): string {
   const a = part.args as Record<string, string | undefined>;
   switch (part.tool) {
@@ -76,6 +80,7 @@ export function ChatApp({
   pluginConnected = null,
   initialSessionId,
   initialMessages,
+  interrupted = false,
 }: {
   signedIn: boolean;
   greetName: string | null;
@@ -86,9 +91,12 @@ export function ChatApp({
   pluginConnected?: boolean | null;
   initialSessionId?: string;
   initialMessages?: UiMessage[];
+  /** True when this project's last run didn't finish — offers Continue. */
+  interrupted?: boolean;
 }) {
   const [messages, setMessages] = useState<UiMessage[]>(initialMessages ?? []);
   const [busy, setBusy] = useState(false);
+  const [canContinue, setCanContinue] = useState(interrupted);
   const [chatSessionId, setChatSessionId] = useState(initialSessionId);
   const [seedText, setSeedText] = useState<string>();
   const [island, setIsland] = useState<{
@@ -158,6 +166,10 @@ export function ChatApp({
       }
       if (event.type === "stopped") {
         showIsland(event.creditsCharged);
+      }
+      // An interrupted or failed run can be resumed with one click.
+      if (event.type === "stopped" || event.type === "error") {
+        setCanContinue(true);
       }
       if (event.type === "needs_plugin") {
         // Nothing ran and nothing was charged — drop the optimistic user +
@@ -253,6 +265,7 @@ export function ChatApp({
         { kind: "assistant", parts: [] },
       ]);
       setBusy(true);
+      setCanContinue(false);
       // Apply the chosen project name only when creating a new project.
       const titleForNew = chatSessionId ? undefined : (pendingTitle ?? undefined);
       if (pendingTitle) setPendingTitle(null);
@@ -523,6 +536,41 @@ export function ChatApp({
 
       <div className="border-t border-line bg-background/80 px-4 py-3 backdrop-blur">
         <div className="mx-auto max-w-3xl">
+          {canContinue && !busy && (
+            <div className="fade-up mb-2.5 flex items-center gap-3 rounded-xl border border-ember/40 bg-ember-soft/50 px-4 py-2.5">
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                className="size-4 shrink-0 text-ember"
+              >
+                <path
+                  d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v2.6h-2.6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="min-w-0 flex-1 text-sm text-muted">
+                This build stopped before it finished.
+              </span>
+              <button
+                type="button"
+                onClick={() => send(CONTINUE_PROMPT)}
+                className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1.5 text-xs font-semibold text-stone-950 transition hover:brightness-110"
+              >
+                Continue building
+              </button>
+              <button
+                type="button"
+                onClick={() => setCanContinue(false)}
+                aria-label="Dismiss"
+                className="shrink-0 px-1 text-sm text-faint transition hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           <ChatComposer
             onSend={send}
             onStop={stop}

@@ -178,6 +178,7 @@ export async function runAgentTurn(params: {
       textContent: params.message,
     });
     messages.push({ role: "user", content: userContent });
+    repairDanglingToolCalls(messages);
 
     // --- The tool loop ------------------------------------------------------
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
@@ -406,6 +407,52 @@ function computeCost(
     (inputTokens / 1000) * inRate +
     (outputTokens / 1000) * outRate;
   return Math.round(raw * 10000) / 10000;
+}
+
+/**
+ * A turn that was stopped or disconnected between an assistant message's
+ * tool_use blocks and the user row carrying their results leaves unanswered
+ * tool calls in history — every provider rejects that outright, which would
+ * brick the whole conversation. Patch synthetic "cancelled" tool_results into
+ * the following user message (in memory only; the stored history stays raw)
+ * so the conversation stays valid and can be continued.
+ */
+function repairDanglingToolCalls(messages: ProviderMessage[]): void {
+  type Block = {
+    type?: string;
+    id?: string;
+    tool_use_id?: string;
+    [k: string]: unknown;
+  };
+  for (let i = 0; i < messages.length - 1; i++) {
+    const msg = messages[i];
+    if (msg.role !== "assistant" || !Array.isArray(msg.content)) continue;
+    const toolUseIds = (msg.content as Block[])
+      .filter((b) => b?.type === "tool_use" && typeof b.id === "string")
+      .map((b) => b.id as string);
+    if (toolUseIds.length === 0) continue;
+
+    const next = messages[i + 1];
+    if (next.role !== "user" || !Array.isArray(next.content)) continue;
+    const answered = new Set(
+      (next.content as Block[])
+        .filter((b) => b?.type === "tool_result")
+        .map((b) => String(b.tool_use_id)),
+    );
+    const missing = toolUseIds.filter((id) => !answered.has(id));
+    if (missing.length === 0) continue;
+
+    next.content = [
+      ...missing.map((id) => ({
+        type: "tool_result",
+        tool_use_id: id,
+        content:
+          "cancelled: the run was interrupted before this action executed",
+        is_error: true,
+      })),
+      ...(next.content as Block[]),
+    ];
+  }
 }
 
 async function failRequest(aiRequestId: string, error: string): Promise<void> {
