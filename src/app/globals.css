@@ -181,3 +181,108 @@ body {
   /* Sweep, then a long pause before repeating. */
   animation: shine-sweep 1.1s ease-in-out 3s infinite;
 }
+
+/* ---- Landing page motion ------------------------------------------------ */
+
+/* Scroll-reveal: hidden until the Reveal component marks it in-view. */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.3, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.3, 1);
+  will-change: opacity, transform;
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Animated gradient sweep across headline accent text. */
+@keyframes gradient-pan {
+  to {
+    background-position: 200% center;
+  }
+}
+.gradient-pan {
+  background-image: linear-gradient(
+    100deg,
+    var(--ember-strong),
+    #fbbf24,
+    var(--ember),
+    #fbbf24,
+    var(--ember-strong)
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: gradient-pan 6s linear infinite;
+}
+
+/* Slow-breathing ember glow behind the hero. */
+@keyframes glow-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.08);
+  }
+}
+.glow-breathe {
+  animation: glow-breathe 7s ease-in-out infinite;
+}
+
+/* Rotating conic light that traces the hero card's border. */
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.conic-border {
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 62%,
+    rgba(245, 158, 11, 0.7) 78%,
+    rgba(251, 191, 36, 0.9) 84%,
+    transparent 92% 100%
+  );
+  animation: spin-slow 7s linear infinite;
+}
+
+/* Drifting decorative orb. */
+@keyframes drift {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(18px, -22px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+.drift {
+  animation: drift 12s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .gradient-pan,
+  .glow-breathe,
+  .conic-border,
+  .drift,
+  .animate-marquee,
+  .float-card {
+    animation: none;
+  }
+}
