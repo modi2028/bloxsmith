@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { AgentEvent } from "@/lib/agent-events";
 import type { UiMessage, UiPart, UiToolPart } from "@/lib/chat-ui";
 import { formatCredits } from "@/lib/credits-format";
-import { PoweredByBanner } from "./BrandMarks";
+import { CoinStack, PoweredByBanner } from "./BrandMarks";
 import { ChatComposer } from "./ChatComposer";
 import { Markdown } from "./Markdown";
 import { Modal } from "./Modal";
@@ -59,12 +59,7 @@ function CreditIsland({
       }`}
       role="status"
     >
-      <svg viewBox="0 0 20 20" fill="none" className="size-4 text-ember">
-        <path
-          d="M11 2 4 11.5h4.5L9 18l7-9.5h-4.5L11 2Z"
-          fill="currentColor"
-        />
-      </svg>
+      <CoinStack className="size-4 text-ember" />
       <span className="text-sm font-medium text-foreground">
         {formatCredits(amount)} credits used
       </span>

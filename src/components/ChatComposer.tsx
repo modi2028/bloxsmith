@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { formatCredits } from "@/lib/credits-format";
+import { CoinStack } from "./BrandMarks";
 import { ModelPicker, type ChatModel } from "./ModelPicker";
 
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -210,9 +211,7 @@ export function ChatComposer({
                 className="flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs text-muted"
                 title="Your credit balance"
               >
-                <svg viewBox="0 0 20 20" fill="none" className="size-3 text-ember">
-                  <path d="M11 2 4 11.5h4.5L9 18l7-9.5h-4.5L11 2Z" fill="currentColor" />
-                </svg>
+                <CoinStack className="size-3.5 text-ember" />
                 <span className="font-semibold text-ember">
                   {formatCredits(balance)}
                 </span>

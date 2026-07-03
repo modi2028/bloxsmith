@@ -4,6 +4,20 @@
  * if pixel-perfect logos are wanted later.
  */
 
+/** Stack-of-coins icon used for credits (inherits currentColor). */
+export function CoinStack({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <g stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
+        <ellipse cx="12" cy="6.2" rx="7" ry="2.5" />
+        <path d="M5 6.2v3.4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5V6.2" />
+        <path d="M5 9.6v3.4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5V9.6" />
+        <path d="M5 13v3.4c0 1.38 3.13 2.5 7 2.5s7-1.12 7-2.5V13" />
+      </g>
+    </svg>
+  );
+}
+
 /** Claude's terracotta starburst mark (brand-colored). */
 export function ClaudeMark({ className = "size-4" }: { className?: string }) {
   const rays = [
