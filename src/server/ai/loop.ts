@@ -150,8 +150,7 @@ export async function runAgentTurn(params: {
   try {
     // --- Assemble context ---------------------------------------------------
     const apiKey = await getProviderApiKey(pricing.provider as ProviderId);
-    const runLuau = await isRunLuauEnabled(user);
-    const tools = getStudioTools({ runLuau });
+    const tools = getStudioTools();
     const system = buildSystemPrompt({
       projectMemory: chatSession.projectMemory,
       userNickname: user.nickname ?? user.displayName ?? user.username,
@@ -419,12 +418,4 @@ async function getDefaultModelId(): Promise<string> {
     where: eq(schema.appSettings.key, "default_model_id"),
   });
   return typeof row?.value === "string" ? row.value : "claude-sonnet-5";
-}
-
-async function isRunLuauEnabled(user: SessionUser): Promise<boolean> {
-  if (user.allowRunLuau != null) return user.allowRunLuau;
-  const row = await db.query.appSettings.findFirst({
-    where: eq(schema.appSettings.key, "run_luau_enabled"),
-  });
-  return row?.value === true;
 }

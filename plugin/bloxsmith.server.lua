@@ -365,32 +365,16 @@ handlers.delete_instance = function(args)
 	return {}
 end
 
-handlers.run_luau = function(args)
-	local fn, compileErr = loadstring(args.source)
-	if not fn then
-		toolError("script_error", "Compile error: " .. tostring(compileErr))
-	end
-	local results = { pcall(fn :: () -> ...unknown) }
-	local ok = table.remove(results, 1)
-	if not ok then
-		toolError("script_error", "Runtime error: " .. tostring(results[1]))
-	end
-	local output = {}
-	for _, value in results do
-		table.insert(output, tostring(value))
-	end
-	if #output == 0 then
-		table.insert(output, "(completed with no return value)")
-	end
-	return { output = output }
-end
+-- NOTE: an arbitrary-Luau execution tool (loadstring) was intentionally
+-- removed. Executing remotely-fetched code is a plugin-policy violation
+-- ("Misusing Roblox Systems") and indistinguishable from a backdoor. All
+-- building is done through the structured tools above.
 
 local MUTATING: { [string]: boolean } = {
 	create_instance = true,
 	set_property = true,
 	write_script = true,
 	delete_instance = true,
-	run_luau = true,
 }
 
 local function executeCall(call: { [string]: any }): { [string]: any }

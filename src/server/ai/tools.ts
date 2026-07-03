@@ -27,7 +27,7 @@ const propertyValue = {
     '{"$type":"Enum","enum":"Material","item":"Neon"}. Instance references are ref strings.',
 };
 
-export function getStudioTools(opts: { runLuau: boolean }): ModelToolDef[] {
+export function getStudioTools(): ModelToolDef[] {
   const tools: ModelToolDef[] = [
     {
       name: "get_selection",
@@ -144,22 +144,7 @@ export function getStudioTools(opts: { runLuau: boolean }): ModelToolDef[] {
     },
   ];
 
-  if (opts.runLuau) {
-    tools.push({
-      name: "run_luau",
-      description:
-        "Execute arbitrary Luau in Studio and return its print output. Last resort for things the other tools cannot express (bulk edits, queries across many instances). Keep snippets short and side-effect-aware.",
-      input_schema: {
-        type: "object",
-        properties: {
-          source: { type: "string" },
-          timeoutMs: { type: "integer", minimum: 100, maximum: 10000 },
-        },
-        required: ["source"],
-        additionalProperties: false,
-      },
-    });
-  }
-
+  // NOTE: a run_luau (arbitrary code execution) tool was intentionally removed
+  // — see the plugin. All building goes through the structured tools above.
   return tools;
 }
