@@ -33,13 +33,43 @@ export const propertyValueSchema: z.ZodType<unknown> = z.union([
   z.boolean(),
   z.null(),
   z.object({
-    $type: z.enum(["Vector3", "Vector2", "Color3", "CFrame", "UDim2", "UDim"]),
+    $type: z.enum([
+      "Vector3",
+      "Vector2",
+      "Color3",
+      "CFrame",
+      "UDim2",
+      "UDim",
+      "Rect",
+    ]),
     value: z.array(z.number()),
   }),
   z.object({
     $type: z.literal("Enum"),
     enum: z.string(),
     item: z.string(),
+  }),
+  z.object({
+    $type: z.literal("BrickColor"),
+    value: z.string(),
+  }),
+  z.object({
+    // Constant `n`, or [min, max].
+    $type: z.literal("NumberRange"),
+    value: z.union([z.number(), z.array(z.number())]),
+  }),
+  z.object({
+    // Constant `n`, or keypoints [[time, value, envelope?], ...] (0..1).
+    $type: z.literal("NumberSequence"),
+    value: z.union([z.number(), z.array(z.array(z.number()))]),
+  }),
+  z.object({
+    // Constant [r,g,b], or keypoints [[time, [r,g,b]], ...] (0..1).
+    $type: z.literal("ColorSequence"),
+    value: z.union([
+      z.array(z.number()),
+      z.array(z.tuple([z.number(), z.array(z.number())])),
+    ]),
   }),
 ]);
 

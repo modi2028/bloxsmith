@@ -158,6 +158,48 @@ local function decodeValue(v: unknown): unknown
 				toolError("invalid_args", "Unknown enum " .. tostring(t.enum) .. "." .. tostring(t.item))
 			end
 			return enumItem
+		elseif kind == "NumberRange" then
+			-- {value: n} constant, or {value: [min, max]}
+			if typeof(val) == "number" then
+				return NumberRange.new(val)
+			elseif typeof(val) == "table" and (val :: any)[2] ~= nil then
+				return NumberRange.new(val[1], val[2])
+			end
+			return NumberRange.new(val[1])
+		elseif kind == "NumberSequence" then
+			-- {value: n} constant, or {value: [[time, value, envelope?], ...]}
+			-- (particle Transparency/Size etc.). Times run 0 -> 1.
+			if typeof(val) == "number" then
+				return NumberSequence.new(val)
+			end
+			local keypoints = {}
+			for _, kp in ipairs(val :: { any }) do
+				if (kp :: any)[3] ~= nil then
+					table.insert(keypoints, NumberSequenceKeypoint.new(kp[1], kp[2], kp[3]))
+				else
+					table.insert(keypoints, NumberSequenceKeypoint.new(kp[1], kp[2]))
+				end
+			end
+			return NumberSequence.new(keypoints)
+		elseif kind == "ColorSequence" then
+			-- {value: [r,g,b]} constant, or {value: [[time, [r,g,b]], ...]}
+			-- (particle Color etc.). Times run 0 -> 1, rgb are 0-1 floats.
+			if typeof((val :: any)[1]) == "number" then
+				return ColorSequence.new(Color3.new(val[1], val[2], val[3]))
+			end
+			local keypoints = {}
+			for _, kp in ipairs(val :: { any }) do
+				local c = kp[2]
+				table.insert(
+					keypoints,
+					ColorSequenceKeypoint.new(kp[1], Color3.new(c[1], c[2], c[3]))
+				)
+			end
+			return ColorSequence.new(keypoints)
+		elseif kind == "Rect" then
+			return Rect.new(val[1], val[2], val[3], val[4])
+		elseif kind == "BrickColor" then
+			return BrickColor.new(tostring(val))
 		end
 		toolError("invalid_args", "Unsupported value wrapper: " .. tostring(kind))
 	elseif typeof(v) == "string" and string.sub(v :: string, 1, 4) == "ref:" then
@@ -188,6 +230,27 @@ local function encodeValue(v: unknown): unknown
 	elseif t == "EnumItem" then
 		local e = v :: EnumItem
 		return { ["$type"] = "Enum", enum = tostring(e.EnumType), item = e.Name }
+	elseif t == "NumberRange" then
+		local r = v :: NumberRange
+		return { ["$type"] = "NumberRange", value = { r.Min, r.Max } }
+	elseif t == "NumberSequence" then
+		local kps = {}
+		for _, kp in ipairs((v :: NumberSequence).Keypoints) do
+			table.insert(kps, { kp.Time, kp.Value, kp.Envelope })
+		end
+		return { ["$type"] = "NumberSequence", value = kps }
+	elseif t == "ColorSequence" then
+		local kps = {}
+		for _, kp in ipairs((v :: ColorSequence).Keypoints) do
+			local c = kp.Value
+			table.insert(kps, { kp.Time, { c.R, c.G, c.B } })
+		end
+		return { ["$type"] = "ColorSequence", value = kps }
+	elseif t == "Rect" then
+		local r = v :: Rect
+		return { ["$type"] = "Rect", value = { r.Min.X, r.Min.Y, r.Max.X, r.Max.Y } }
+	elseif t == "BrickColor" then
+		return { ["$type"] = "BrickColor", value = (v :: BrickColor).Name }
 	elseif t == "Instance" then
 		return mintRef(v :: Instance)
 	elseif t == "number" or t == "string" or t == "boolean" or t == "nil" then

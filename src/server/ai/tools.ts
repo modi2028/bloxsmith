@@ -21,10 +21,19 @@ const ref = {
 
 const propertyValue = {
   description:
-    "Property value. Primitives pass through. Rich types use a wrapper: " +
-    '{"$type":"Vector3","value":[x,y,z]}, {"$type":"Color3","value":[r,g,b]} (0-1 floats), ' +
-    '{"$type":"CFrame","value":[12 numbers]}, {"$type":"UDim2","value":[xScale,xOffset,yScale,yOffset]}, ' +
-    '{"$type":"Enum","enum":"Material","item":"Neon"}. Instance references are ref strings.',
+    "Property value. Primitives (number/string/boolean) pass through. Rich types use a wrapper: " +
+    '{"$type":"Vector3","value":[x,y,z]}, {"$type":"Vector2","value":[x,y]}, ' +
+    '{"$type":"Color3","value":[r,g,b]} (0-1 floats), {"$type":"CFrame","value":[12 numbers]}, ' +
+    '{"$type":"UDim2","value":[xScale,xOffset,yScale,yOffset]}, {"$type":"UDim","value":[scale,offset]}, ' +
+    '{"$type":"Enum","enum":"Material","item":"Neon"}, {"$type":"NumberRange","value":[min,max]}, ' +
+    '{"$type":"BrickColor","value":"Bright red"}, {"$type":"Rect","value":[minX,minY,maxX,maxY]}. ' +
+    "IMPORTANT for ParticleEmitter/Beam/Trail properties: Size, Transparency, Lifetime, etc. are " +
+    "NOT plain numbers. Use NumberSequence for Size/Transparency, ColorSequence for Color, and " +
+    "NumberRange for Lifetime/Speed/Rotation. Sequences take keypoints from time 0 to time 1: " +
+    '{"$type":"NumberSequence","value":[[0,1],[1,0]]} (each keypoint [time,value], optional 3rd envelope) ' +
+    'or {"$type":"NumberSequence","value":0.5} for a constant; ' +
+    '{"$type":"ColorSequence","value":[[0,[1,0,0]],[1,[0,0,1]]]} (each [time,[r,g,b]]) or ' +
+    '{"$type":"ColorSequence","value":[1,0,0]} for a constant. Instance references are ref strings.',
 };
 
 export function getStudioTools(): ModelToolDef[] {
