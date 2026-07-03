@@ -11,4 +11,8 @@ export const BRAND = {
   websiteUrl: "https://bloxsmith.online",
   // Roblox Creator Store page for the published Studio plugin.
   pluginUrl: "https://create.roblox.com/store/asset/83532318504563/Bloxsmith",
+  // Direct download of the plugin as a local plugin file (served from public/).
+  // This is the takedown-proof install path — local plugins aren't moderated.
+  pluginFileUrl: "/Bloxsmith.lua",
+  pluginFileName: "Bloxsmith.lua",
 } as const;

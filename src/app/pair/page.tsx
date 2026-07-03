@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PairCode } from "@/components/PairCode";
+import { PluginInstall } from "@/components/PluginInstall";
 import { BRAND } from "@/lib/brand";
 import { getSessionUser } from "@/server/auth/session";
 
@@ -34,28 +35,25 @@ export default async function PairPage() {
           <h2 className="text-sm font-semibold">Install the plugin</h2>
         </div>
         <p className="mb-4 pl-9 text-sm text-muted">
-          Get the {BRAND.name} plugin from the Roblox Creator Store — it installs
-          straight into your Studio Plugins tab. You only do this once.
+          Download the {BRAND.name} plugin file and drop it into your Roblox
+          plugins folder. You only do this once, and it takes about a minute.
         </p>
-        <div className="pl-9">
+
+        <PluginInstall />
+
+        <p className="mt-5 pl-9 text-xs text-faint">
+          The Roblox Creator Store version is under review.{" "}
           <a
             href={BRAND.pluginUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+            className="underline underline-offset-2 hover:text-muted"
           >
-            Install on Roblox
-            <svg viewBox="0 0 20 20" fill="none" className="size-4">
-              <path
-                d="M7 5h8v8M15 5 5 15"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </a>
-        </div>
+            Check the Store listing
+          </a>{" "}
+          — if it&apos;s available, installing from there works too and
+          auto-updates.
+        </p>
       </div>
 
       {/* Step 2 — open the dock */}
