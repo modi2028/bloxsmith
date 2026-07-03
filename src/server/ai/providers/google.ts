@@ -43,5 +43,9 @@ function sanitizeTool(tool: ModelToolDef): ModelToolDef {
 export const streamGoogleResponse: ProviderAdapter = (params) =>
   streamOpenAICompatibleResponse(
     { ...params, tools: params.tools.map(sanitizeTool) },
-    { baseURL: GEMINI_OPENAI_BASE_URL, maxTokensParam: "max_tokens" },
+    {
+      baseURL: GEMINI_OPENAI_BASE_URL,
+      maxTokensParam: "max_tokens",
+      forceShortToolIds: true,
+    },
   );
