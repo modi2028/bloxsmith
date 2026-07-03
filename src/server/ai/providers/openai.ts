@@ -87,8 +87,32 @@ function toOpenAIMessages(
   return out;
 }
 
-export const streamOpenAIResponse: ProviderAdapter = async (params) => {
-  const client = new OpenAI({ apiKey: params.apiKey });
+export type OpenAICompatOptions = {
+  /** Override the API base URL (e.g. Gemini's OpenAI-compatible endpoint). */
+  baseURL?: string;
+  /**
+   * Which output-cap parameter to send. Newer OpenAI models require
+   * `max_completion_tokens`; Gemini's OpenAI-compat endpoint expects the
+   * classic `max_tokens`.
+   */
+  maxTokensParam?: "max_tokens" | "max_completion_tokens";
+};
+
+/**
+ * Core streamer for any OpenAI-Chat-Completions-compatible endpoint. Both the
+ * real OpenAI adapter and the Gemini adapter go through here so there is a
+ * single code path for message translation, tool-call accumulation, and usage.
+ */
+export async function streamOpenAICompatibleResponse(
+  params: Parameters<ProviderAdapter>[0],
+  opts: OpenAICompatOptions = {},
+): Promise<ModelResponse> {
+  const client = new OpenAI({ apiKey: params.apiKey, baseURL: opts.baseURL });
+
+  const maxTokensParam = opts.maxTokensParam ?? "max_completion_tokens";
+  const tokenLimit = { [maxTokensParam]: 16000 } as
+    | { max_tokens: number }
+    | { max_completion_tokens: number };
 
   const stream = await client.chat.completions.create(
     {
@@ -102,7 +126,7 @@ export const streamOpenAIResponse: ProviderAdapter = async (params) => {
           parameters: t.input_schema,
         },
       })),
-      max_completion_tokens: 16000,
+      ...tokenLimit,
       stream: true,
       stream_options: { include_usage: true },
     },
@@ -164,4 +188,10 @@ export const streamOpenAIResponse: ProviderAdapter = async (params) => {
     usage,
   };
   return response;
-};
+}
+
+/** Real OpenAI (ChatGPT) — uses `max_completion_tokens` and the default host. */
+export const streamOpenAIResponse: ProviderAdapter = (params) =>
+  streamOpenAICompatibleResponse(params, {
+    maxTokensParam: "max_completion_tokens",
+  });
