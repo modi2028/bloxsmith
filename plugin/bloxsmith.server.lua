@@ -24,7 +24,7 @@ local Selection = game:GetService("Selection")
 --     this once in the Studio Command Bar:
 --       plugin:SetSetting("BloxsmithBaseUrl", "http://localhost:3000")
 --     (set it back with plugin:SetSetting("BloxsmithBaseUrl", nil))
-local BASE_URL_DEFAULT = "https://YOUR-BLOXSMITH-DOMAIN"
+local BASE_URL_DEFAULT = "https://bloxsmith.online"
 local BASE_URL = plugin:GetSetting("BloxsmithBaseUrl") or BASE_URL_DEFAULT
 local POLL_INTERVAL = 1
 local RETRY_INTERVAL = 3
