@@ -285,7 +285,9 @@ export function ChatApp({
           const detail =
             res.status === 401
               ? "You were signed out — sign in again."
-              : "The request failed to start. Try again.";
+              : res.status === 503
+                ? "Bloxsmith is under maintenance — try again soon."
+                : "The request failed to start. Try again.";
           applyEvent({ type: "error", message: detail });
           return;
         }

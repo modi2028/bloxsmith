@@ -15,6 +15,8 @@ import { mapDbMessagesToUi, type UiMessage } from "@/lib/chat-ui";
 import { getSessionUser, type SessionUser } from "@/server/auth/session";
 import { getBalance } from "@/server/credits/ledger";
 import { db, schema } from "@/server/db";
+import { getSiteSettings } from "@/server/site-settings";
+import { LogoMark } from "@/components/Logo";
 
 /**
  * Decorative floating cards behind the composer — two brand cards plus a
@@ -116,7 +118,7 @@ function Header({
           ) : null}
           <Link
             href="/store"
-            title="Store — buy credits or Pro"
+            title="Your credit balance"
             className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-foreground"
           >
             <CoinStack className="size-3.5 text-ember" />
@@ -124,6 +126,13 @@ function Header({
               {formatCredits(balance)}
             </span>{" "}
             credits
+          </Link>
+          <Link
+            href="/store"
+            title="Buy credits or upgrade to Pro"
+            className="rounded-full bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1 text-xs font-semibold text-stone-950 transition hover:brightness-110"
+          >
+            Store
           </Link>
           <HistoryMenu items={recentProjects} />
           <Link
@@ -162,6 +171,9 @@ const AUTH_ERRORS: Record<string, string> = {
   invalid_response: "Roblox returned an unexpected response — try again.",
   expired: "That sign-in attempt expired — try again.",
   exchange_failed: "Sign-in failed on our side — try again in a moment.",
+  proxy:
+    "VPNs and proxies aren't allowed on Bloxsmith. Turn yours off and sign in again.",
+  rate_limited: "Too many sign-in attempts — wait a minute and try again.",
 };
 
 export default async function Home({
@@ -182,6 +194,24 @@ export default async function Home({
   // Signed-out visitors get the marketing landing page.
   if (!user) {
     return <Landing />;
+  }
+
+  // Admin site switches: maintenance takes the app down for non-admins; an
+  // announcement renders as a banner for everyone.
+  const site = await getSiteSettings();
+  if (site.maintenance && user.role !== "admin") {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+        <LogoMark size={44} />
+        <h1 className="mt-5 text-2xl font-semibold tracking-tight">
+          We&apos;ll be right back
+        </h1>
+        <p className="mt-2 max-w-sm text-sm text-muted">
+          {site.announcement ||
+            `${BRAND.name} is down for maintenance. Check back in a little while.`}
+        </p>
+      </div>
+    );
   }
 
   // Two distinct notions of "Pro":
@@ -315,6 +345,29 @@ export default async function Home({
             hasProPlan={hasProPlan}
             recentProjects={projects.slice(0, 8)}
           />
+          {site.maintenance && (
+            <p className="mx-6 mb-2 rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-2 text-sm text-red-300">
+              Maintenance mode is ON — only admins can use the site right now.
+            </p>
+          )}
+          {site.announcement && (
+            <div className="mx-6 mb-2 flex items-center gap-2.5 rounded-lg border border-ember/40 bg-ember-soft/50 px-4 py-2 text-sm">
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                className="size-4 shrink-0 text-ember"
+              >
+                <path
+                  d="M2.5 6.5v3h2l4 3v-9l-4 3h-2Zm9-1.5a3.5 3.5 0 0 1 0 6M13 3a6 6 0 0 1 0 10"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="min-w-0">{site.announcement}</span>
+            </div>
+          )}
           {authError && (
             <p className="mx-auto mb-2 rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-2 text-sm text-red-300">
               {authError}

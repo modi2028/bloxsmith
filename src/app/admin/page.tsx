@@ -1,9 +1,11 @@
 import { asc, eq } from "drizzle-orm";
 import Link from "next/link";
+import { AdminSiteControls } from "@/components/AdminSiteControls";
 import { AdminUsers } from "@/components/AdminUsers";
 import { BRAND } from "@/lib/brand";
 import { requireAdmin } from "@/server/auth/admin";
 import { db, schema } from "@/server/db";
+import { getSiteSettings } from "@/server/site-settings";
 import { isStripeConfigured } from "@/server/stripe/client";
 
 export const metadata = { title: "Admin" };
@@ -19,6 +21,7 @@ export default async function AdminPage() {
   const proPrice = await db.query.appSettings.findFirst({
     where: eq(schema.appSettings.key, "stripe_pro_price_id"),
   });
+  const site = await getSiteSettings();
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col px-6 py-10">
@@ -38,6 +41,14 @@ export default async function AdminPage() {
         Manage users, credits, and Pro. Every action is written to the audit
         log in Supabase.
       </p>
+
+      <section className="mb-10">
+        <h2 className="mb-3 text-sm font-medium text-muted">Site controls</h2>
+        <AdminSiteControls
+          initialAnnouncement={site.announcement}
+          initialMaintenance={site.maintenance}
+        />
+      </section>
 
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-medium text-muted">Users</h2>

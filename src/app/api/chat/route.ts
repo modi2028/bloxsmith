@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSessionUser } from "@/server/auth/session";
 import { runAgentTurn, type AgentEvent } from "@/server/ai/loop";
 import { acquireSlot, rateLimit, releaseSlot } from "@/server/security/ratelimit";
+import { getSiteSettings } from "@/server/site-settings";
 
 // AI cost controls: at most 1 concurrent run and 20 turns / 5 min per user.
 const MAX_CONCURRENT = 1;
@@ -26,6 +27,15 @@ export async function POST(request: NextRequest) {
   const user = await getSessionUser();
   if (!user) {
     return Response.json({ error: "Not signed in" }, { status: 401 });
+  }
+
+  // Maintenance mode blocks new AI runs for everyone except admins.
+  const site = await getSiteSettings();
+  if (site.maintenance && user.role !== "admin") {
+    return Response.json(
+      { error: "Bloxsmith is under maintenance — try again soon." },
+      { status: 503 },
+    );
   }
 
   let body: z.infer<typeof bodySchema>;
