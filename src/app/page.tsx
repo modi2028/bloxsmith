@@ -166,6 +166,39 @@ function Header({
   );
 }
 
+/**
+ * Full-page takeover while maintenance mode is on. `showSignIn` adds a quiet
+ * sign-in link for signed-out visitors so admins can get in and turn it off.
+ */
+function MaintenanceScreen({
+  announcement,
+  showSignIn = false,
+}: {
+  announcement: string;
+  showSignIn?: boolean;
+}) {
+  return (
+    <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+      <LogoMark size={44} />
+      <h1 className="mt-5 text-2xl font-semibold tracking-tight">
+        We&apos;ll be right back
+      </h1>
+      <p className="mt-2 max-w-sm text-sm text-muted">
+        {announcement ||
+          `${BRAND.name} is down for maintenance. Check back in a little while.`}
+      </p>
+      {showSignIn && (
+        <a
+          href="/api/auth/roblox/login"
+          className="mt-8 text-xs text-faint underline-offset-2 transition hover:text-muted hover:underline"
+        >
+          Admin sign in
+        </a>
+      )}
+    </div>
+  );
+}
+
 const AUTH_ERRORS: Record<string, string> = {
   denied: "Sign-in was cancelled.",
   invalid_response: "Roblox returned an unexpected response — try again.",
@@ -191,27 +224,21 @@ export default async function Home({
   const authError = params.auth_error ? AUTH_ERRORS[params.auth_error] : undefined;
   const viewArchived = params.view === "archived";
 
-  // Signed-out visitors get the marketing landing page.
+  // Admin site switches: maintenance takes down the WHOLE site (landing page
+  // included) for everyone except admins; an announcement renders as a banner.
+  const site = await getSiteSettings();
+
+  // Signed-out visitors: maintenance screen (with a quiet sign-in link so
+  // admins can get in and turn it off), otherwise the marketing landing page.
   if (!user) {
+    if (site.maintenance) {
+      return <MaintenanceScreen announcement={site.announcement} showSignIn />;
+    }
     return <Landing />;
   }
 
-  // Admin site switches: maintenance takes the app down for non-admins; an
-  // announcement renders as a banner for everyone.
-  const site = await getSiteSettings();
   if (site.maintenance && user.role !== "admin") {
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-        <LogoMark size={44} />
-        <h1 className="mt-5 text-2xl font-semibold tracking-tight">
-          We&apos;ll be right back
-        </h1>
-        <p className="mt-2 max-w-sm text-sm text-muted">
-          {site.announcement ||
-            `${BRAND.name} is down for maintenance. Check back in a little while.`}
-        </p>
-      </div>
-    );
+    return <MaintenanceScreen announcement={site.announcement} />;
   }
 
   // Two distinct notions of "Pro":
