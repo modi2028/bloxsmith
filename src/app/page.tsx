@@ -130,7 +130,7 @@ function Header({
           <Link
             href="/store"
             title="Buy credits or upgrade to Pro"
-            className="rounded-full bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1 text-xs font-semibold text-stone-950 transition hover:brightness-110"
+            className="shine-btn rounded-lg bg-gradient-to-br from-emerald-400 to-green-600 px-5 py-2 text-sm font-bold text-stone-950 shadow-[0_0_20px_-4px_rgba(16,185,129,0.65)] transition hover:brightness-110"
           >
             Store
           </Link>
