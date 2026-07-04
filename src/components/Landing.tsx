@@ -8,6 +8,7 @@ import {
   PoweredByBanner,
   RobloxMark,
 } from "./BrandMarks";
+import { IntroVideo } from "./IntroVideo";
 import { LogoMark } from "./Logo";
 import { Reveal } from "./Reveal";
 
@@ -172,6 +173,33 @@ const STEPS = [
   },
 ];
 
+const FAQS = [
+  {
+    q: "Is the plugin safe?",
+    a: "Yes. It only acts inside your own Studio session, for your own signed-in account, and only after you approve the connection with one click. Every change it makes is a normal Studio undo step, and it never runs arbitrary code.",
+  },
+  {
+    q: "Do I need to know how to script?",
+    a: "No. You describe what you want in plain English and Bloxsmith writes the Luau for you. If you do script, everything it writes is right there in your Explorer to review and edit.",
+  },
+  {
+    q: "Can I undo what it builds?",
+    a: "Always. Every single action — creating parts, editing properties, writing scripts — is wrapped in Studio's change history, so Ctrl+Z works exactly like you'd expect.",
+  },
+  {
+    q: "Which AI models can I use?",
+    a: "Claude (recommended — best at coding), ChatGPT, and Gemini. You can switch models per message, and Pro unlocks the flagship tiers.",
+  },
+  {
+    q: "What does it cost?",
+    a: "You get free credits on sign-up, and a typical request costs a fraction of a credit. Credit packs start at $4.99, and Pro is $19.99/month with monthly credits plus the most capable models.",
+  },
+  {
+    q: "How does it connect to Roblox Studio?",
+    a: "Install the plugin once, open Studio, and press Connect on the popup that appears on the website. No pairing codes, no configuration.",
+  },
+];
+
 function HeroPreview() {
   const steps = [
     "Creating Part — LavaFloor",
@@ -232,6 +260,9 @@ export function Landing() {
           </span>
         </div>
         <nav className="hidden items-center gap-7 text-sm text-muted sm:flex">
+          <a href="#demo" className="transition hover:text-foreground">
+            Demo
+          </a>
           <a href="#features" className="transition hover:text-foreground">
             Features
           </a>
@@ -240,6 +271,9 @@ export function Landing() {
           </a>
           <a href="#pricing" className="transition hover:text-foreground">
             Pricing
+          </a>
+          <a href="#faq" className="transition hover:text-foreground">
+            FAQ
           </a>
         </nav>
         <SignInButton className="px-4 py-2 shadow-none" />
@@ -320,6 +354,24 @@ export function Landing() {
       </section>
 
       <PoweredByBanner />
+
+      {/* Demo video */}
+      <section id="demo" className="px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <Reveal>
+            <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
+              See it in action
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-center text-sm text-muted">
+              From a chat message to a working mechanic in Studio — watch{" "}
+              {BRAND.name} build live.
+            </p>
+          </Reveal>
+          <Reveal delay={120} className="mt-10">
+            <IntroVideo />
+          </Reveal>
+        </div>
+      </section>
 
       {/* Features */}
       <section id="features" className="px-6 py-24">
@@ -450,6 +502,44 @@ export function Landing() {
                 </SignInButton>
               </div>
             </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="px-6 pb-24">
+        <div className="mx-auto max-w-3xl">
+          <Reveal>
+            <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
+              Questions, answered
+            </h2>
+          </Reveal>
+          <div className="mt-10 flex flex-col gap-3">
+            {FAQS.map((f, i) => (
+              <Reveal key={f.q} delay={i * 60}>
+                <details className="group rounded-xl border border-line bg-surface-raised px-5 py-4 transition hover:border-line-strong">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium [&::-webkit-details-marker]:hidden">
+                    {f.q}
+                    <svg
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      className="size-4 shrink-0 text-faint transition group-open:rotate-180"
+                    >
+                      <path
+                        d="m3.5 6 4.5 4.5L12.5 6"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </summary>
+                  <p className="mt-3 text-sm leading-relaxed text-muted">
+                    {f.a}
+                  </p>
+                </details>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
