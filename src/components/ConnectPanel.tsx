@@ -1,20 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Pending = { id: string; placeName: string | null; createdAt: string };
+
+/** What the panel is showing after an approval. */
+type Phase = "idle" | "connecting" | "failed";
 
 /**
  * Live auto-connect panel on the /pair setup page. Shows, in real time:
  * waiting for Studio → a pending request with a one-click Connect button →
- * connected. Same endpoints as the dashboard popup (StudioStatus).
+ * connecting → a green Successful card (or a red Failed one). Same endpoints
+ * as the dashboard popup (StudioStatus).
  */
 export function ConnectPanel() {
   const [connected, setConnected] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [phase, setPhaseState] = useState<Phase>("idle");
+  // Mirrored in a ref so the async polling loops read the live value; kept in
+  // sync via this setter (never written during render).
+  const phaseRef = useRef<Phase>("idle");
+  const setPhase = useCallback((p: Phase) => {
+    phaseRef.current = p;
+    setPhaseState(p);
+  }, []);
   const [responding, setResponding] = useState(false);
   const [declined, setDeclined] = useState(false);
+  // True right after a watched approval succeeds — shows "Successful!".
+  const [justConnected, setJustConnected] = useState(false);
 
   const check = useCallback(async () => {
     try {
@@ -25,8 +39,10 @@ export function ConnectPanel() {
         pending?: Pending | null;
       };
       setConnected(!!data.connected);
-      setPending(data.pending ?? null);
-      if (data.pending) setDeclined(false);
+      if (phaseRef.current === "idle") {
+        setPending(data.pending ?? null);
+        if (data.pending) setDeclined(false);
+      }
     } catch {
       // keep last known state
     }
@@ -43,6 +59,30 @@ export function ConnectPanel() {
     };
   }, [check]);
 
+  /** After approval: watch for the plugin to come online (~16s window). */
+  const waitForConnection = useCallback(async () => {
+    for (let i = 0; i < 8; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      if (phaseRef.current !== "connecting") return;
+      try {
+        const res = await fetch("/api/me/plugin-status");
+        if (res.status === 200) {
+          const data = (await res.json()) as { connected?: boolean };
+          if (data.connected) {
+            setConnected(true);
+            setJustConnected(true);
+            setPhase("idle");
+            setPending(null);
+            return;
+          }
+        }
+      } catch {
+        // keep waiting
+      }
+    }
+    setPhase("failed");
+  }, [setPhase]);
+
   const respond = async (action: "approve" | "deny") => {
     if (!pending) return;
     setResponding(true);
@@ -55,12 +95,12 @@ export function ConnectPanel() {
     } catch {
       // next poll re-syncs
     }
-    setPending(null);
     setResponding(false);
     if (action === "approve") {
-      setTimeout(check, 3500);
-      setTimeout(check, 7000);
+      setPhase("connecting");
+      void waitForConnection();
     } else {
+      setPending(null);
       setDeclined(true);
     }
   };
@@ -68,13 +108,28 @@ export function ConnectPanel() {
   if (connected) {
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-950/30 p-5">
-        <span className="size-2.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-950/80 ring-2 ring-emerald-400/60">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="size-5 text-emerald-400"
+          >
+            <path
+              d="m5 12.5 4.5 4.5L19 7.5"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-emerald-300">
-            Studio connected — you&apos;re all set
+            {justConnected ? "Successful! Studio connected" : "Studio connected"}
           </p>
           <p className="mt-0.5 text-xs text-muted">
-            Head back to the dashboard and describe what you want to build.
+            You&apos;re all set — head back and describe what you want to
+            build.
           </p>
         </div>
         <Link
@@ -87,6 +142,51 @@ export function ConnectPanel() {
     );
   }
 
+  if (phase === "connecting") {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface-raised p-5">
+        <span className="size-5 shrink-0 animate-spin rounded-full border-2 border-line border-t-ember" />
+        <div className="min-w-0 text-sm text-muted">
+          Approved — connecting to Studio… this usually takes a few seconds.
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "failed") {
+    return (
+      <div className="rounded-2xl border border-red-500/40 bg-red-950/30 p-5">
+        <div className="flex items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-red-950/80 ring-2 ring-red-400/60">
+            <svg viewBox="0 0 24 24" fill="none" className="size-4 text-red-400">
+              <path
+                d="M7 7l10 10M17 7 7 17"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-red-300">Failed</p>
+            <p className="mt-0.5 text-xs text-muted">
+              Studio didn&apos;t connect. Make sure Roblox Studio is still open
+              with the Bloxsmith panel, then press <strong>Connect</strong> in
+              the panel to send a new request.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setPhase("idle")}
+          className="mt-3 rounded-lg border border-line-strong px-3.5 py-1.5 text-xs text-muted transition hover:text-foreground"
+        >
+          Wait for a new request
+        </button>
+      </div>
+    );
+  }
+
   if (pending) {
     return (
       <div className="rounded-2xl border border-ember/50 bg-ember-soft/40 p-5">
@@ -95,8 +195,7 @@ export function ConnectPanel() {
           {pending.placeName ? (
             <>
               {" "}
-              — place{" "}
-              <span className="text-ember">“{pending.placeName}”</span>
+              — place <span className="text-ember">“{pending.placeName}”</span>
             </>
           ) : null}
         </p>
