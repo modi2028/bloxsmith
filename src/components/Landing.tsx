@@ -3,6 +3,7 @@ import { BRAND } from "@/lib/brand";
 import { CREDIT_PACKS, PRO_PLAN } from "@/lib/model-catalog";
 import {
   AnthropicWordmark,
+  GeminiMark,
   OpenAIMark,
   PoweredByBanner,
   RobloxMark,
@@ -162,7 +163,7 @@ const STEPS = [
   {
     n: "02",
     title: "Install the Studio plugin",
-    body: "One-time setup — paste a pairing code into the Bloxsmith dock in Studio.",
+    body: "One-time setup — open Studio and the plugin connects to your account automatically. No codes.",
   },
   {
     n: "03",
@@ -492,6 +493,9 @@ export function Landing() {
             <AnthropicWordmark className="text-[11px] text-muted" />
             <span className="flex items-center gap-1 text-muted">
               <OpenAIMark className="size-3.5" /> ChatGPT
+            </span>
+            <span className="flex items-center gap-1 text-muted">
+              <GeminiMark className="size-3.5" /> Gemini
             </span>
             <span className="flex items-center gap-1 text-muted">
               <RobloxMark className="size-3.5" /> Roblox

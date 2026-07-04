@@ -1,7 +1,8 @@
 --!strict
--- Bloxsmith Studio plugin — pairs with the Bloxsmith web app, polls the
--- backend for tool calls, executes them in the open place (each call is one
--- undo step), and posts structured results back.
+-- Bloxsmith Studio plugin — auto-connects to the Bloxsmith web app (one-click
+-- approval on the site, no pairing codes), polls the backend for tool calls,
+-- executes them in the open place (each call is one undo step), and posts
+-- structured results back.
 --
 -- Install: drop this file into your local plugins folder
 -- (Studio -> Plugins tab -> "Plugins Folder"), then restart Studio.
@@ -523,8 +524,6 @@ end
 --------------------------------------------------------------------------
 
 local COLOR_BG = Color3.fromRGB(12, 10, 9)
-local COLOR_SURFACE = Color3.fromRGB(28, 25, 23)
-local COLOR_TEXT = Color3.fromRGB(231, 229, 228)
 local COLOR_MUTED = Color3.fromRGB(168, 162, 158)
 local COLOR_EMBER = Color3.fromRGB(245, 158, 11)
 local COLOR_GREEN = Color3.fromRGB(52, 211, 153)
@@ -578,20 +577,6 @@ titleLabel.TextSize = 16
 
 local statusLabel = makeLabel("Not connected", 2, COLOR_MUTED, 18)
 
-local codeBox = Instance.new("TextBox")
-codeBox.Size = UDim2.new(1, 0, 0, 32)
-codeBox.BackgroundColor3 = COLOR_SURFACE
-codeBox.BorderSizePixel = 0
-codeBox.Font = Enum.Font.Code
-codeBox.TextSize = 14
-codeBox.TextColor3 = COLOR_TEXT
-codeBox.PlaceholderText = "Pairing code (e.g. 7KQ2-M9XF)"
-codeBox.PlaceholderColor3 = COLOR_MUTED
-codeBox.ClearTextOnFocus = false
-codeBox.Text = ""
-codeBox.LayoutOrder = 3
-codeBox.Parent = root
-
 local actionButton = Instance.new("TextButton")
 actionButton.Size = UDim2.new(1, 0, 0, 32)
 actionButton.BackgroundColor3 = COLOR_EMBER
@@ -604,7 +589,7 @@ actionButton.LayoutOrder = 4
 actionButton.Parent = root
 
 local hintLabel = makeLabel(
-	"Get a pairing code at " .. BASE_URL .. "/pair",
+	"No codes needed — approve the connection popup at " .. BASE_URL,
 	5,
 	COLOR_MUTED,
 	30
@@ -633,15 +618,20 @@ local generation = 0
 local function setDisconnectedUi(message: string?)
 	statusLabel.Text = message or "Not connected"
 	statusLabel.TextColor3 = COLOR_MUTED
-	codeBox.Visible = true
 	hintLabel.Visible = true
 	actionButton.Text = "Connect"
+end
+
+local function setWaitingUi()
+	statusLabel.Text = "● Waiting for approval — open " .. BASE_URL
+	statusLabel.TextColor3 = COLOR_EMBER
+	hintLabel.Visible = true
+	actionButton.Text = "Cancel"
 end
 
 local function setConnectedUi(username: string?)
 	statusLabel.Text = "● Connected" .. (username and (" as @" .. username) or "")
 	statusLabel.TextColor3 = COLOR_GREEN
-	codeBox.Visible = false
 	hintLabel.Visible = false
 	actionButton.Text = "Disconnect"
 end
@@ -662,7 +652,7 @@ local function startPolling(username: string?)
 				if string.find(err, "HTTP 401") then
 					token = nil
 					plugin:SetSetting(TOKEN_SETTING, "")
-					setDisconnectedUi("Pairing expired — reconnect")
+					setDisconnectedUi("Disconnected — press Connect")
 					return
 				end
 				statusLabel.Text = "● Reconnecting… (" .. err .. ")"
@@ -693,17 +683,75 @@ local function startPolling(username: string?)
 	end)
 end
 
-local function pair(code: string)
-	actionButton.Text = "Connecting…"
-	local data, err = request("POST", "/api/plugin/pair", { code = code })
-	if err or not (data and data.token) then
-		setDisconnectedUi("Pairing failed: " .. (err or "invalid code"))
+-- Auto-connect: identify the Roblox account logged into Studio, open a
+-- connect request, and wait for the user's one-click approval on the website.
+-- No pairing codes — the request secret stays in this Studio instance, so the
+-- approval can only ever connect THIS Studio.
+local function autoConnect()
+	generation += 1
+	local myGeneration = generation
+
+	local okUid, uid = pcall(function()
+		return game:GetService("StudioService"):GetUserId()
+	end)
+	if not okUid or typeof(uid) ~= "number" or (uid :: number) <= 0 then
+		setDisconnectedUi("Couldn't identify your Studio account — sign into Studio, then press Connect")
 		return
 	end
-	token = data.token
-	plugin:SetSetting(TOKEN_SETTING, token)
-	codeBox.Text = ""
-	startPolling(data.username)
+
+	setWaitingUi()
+	local placeName = game.Name
+	local start, err = request("POST", "/api/plugin/connect", {
+		robloxUserId = uid,
+		placeName = placeName,
+	})
+	if myGeneration ~= generation then
+		return
+	end
+	if err or not (start and start.requestId and start.secret) then
+		if err and string.find(err, "no_account") then
+			setDisconnectedUi("Sign in at " .. BASE_URL .. " with this Roblox account first, then press Connect")
+		else
+			setDisconnectedUi("Couldn't reach Bloxsmith (" .. (err or "unknown error") .. ") — press Connect to retry")
+		end
+		return
+	end
+
+	local interval = tonumber(start.pollIntervalSec) or 3
+	task.spawn(function()
+		while myGeneration == generation do
+			task.wait(interval)
+			if myGeneration ~= generation then
+				return
+			end
+			local data, pollErr = request("POST", "/api/plugin/connect/poll", {
+				requestId = start.requestId,
+				secret = start.secret,
+			})
+			if myGeneration ~= generation then
+				return
+			end
+			if pollErr then
+				statusLabel.Text = "● Retrying… (" .. pollErr .. ")"
+				statusLabel.TextColor3 = COLOR_RED
+				continue
+			end
+			local status = data and data.status
+			if status == "approved" and data.token then
+				token = data.token
+				plugin:SetSetting(TOKEN_SETTING, token)
+				startPolling(data.username)
+				return
+			elseif status == "denied" then
+				setDisconnectedUi("Connection declined on the website — press Connect to retry")
+				return
+			elseif status == "expired" or status == "consumed" then
+				setDisconnectedUi("Request expired — press Connect to retry")
+				return
+			end
+			setWaitingUi()
+		end
+	end)
 end
 
 actionButton.MouseButton1Click:Connect(function()
@@ -714,13 +762,12 @@ actionButton.MouseButton1Click:Connect(function()
 		plugin:SetSetting(TOKEN_SETTING, "")
 		lastActionLabel.Text = ""
 		setDisconnectedUi()
+	elseif actionButton.Text == "Cancel" then
+		-- Abandon the pending connect request.
+		generation += 1
+		setDisconnectedUi()
 	else
-		local code = string.gsub(codeBox.Text, "%s", "")
-		if #code < 8 then
-			setDisconnectedUi("Enter the full pairing code first")
-			return
-		end
-		pair(code)
+		autoConnect()
 	end
 end)
 
@@ -731,5 +778,8 @@ end)
 if token then
 	startPolling(nil)
 else
-	setDisconnectedUi()
+	-- First run: pop the panel open and start the handshake right away — the
+	-- user only has to press Connect on the website.
+	widget.Enabled = true
+	autoConnect()
 end

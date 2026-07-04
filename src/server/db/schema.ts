@@ -155,6 +155,38 @@ export const pairingCodes = pgTable("pairing_codes", {
     .defaultNow(),
 });
 
+export const connectRequestStatus = pgEnum("connect_request_status", [
+  "pending", // waiting for the website user to approve
+  "approved", // approved on the site; token not yet delivered to the plugin
+  "denied", // declined on the site
+  "consumed", // token delivered to the plugin
+]);
+
+/**
+ * Studio-initiated auto-connect: the plugin reports the Roblox user id logged
+ * into Studio; the matching signed-in website user approves with one click,
+ * then the plugin exchanges its request secret for a long-lived plugin token.
+ * The secret never leaves the initiating plugin, so an approval can only ever
+ * hand the token to the Studio instance that asked.
+ */
+export const pluginConnectRequests = pgTable(
+  "plugin_connect_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    placeName: text("place_name"),
+    secretHash: text("secret_hash").notNull().unique(),
+    status: connectRequestStatus("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("plugin_connect_requests_user_idx").on(t.userId, t.createdAt)],
+);
+
 export const pluginTokens = pgTable(
   "plugin_tokens",
   {
