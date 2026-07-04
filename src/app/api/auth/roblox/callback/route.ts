@@ -9,6 +9,8 @@ import {
   createSession,
   getSessionCookieOptions,
 } from "@/server/auth/session";
+import { clientIp, rateLimit } from "@/server/security/ratelimit";
+import { isProxyIp } from "@/server/security/proxycheck";
 
 function fail(reason: string) {
   const url = new URL("/", env.APP_URL);
@@ -18,6 +20,10 @@ function fail(reason: string) {
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
+
+  // Brute-force / replay dampener on the callback.
+  const rl = rateLimit(`oauth-cb:${clientIp(request)}`, 20, 5 * 60_000);
+  if (!rl.ok) return fail("rate_limited");
 
   // User denied the consent screen, or Roblox reported an error.
   if (params.get("error")) return fail("denied");
@@ -32,6 +38,9 @@ export async function GET(request: NextRequest) {
     .where(eq(schema.oauthStates.state, state))
     .returning();
   if (!stateRow || stateRow.expiresAt < new Date()) return fail("expired");
+
+  // VPN/proxy gate — sign-ins from anonymized IPs are refused with a warning.
+  if (await isProxyIp(clientIp(request))) return fail("proxy");
 
   try {
     const { accessToken } = await exchangeCode(code, stateRow.codeVerifier);

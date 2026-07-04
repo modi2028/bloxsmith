@@ -45,7 +45,22 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // API responses can carry session/plugin tokens — never cache them
+      // anywhere, and keep the whole API + admin surface out of search.
+      {
+        source: "/api/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+          { key: "X-Robots-Tag", value: "noindex" },
+        ],
+      },
+      {
+        source: "/admin",
+        headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+      },
+    ];
   },
 };
 
