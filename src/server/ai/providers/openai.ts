@@ -96,13 +96,6 @@ export type OpenAICompatOptions = {
    * classic `max_tokens`.
    */
   maxTokensParam?: "max_tokens" | "max_completion_tokens";
-  /**
-   * Replace provider-issued tool-call ids with our own short ones. Gemini's
-   * OpenAI-compat endpoint emits ids that are too long / invalid to send back,
-   * so its multi-turn tool follow-ups 400. Matching there is by function name +
-   * order, so substituting short ids (stored and echoed consistently) is safe.
-   */
-  forceShortToolIds?: boolean;
 };
 
 /**
@@ -179,8 +172,7 @@ export async function streamOpenAICompatibleResponse(
       // contract validation reject it with a useful message.
     }
     const id =
-      (opts.forceShortToolIds ? "" : tc.id) ||
-      `call_${Date.now().toString(36)}_${toolUses.length}`;
+      tc.id || `call_${Date.now().toString(36)}_${toolUses.length}`;
     content.push({ type: "tool_use", id, name: tc.name, input });
     toolUses.push({ id, name: tc.name, input });
   }
