@@ -16,6 +16,7 @@ import { getSessionUser, type SessionUser } from "@/server/auth/session";
 import { getBalance } from "@/server/credits/ledger";
 import { db, schema } from "@/server/db";
 import { getSiteSettings } from "@/server/site-settings";
+import { AnnouncementIsland } from "@/components/AnnouncementIsland";
 import { LogoMark } from "@/components/Logo";
 
 /**
@@ -232,13 +233,18 @@ export default async function Home({
   // admins can get in and turn it off), otherwise the marketing landing page.
   if (!user) {
     if (site.maintenance) {
-      return <MaintenanceScreen announcement={site.announcement} showSignIn />;
+      return (
+        <MaintenanceScreen
+          announcement={site.announcement?.text ?? ""}
+          showSignIn
+        />
+      );
     }
     return <Landing />;
   }
 
   if (site.maintenance && user.role !== "admin") {
-    return <MaintenanceScreen announcement={site.announcement} />;
+    return <MaintenanceScreen announcement={site.announcement?.text ?? ""} />;
   }
 
   // Two distinct notions of "Pro":
@@ -378,22 +384,10 @@ export default async function Home({
             </p>
           )}
           {site.announcement && (
-            <div className="mx-6 mb-2 flex items-center gap-2.5 rounded-lg border border-ember/40 bg-ember-soft/50 px-4 py-2 text-sm">
-              <svg
-                viewBox="0 0 16 16"
-                fill="none"
-                className="size-4 shrink-0 text-ember"
-              >
-                <path
-                  d="M2.5 6.5v3h2l4 3v-9l-4 3h-2Zm9-1.5a3.5 3.5 0 0 1 0 6M13 3a6 6 0 0 1 0 10"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span className="min-w-0">{site.announcement}</span>
-            </div>
+            <AnnouncementIsland
+              id={site.announcement.id}
+              text={site.announcement.text}
+            />
           )}
           {authError && (
             <p className="mx-auto mb-2 rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-2 text-sm text-red-300">

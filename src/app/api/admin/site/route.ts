@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getAdminForApi, auditAdmin } from "@/server/auth/admin";
@@ -56,7 +57,18 @@ export async function POST(request: NextRequest) {
   const ip = clientIp(request);
 
   if (body.action === "announcement") {
-    await setSetting("global_announcement", body.text);
+    // Each publish mints a fresh id, so the island pops up again for every
+    // user (they only ever see a given publish once).
+    await setSetting(
+      "global_announcement",
+      body.text
+        ? {
+            id: randomUUID(),
+            text: body.text,
+            publishedAt: new Date().toISOString(),
+          }
+        : "",
+    );
     await auditAdmin({
       actorUserId: admin.id,
       action: body.text ? "site.announcement.set" : "site.announcement.clear",

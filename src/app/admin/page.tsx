@@ -45,7 +45,7 @@ export default async function AdminPage() {
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-medium text-muted">Site controls</h2>
         <AdminSiteControls
-          initialAnnouncement={site.announcement}
+          initialAnnouncement={site.announcement?.text ?? ""}
           initialMaintenance={site.maintenance}
         />
       </section>

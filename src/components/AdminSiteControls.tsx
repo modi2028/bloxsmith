@@ -75,8 +75,9 @@ export function AdminSiteControls({
         htmlFor="site-announcement"
         className="mb-1.5 block text-xs font-medium text-muted"
       >
-        Global announcement (shown to all users; leave empty and publish to
-        clear)
+        Global announcement — pops up once per user as a dynamic island (with
+        a chime, auto-hides after 30s). Publishing again shows it to everyone
+        again; leave empty and publish to clear.
       </label>
       <textarea
         id="site-announcement"

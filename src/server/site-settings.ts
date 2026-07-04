@@ -4,9 +4,13 @@ import { db, schema } from "@/server/db";
 
 /** Admin-controlled site switches (stored in app_settings). */
 export type SiteSettings = {
-  /** Banner shown to everyone; empty string = no announcement. */
-  announcement: string;
-  /** When true, non-admins can't use the app (dashboard + chat blocked). */
+  /**
+   * Global announcement, or null when none. Each publish mints a new id —
+   * clients remember the last id they showed, so an announcement pops up
+   * once per user per publish.
+   */
+  announcement: { id: string; text: string } | null;
+  /** When true, non-admins can't use the app (landing + dashboard + chat). */
   maintenance: boolean;
 };
 
@@ -18,9 +22,27 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     ]),
   });
   const value = (key: string) => rows.find((r) => r.key === key)?.value;
-  const announcement = value("global_announcement");
+
+  const raw = value("global_announcement");
+  let announcement: SiteSettings["announcement"] = null;
+  if (typeof raw === "string" && raw.trim()) {
+    // Legacy shape (plain string) from before announcements had ids.
+    announcement = { id: "legacy", text: raw };
+  } else if (
+    raw &&
+    typeof raw === "object" &&
+    typeof (raw as { text?: unknown }).text === "string" &&
+    (raw as { text: string }).text.trim()
+  ) {
+    const obj = raw as { id?: unknown; text: string };
+    announcement = {
+      id: typeof obj.id === "string" ? obj.id : "legacy",
+      text: obj.text,
+    };
+  }
+
   return {
-    announcement: typeof announcement === "string" ? announcement : "",
+    announcement,
     maintenance: value("maintenance_mode") === true,
   };
 }
