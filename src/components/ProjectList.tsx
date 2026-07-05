@@ -45,9 +45,7 @@ export function ProjectList({
         <div
           key={p.id}
           className={`group flex items-center rounded-lg transition ${
-            p.id === activeId
-              ? "bg-ember-soft"
-              : "hover:bg-surface-raised"
+            p.id === activeId ? "bg-ember-soft" : "hover:bg-white/5"
           }`}
         >
           <Link

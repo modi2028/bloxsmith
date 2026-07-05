@@ -23,7 +23,7 @@ export function Sidebar({
   viewArchived?: boolean;
 }) {
   return (
-    <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-line bg-surface/60">
+    <aside className="glass-surface hidden md:flex w-64 shrink-0 flex-col border-r border-white/5">
       <Link href="/" className="flex h-16 items-center gap-2.5 px-5">
         <LogoMark size={28} />
         <span className="text-[16px] font-semibold tracking-tight">
@@ -42,7 +42,7 @@ export function Sidebar({
         <Link
           href={viewArchived ? "/" : "/?view=archived"}
           title={viewArchived ? "Back to projects" : "Show archived"}
-          className={`flex size-6 items-center justify-center rounded-md transition hover:bg-surface-raised hover:text-foreground ${
+          className={`flex size-6 items-center justify-center rounded-md transition hover:bg-white/5 hover:text-foreground ${
             viewArchived ? "text-ember" : "text-faint"
           }`}
         >
@@ -68,7 +68,7 @@ export function Sidebar({
       <div className="border-t border-line p-3">
         <Link
           href="/pair"
-          className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition hover:bg-surface-raised"
+          className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition hover:bg-white/5"
         >
           <span
             className={`size-2 shrink-0 rounded-full ${

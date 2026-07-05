@@ -112,7 +112,7 @@ function Header({
           ) : user.role !== "admin" ? (
             <Link
               href="/store"
-              className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-ember"
+              className="glass-chip rounded-full border border-white/10 px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-ember"
             >
               Upgrade
             </Link>
@@ -120,7 +120,7 @@ function Header({
           <Link
             href="/store"
             title="Your credit balance"
-            className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-foreground"
+            className="glass-chip flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-foreground"
           >
             <CoinStack className="size-3.5 text-ember" />
             <span className="font-semibold text-ember">
@@ -363,6 +363,15 @@ export default async function Home({
 
   return (
     <div className="flex h-dvh w-full overflow-hidden">
+      {/* Ambient color wash — gives the glass panels something to refract. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            "radial-gradient(55rem 38rem at 10% -10%, rgba(245,158,11,0.09), transparent 60%), radial-gradient(45rem 32rem at 105% 115%, rgba(234,88,12,0.07), transparent 60%), radial-gradient(35rem 28rem at 85% 5%, rgba(120,113,108,0.08), transparent 55%)",
+        }}
+      />
       <Sidebar
         pluginConnected={pluginConnected}
         projects={projects}

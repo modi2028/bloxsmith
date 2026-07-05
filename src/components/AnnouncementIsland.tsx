@@ -76,7 +76,7 @@ export function AnnouncementIsland({ id, text }: { id: string; text: string }) {
   return (
     <div
       role="status"
-      className={`island flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border border-ember/40 bg-stone-900/95 py-2.5 pl-4 pr-2.5 shadow-2xl shadow-black/60 backdrop-blur sm:max-w-xl ${
+      className={`island glass flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border border-ember/40 py-2.5 pl-4 pr-2.5 sm:max-w-xl ${
         state === "leaving" ? "island-leave" : "island-enter"
       }`}
     >

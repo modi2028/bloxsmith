@@ -37,7 +37,7 @@ export function Modal({
         className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
       />
       <div
-        className={`fade-up relative w-full ${maxWidth} rounded-2xl border border-line-strong bg-surface-raised p-6 shadow-2xl shadow-black/60`}
+        className={`glass fade-up relative w-full ${maxWidth} rounded-2xl border border-white/10 p-6`}
       >
         {children}
       </div>

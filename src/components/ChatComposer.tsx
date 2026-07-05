@@ -116,10 +116,10 @@ export function ChatComposer({
         }}
         onDragLeave={() => setDragActive(false)}
         onDrop={onDrop}
-        className={`relative rounded-2xl border bg-surface-raised/90 backdrop-blur transition-colors ${
+        className={`glass relative rounded-2xl border transition-colors ${
           dragActive
             ? "border-ember shadow-[0_0_0_3px_rgba(245,158,11,0.15)]"
-            : "border-line-strong focus-within:border-ember/60"
+            : "border-white/10 focus-within:border-ember/60"
         }`}
       >
         {dragActive && (
@@ -182,7 +182,7 @@ export function ChatComposer({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               title="Attach reference images (or drag & drop / paste)"
-              className="flex size-8 items-center justify-center rounded-lg text-muted transition hover:bg-surface hover:text-foreground"
+              className="flex size-8 items-center justify-center rounded-lg text-muted transition hover:bg-white/5 hover:text-foreground"
             >
               <svg viewBox="0 0 20 20" fill="none" className="size-[18px]">
                 <path
@@ -212,7 +212,7 @@ export function ChatComposer({
             />
             {balance != null && (
               <span
-                className="flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs text-muted"
+                className="glass-chip flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-xs text-muted"
                 title="Your credit balance"
               >
                 <CoinStack className="size-3.5 text-ember" />

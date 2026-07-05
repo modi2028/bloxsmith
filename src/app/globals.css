@@ -149,6 +149,48 @@ body {
   transform: translate(-50%, -14px) scale(0.9);
 }
 
+/* ---- Liquid glass ---------------------------------------------------------
+   Frosted, slightly saturated panels with a specular top edge. Backgrounds/
+   blur/shadow only — borders stay in the markup so states (focus, drag,
+   error) can recolor them without fighting this class. */
+.glass {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.07),
+      rgba(255, 255, 255, 0.015) 40%,
+      rgba(255, 255, 255, 0.045)
+    ),
+    rgba(22, 19, 17, 0.55);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 10px 40px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* Lighter variant for small chips, pills, and inline rows. */
+.glass-chip {
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Full-height surfaces (sidebar, bottom bars) — softer, no drop shadow. */
+.glass-surface {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.01) 30%,
+      rgba(255, 255, 255, 0.025)
+    ),
+    rgba(18, 15, 13, 0.5);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+}
+
 /* Periodic diagonal shine sweep across a button (e.g. the Store button).
    The sweep runs slowly over the first 55% of the cycle, then rests — the
    pause lives in the keyframes because animation-delay only applies once. */

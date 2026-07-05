@@ -58,7 +58,7 @@ function CreditIsland({
 }) {
   return (
     <div
-      className={`island flex items-center gap-2.5 rounded-full border border-line-strong bg-stone-900/95 px-5 py-2.5 shadow-2xl shadow-black/60 backdrop-blur ${
+      className={`island glass flex items-center gap-2.5 rounded-full border border-white/10 px-5 py-2.5 ${
         leaving ? "island-leave" : "island-enter"
       }`}
       role="status"
@@ -417,7 +417,7 @@ export function ChatApp({
                 key={s}
                 type="button"
                 onClick={() => setSeedText(s)}
-                className="rounded-full border border-line bg-surface/70 px-4 py-1.5 text-[13px] text-muted transition hover:border-ember/50 hover:text-foreground"
+                className="glass-chip rounded-full border border-white/10 px-4 py-1.5 text-[13px] text-muted transition hover:border-ember/50 hover:text-foreground"
               >
                 {s}
               </button>
@@ -447,7 +447,7 @@ export function ChatApp({
           {messages.map((msg, i) =>
             msg.kind === "user" ? (
               <div key={i} className="flex justify-end">
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-line bg-surface-raised px-4 py-2.5 text-[15px]">
+                <div className="glass-chip max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-white/10 px-4 py-2.5 text-[15px]">
                   {msg.text}
                 </div>
               </div>
@@ -477,7 +477,7 @@ export function ChatApp({
                   return (
                     <div
                       key={j}
-                      className="flex items-center gap-2.5 rounded-lg border border-line bg-surface/70 px-3 py-2 text-[13px]"
+                      className="glass-chip flex items-center gap-2.5 rounded-lg border border-white/[0.07] px-3 py-2 text-[13px]"
                     >
                       {part.status === "running" ? (
                         <span className="size-2 shrink-0 animate-pulse rounded-full bg-ember" />
@@ -536,7 +536,7 @@ export function ChatApp({
         </div>
       </div>
 
-      <div className="border-t border-line bg-background/80 px-4 py-3 backdrop-blur">
+      <div className="glass-surface border-t border-white/5 px-4 py-3">
         <div className="mx-auto max-w-3xl">
           {canContinue && !busy && (
             <div className="fade-up mb-2.5 flex items-center gap-3 rounded-xl border border-ember/40 bg-ember-soft/50 px-4 py-2.5">

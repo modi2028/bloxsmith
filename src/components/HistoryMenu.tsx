@@ -33,7 +33,7 @@ export function HistoryMenu({
         type="button"
         title="Recent projects"
         onClick={() => setOpen((v) => !v)}
-        className="flex size-9 items-center justify-center rounded-lg border border-line bg-surface text-muted transition hover:text-foreground"
+        className="glass-chip flex size-9 items-center justify-center rounded-lg border border-white/10 text-muted transition hover:text-foreground"
       >
         <svg viewBox="0 0 20 20" fill="none" className="size-[18px]">
           <path
@@ -47,7 +47,7 @@ export function HistoryMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-xl border border-line-strong bg-surface-raised shadow-2xl shadow-black/50">
+        <div className="glass absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-xl border border-white/10">
           <div className="px-3.5 pb-1 pt-2.5 text-[11px] uppercase tracking-wide text-faint">
             Recent projects
           </div>
@@ -61,7 +61,7 @@ export function HistoryMenu({
                 key={item.id}
                 href={`/?project=${item.id}`}
                 onClick={() => setOpen(false)}
-                className="block truncate px-3.5 py-2 text-sm text-muted transition hover:bg-surface hover:text-foreground"
+                className="block truncate px-3.5 py-2 text-sm text-muted transition hover:bg-white/5 hover:text-foreground"
               >
                 {item.title}
               </Link>

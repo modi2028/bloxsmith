@@ -124,9 +124,9 @@ export function StudioStatus({ initial }: { initial: boolean }) {
             ? "Connected to Roblox Studio — manage connection"
             : "Not connected to Roblox Studio — click to set up"
         }
-        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+        className={`glass-chip flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
           connected
-            ? "border-line text-muted hover:border-line-strong hover:text-foreground"
+            ? "border-white/10 text-muted hover:border-line-strong hover:text-foreground"
             : "border-red-500/40 text-red-300 hover:border-red-400/70"
         }`}
       >
