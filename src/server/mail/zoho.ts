@@ -156,9 +156,11 @@ export async function zohoApi(
     data?: unknown;
     status?: { code?: number; description?: string };
   };
-  if (!res.ok) {
+  // Zoho can wrap failures in an HTTP 200 — trust the body status too.
+  const bodyCode = data.status?.code;
+  if (!res.ok || (typeof bodyCode === "number" && bodyCode >= 300)) {
     throw new Error(
-      `Zoho API ${path} failed (${res.status}): ${
+      `Zoho API ${path} failed (${res.ok ? bodyCode : res.status}): ${
         data.status?.description ?? "unknown error"
       }`,
     );
