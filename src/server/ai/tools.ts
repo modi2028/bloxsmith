@@ -36,7 +36,9 @@ const propertyValue = {
     '{"$type":"ColorSequence","value":[1,0,0]} for a constant. Instance references are ref strings.',
 };
 
-export function getStudioTools(): ModelToolDef[] {
+export function getStudioTools(
+  opts: { assetTools?: boolean } = {},
+): ModelToolDef[] {
   const tools: ModelToolDef[] = [
     {
       name: "get_selection",
@@ -152,6 +154,46 @@ export function getStudioTools(): ModelToolDef[] {
       },
     },
   ];
+
+  // Pro-only: real Creator Store models for scenery/props — far better than
+  // hand-built parts for organic things like trees.
+  if (opts.assetTools) {
+    tools.push(
+      {
+        name: "search_assets",
+        description:
+          "Search the Roblox Creator Store for FREE models (trees, rocks, furniture, vehicles, buildings). Use this for scenery and props — real models look far better than parts. Returns asset ids for insert_asset. Use short keywords ('pine tree', not sentences).",
+        input_schema: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Short search keywords." },
+            limit: { type: "integer", minimum: 1, maximum: 10 },
+          },
+          required: ["query"],
+          additionalProperties: false,
+        },
+      },
+      {
+        name: "insert_asset",
+        description:
+          "Insert a free Creator Store model (found with search_assets) into the place. Prefer this over building scenery from parts. Position it with the position property; inspect it afterwards with list_children if you need to modify it.",
+        input_schema: {
+          type: "object",
+          properties: {
+            assetId: { type: "integer", description: "Creator Store asset id." },
+            parent: { ...ref, description: "Parent (default ref:workspace)." },
+            name: { type: "string", description: "Rename the inserted model." },
+            position: {
+              description:
+                'Where to place it: {"$type":"Vector3","value":[x,y,z]}.',
+            },
+          },
+          required: ["assetId"],
+          additionalProperties: false,
+        },
+      },
+    );
+  }
 
   // NOTE: a run_luau (arbitrary code execution) tool was intentionally removed
   // — see the plugin. All building goes through the structured tools above.

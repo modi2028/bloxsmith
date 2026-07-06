@@ -429,6 +429,61 @@ handlers.delete_instance = function(args)
 	return {}
 end
 
+-- Insert a free Creator Store model (Pro feature — the backend only offers
+-- this tool to Pro users). LoadAsset returns a wrapper Model; unwrap single
+-- children so the inserted thing is addressed directly.
+handlers.insert_asset = function(args)
+	local assetId = tonumber(args.assetId)
+	if not assetId then
+		toolError("invalid_args", "assetId must be a number")
+	end
+	local parent = args.parent and resolveRef(args.parent) or workspace
+
+	local okLoad, container = pcall(function()
+		return game:GetService("InsertService"):LoadAsset(assetId :: number)
+	end)
+	if not okLoad then
+		toolError(
+			"invalid_args",
+			"Could not insert asset " .. tostring(assetId) .. ": " .. tostring(container)
+				.. " (only free or owned Creator Store models can be inserted)"
+		)
+	end
+
+	local wrapper = container :: Instance
+	local children = wrapper:GetChildren()
+	local inserted: Instance
+	if #children == 1 then
+		inserted = children[1]
+		inserted.Parent = parent
+		wrapper:Destroy()
+	else
+		wrapper.Name = args.name or ("Asset_" .. tostring(assetId))
+		wrapper.Parent = parent
+		inserted = wrapper
+	end
+	if typeof(args.name) == "string" and #args.name > 0 then
+		inserted.Name = args.name
+	end
+
+	if args.position ~= nil then
+		local pos = decodeValue(args.position)
+		if typeof(pos) == "Vector3" then
+			if inserted:IsA("Model") then
+				inserted:PivotTo(CFrame.new(pos :: Vector3))
+			elseif inserted:IsA("BasePart") then
+				(inserted :: BasePart).Position = pos :: Vector3
+			end
+		end
+	end
+
+	return {
+		ref = mintRef(inserted),
+		className = inserted.ClassName,
+		name = inserted.Name,
+	}
+end
+
 -- NOTE: an arbitrary-Luau execution tool (loadstring) was intentionally
 -- removed. Executing remotely-fetched code is a plugin-policy violation
 -- ("Misusing Roblox Systems") and indistinguishable from a backdoor. All
@@ -439,6 +494,7 @@ local MUTATING: { [string]: boolean } = {
 	set_property = true,
 	write_script = true,
 	delete_instance = true,
+	insert_asset = true,
 }
 
 local function executeCall(call: { [string]: any }): { [string]: any }

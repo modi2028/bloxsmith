@@ -53,6 +53,10 @@ function toolLabel(part: UiToolPart): string {
       return "Deleting an instance";
     case "list_children":
       return "Looking around the place";
+    case "search_assets":
+      return `Searching the Creator Store${a.query ? ` for “${a.query}”` : ""}`;
+    case "insert_asset":
+      return `Inserting a Creator Store model${a.name ? ` “${a.name}”` : ""}`;
     case "get_selection":
       return "Checking your selection";
     case "get_properties":

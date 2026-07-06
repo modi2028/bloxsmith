@@ -248,6 +248,7 @@ export const PRO_PLAN = {
   monthlyCredits: 20,
   perks: [
     "Unlocks Blox Pro — our most capable model",
+    "Insert real Creator Store models (trees, props, vehicles)",
     "20 credits every month",
     "Priority on new models",
   ],

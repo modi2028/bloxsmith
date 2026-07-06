@@ -29,6 +29,7 @@ import { streamClaudeResponse } from "./providers/anthropic";
 import { streamGoogleResponse } from "./providers/google";
 import { streamOpenAIResponse } from "./providers/openai";
 import { streamZaiResponse } from "./providers/zai";
+import { searchRobloxAssets } from "./asset-search";
 import { getStudioTools } from "./tools";
 
 const MAX_ITERATIONS = 24;
@@ -78,8 +79,10 @@ export async function runAgentTurn(params: {
     return;
   }
 
+  const proAccess = isProUser(user, new Date());
+
   // Pro gating — enforced server-side regardless of what the client sends.
-  if (pricing.proOnly && !isProUser(user, new Date())) {
+  if (pricing.proOnly && !proAccess) {
     await onEvent({
       type: "error",
       message: `${pricing.displayName} is a Pro model. Upgrade to Pro (or use a free model like Blox Mini) to build with it.`,
@@ -169,7 +172,7 @@ export async function runAgentTurn(params: {
   try {
     // --- Assemble context ---------------------------------------------------
     const apiKey = await getProviderApiKey(pricing.provider as ProviderId);
-    const tools = getStudioTools();
+    const tools = getStudioTools({ assetTools: proAccess });
     const system = buildSystemPrompt({
       projectMemory: chatSession.projectMemory,
       userNickname: user.nickname ?? user.displayName ?? user.username,
@@ -251,6 +254,56 @@ export async function runAgentTurn(params: {
             id: toolUse.id,
             ok: false,
             error: validated.error,
+          });
+          continue;
+        }
+
+        // Creator Store search runs server-side — it never touches Studio.
+        if (toolUse.name === "search_assets") {
+          await onEvent({
+            type: "tool_call",
+            id: toolUse.id,
+            tool: toolUse.name,
+            args: validated.args,
+          });
+          try {
+            const found = await searchRobloxAssets(
+              validated.args as { query: string; limit?: number },
+            );
+            resultBlocks.push(
+              toolResultBlock(toolUse.id, JSON.stringify(found), false),
+            );
+            await onEvent({ type: "tool_result", id: toolUse.id, ok: true });
+          } catch (err) {
+            const message =
+              err instanceof Error ? err.message : "Creator Store search failed";
+            resultBlocks.push(
+              toolResultBlock(toolUse.id, `search_error: ${message}`, true),
+            );
+            await onEvent({
+              type: "tool_result",
+              id: toolUse.id,
+              ok: false,
+              error: message,
+            });
+          }
+          continue;
+        }
+        // Belt-and-braces: asset insertion is a Pro feature even if a model
+        // hallucinates the tool without it being offered.
+        if (toolUse.name === "insert_asset" && !proAccess) {
+          resultBlocks.push(
+            toolResultBlock(
+              toolUse.id,
+              "forbidden: insert_asset requires a Pro plan",
+              true,
+            ),
+          );
+          await onEvent({
+            type: "tool_result",
+            id: toolUse.id,
+            ok: false,
+            error: "Pro required",
           });
           continue;
         }

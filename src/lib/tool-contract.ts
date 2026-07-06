@@ -120,6 +120,21 @@ export const toolArgSchemas = {
         "Provide either target (existing script) or parent+name+scriptType (new script)",
     }),
   delete_instance: z.object({ target: refSchema }).strict(),
+  // Server-side Creator Store search (never reaches the plugin).
+  search_assets: z
+    .object({
+      query: z.string().min(1).max(120),
+      limit: z.number().int().min(1).max(10).optional(),
+    })
+    .strict(),
+  insert_asset: z
+    .object({
+      assetId: z.number().int().positive(),
+      parent: refSchema.optional(),
+      name: z.string().max(80).optional(),
+      position: propertyValueSchema.optional(),
+    })
+    .strict(),
   run_luau: z
     .object({
       source: z.string().max(50_000),
