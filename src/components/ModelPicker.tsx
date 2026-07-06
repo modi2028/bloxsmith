@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { formatCredits } from "@/lib/credits-format";
-import { ProviderIcon } from "./BrandMarks";
+import { LogoMark } from "./Logo";
 
 export type ChatModel = {
   id: string;
@@ -67,10 +67,9 @@ export function ModelPicker({
     const selected = m.id === current.id;
     const content = (
       <>
-        <ProviderIcon
-          provider={m.provider}
-          className={`size-4 shrink-0 ${m.locked ? "opacity-50" : ""}`}
-        />
+        <span className={`shrink-0 ${m.locked ? "opacity-50" : ""}`}>
+          <LogoMark size={17} variant={m.proOnly ? "blue" : "ember"} />
+        </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex items-center gap-2 text-sm">
             <span
@@ -157,7 +156,10 @@ export function ModelPicker({
         title="Switch AI model"
       >
         <span suppressHydrationWarning className="flex items-center gap-1.5">
-          <ProviderIcon provider={current.provider} className="size-3.5" />
+          <LogoMark
+            size={15}
+            variant={current.proOnly ? "blue" : "ember"}
+          />
           {current.name}
         </span>
         <svg viewBox="0 0 12 12" fill="none" className="size-2.5">
