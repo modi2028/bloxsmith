@@ -141,7 +141,7 @@ const FEATURES = [
   {
     icon: <IconModels />,
     title: "A model for every job",
-    body: "From Bloxsmith Lite for quick tweaks to Bloxsmith Elite for whole systems — switch per message. Pro unlocks the top tiers.",
+    body: "From Blox Mini for quick tweaks to Blox Pro for whole systems — switch per message. Pro unlocks the top tier.",
   },
   {
     icon: <IconUndo />,
@@ -188,7 +188,7 @@ const FAQS = [
   },
   {
     q: "Which AI models can I use?",
-    a: "Bloxsmith Lite, Smart and Performance on the free plan; Pro unlocks Bloxsmith Pro and Bloxsmith Elite — our most capable models. You can switch models per message.",
+    a: "Blox Mini and Blox Lite on the free plan; Pro unlocks Blox Pro — our most capable model. You can switch models per message.",
   },
   {
     q: "What does it cost?",
@@ -454,7 +454,7 @@ export function Landing() {
                 <ul className="mt-5 flex flex-col gap-2.5 text-sm text-muted">
                   {[
                     "Free credits on sign-up",
-                    "Bloxsmith Lite, Smart and Performance models",
+                    "Blox Mini and Blox Lite models",
                     "Full Studio plugin and live building",
                     `Top up any time from ${starter ? `$${starter.priceUsd.toFixed(2)}` : "$4.99"}`,
                   ].map((t) => (

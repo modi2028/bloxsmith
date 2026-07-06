@@ -82,7 +82,7 @@ export async function runAgentTurn(params: {
   if (pricing.proOnly && !isProUser(user, new Date())) {
     await onEvent({
       type: "error",
-      message: `${pricing.displayName} is a Pro model. Upgrade to Pro (or use a free model like Bloxsmith Smart) to build with it.`,
+      message: `${pricing.displayName} is a Pro model. Upgrade to Pro (or use a free model like Blox Mini) to build with it.`,
     });
     return;
   }

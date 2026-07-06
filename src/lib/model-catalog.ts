@@ -27,29 +27,25 @@ export type CatalogModel = {
 };
 
 /** Shown under "Recommended · Best at coding" in the model picker. */
-export const RECOMMENDED_MODEL_IDS = new Set([
-  "glm-5",
-  "glm-5.2",
-  "claude-sonnet-5",
-]);
+export const RECOMMENDED_MODEL_IDS = new Set(["glm-5.1", "glm-5.2"]);
 
 export const MODEL_CATALOG: CatalogModel[] = [
   // ---- Live lineup -----------------------------------------------------------
   {
-    // $1.0/$3.2 per 1M tokens -> x3 markup. The free-tier coding pick.
-    modelId: "glm-5",
+    // GLM-5.1: $1.4/$4.4 per 1M tokens -> x3 markup. Free-tier coding pick.
+    modelId: "glm-5.1",
     provider: "zai",
-    displayName: "Bloxsmith Performance",
-    description: "Balanced everyday building with strong code",
+    displayName: "Blox Lite",
+    description: "Strong everyday building for free",
     tier: "balanced",
-    inputCreditsPer1k: 0.003,
-    outputCreditsPer1k: 0.0096,
-    baseCost: 0.003,
-    maxCreditsPerRequest: 0.4,
+    inputCreditsPer1k: 0.0045,
+    outputCreditsPer1k: 0.0135,
+    baseCost: 0.004,
+    maxCreditsPerRequest: 0.5,
     proOnly: false,
     enabled: true,
     isDefault: false,
-    sort: 5,
+    sort: 10,
   },
   {
     modelId: "claude-sonnet-5",
@@ -62,16 +58,16 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.006,
     maxCreditsPerRequest: 0.7,
     proOnly: true,
-    enabled: true,
+    enabled: false,
     isDefault: false,
-    sort: 10,
+    sort: 95,
   },
   {
     modelId: "claude-haiku-4-5",
     provider: "anthropic",
-    displayName: "Bloxsmith Smart",
-    description: "Quick and reliable for everyday building",
-    tier: "balanced",
+    displayName: "Blox Mini",
+    description: "Quick and cheap for small builds and tweaks",
+    tier: "fast",
     inputCreditsPer1k: 0.003,
     outputCreditsPer1k: 0.015,
     baseCost: 0.002,
@@ -86,7 +82,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     // if requests start failing, switch modelId here and re-run apply:catalog.
     modelId: "gemini-3-flash-preview",
     provider: "google",
-    displayName: "Bloxsmith Lite",
+    displayName: "Gemini 3 Flash",
     description: "Fast and light — quick tweaks and small builds",
     tier: "fast",
     inputCreditsPer1k: 0.0015,
@@ -94,17 +90,17 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.002,
     maxCreditsPerRequest: 0.25,
     proOnly: false,
-    enabled: true,
+    enabled: false,
     isDefault: false,
-    sort: 30,
+    sort: 96,
   },
   {
     // $1.4/$4.4 per 1M tokens -> x3 markup.
     modelId: "glm-5.2",
     provider: "zai",
-    displayName: "Bloxsmith Pro",
-    description: "Serious coding power for Pro builders",
-    tier: "balanced",
+    displayName: "Blox Pro",
+    description: "Our most capable model — big, complex builds",
+    tier: "flagship",
     inputCreditsPer1k: 0.0045,
     outputCreditsPer1k: 0.0135,
     baseCost: 0.004,
@@ -112,9 +108,24 @@ export const MODEL_CATALOG: CatalogModel[] = [
     proOnly: true,
     enabled: true,
     isDefault: false,
-    sort: 8,
+    sort: 15,
   },
   // ---- Retired from the picker (kept so apply:catalog disables their DB rows)
+  {
+    modelId: "glm-5",
+    provider: "zai",
+    displayName: "GLM-5",
+    description: "Balanced everyday building with strong code",
+    tier: "balanced",
+    inputCreditsPer1k: 0.003,
+    outputCreditsPer1k: 0.0096,
+    baseCost: 0.003,
+    maxCreditsPerRequest: 0.4,
+    proOnly: false,
+    enabled: false,
+    isDefault: false,
+    sort: 97,
+  },
   {
     modelId: "claude-opus-4-8",
     provider: "anthropic",
@@ -236,7 +247,7 @@ export const PRO_PLAN = {
   priceUsd: 19.99,
   monthlyCredits: 20,
   perks: [
-    "Unlocks Bloxsmith Elite and Bloxsmith Pro",
+    "Unlocks Blox Pro — our most capable model",
     "20 credits every month",
     "Priority on new models",
   ],
