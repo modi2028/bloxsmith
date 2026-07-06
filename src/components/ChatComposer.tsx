@@ -37,6 +37,7 @@ export function ChatComposer({
   initialText,
   balance,
   studioConnected,
+  canQueue = false,
 }: {
   onSend: (text: string, files: File[]) => void;
   onStop?: () => void;
@@ -51,6 +52,8 @@ export function ChatComposer({
   balance?: number;
   /** Plugin connection at render time — shows the live green/red chip. */
   studioConnected?: boolean | null;
+  /** While busy: whether another message can still join the queue (max 3). */
+  canQueue?: boolean;
 }) {
   const [text, setText] = useState(initialText ?? "");
   const [images, setImages] = useState<PendingImage[]>([]);
@@ -98,7 +101,8 @@ export function ChatComposer({
 
   const submit = () => {
     const trimmed = text.trim();
-    if (!trimmed || busy) return;
+    if (!trimmed) return;
+    if (busy && !canQueue) return; // queue is full
     onSend(
       trimmed,
       images.map((img) => img.file),
@@ -125,7 +129,7 @@ export function ChatComposer({
     }
   };
 
-  const canSend = text.trim().length > 0 && !busy;
+  const canSend = text.trim().length > 0 && (!busy || canQueue);
 
   return (
     <div className="w-full">
@@ -199,7 +203,13 @@ export function ChatComposer({
           }}
           rows={compact ? 2 : 3}
           autoFocus={autoFocus}
-          placeholder={busy ? "Working…" : "Describe a game mechanic…"}
+          placeholder={
+            busy
+              ? canQueue
+                ? "Working… queue a follow-up (sent when this finishes)"
+                : "Working… queue is full (3 max)"
+              : "Describe a game mechanic…"
+          }
           className="w-full resize-none bg-transparent px-5 pt-4 pb-2 text-[15px] leading-relaxed placeholder:text-faint focus:outline-none"
         />
 
@@ -254,23 +264,43 @@ export function ChatComposer({
           </div>
 
           {busy ? (
-            <button
-              type="button"
-              onClick={onStop}
-              title="Stop generating"
-              className="flex size-9 items-center justify-center rounded-xl border border-line-strong bg-surface text-foreground transition hover:border-red-500/60 hover:text-red-300"
-            >
-              <svg viewBox="0 0 20 20" className="size-3.5">
-                <rect
-                  x="4"
-                  y="4"
-                  width="12"
-                  height="12"
-                  rx="2"
-                  fill="currentColor"
-                />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              {canSend && (
+                <button
+                  type="button"
+                  onClick={submit}
+                  title="Queue message — sent when the current build finishes (Enter)"
+                  className="flex size-9 items-center justify-center rounded-xl border border-ember/50 text-ember transition hover:bg-ember-soft"
+                >
+                  <svg viewBox="0 0 20 20" fill="none" className="size-4">
+                    <path
+                      d="M10 15V7m0 0-4 4m4-4 4 4M4 3.5h12"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onStop}
+                title="Stop generating"
+                className="flex size-9 items-center justify-center rounded-xl border border-line-strong bg-surface text-foreground transition hover:border-red-500/60 hover:text-red-300"
+              >
+                <svg viewBox="0 0 20 20" className="size-3.5">
+                  <rect
+                    x="4"
+                    y="4"
+                    width="12"
+                    height="12"
+                    rx="2"
+                    fill="currentColor"
+                  />
+                </svg>
+              </button>
+            </div>
           ) : (
             <button
               type="button"

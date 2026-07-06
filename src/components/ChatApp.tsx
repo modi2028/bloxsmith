@@ -115,6 +115,9 @@ export function ChatApp({
   const [canContinue, setCanContinue] = useState(interrupted);
   // Offered once a run passes 15s: browser notification when it finishes.
   const [showNotifyPrompt, setShowNotifyPrompt] = useState(false);
+  // Messages queued while a build runs — sent one by one when it finishes
+  // cleanly (cleared on stop/error so follow-ups don't fire into a failure).
+  const [queue, setQueue] = useState<{ text: string; files: File[] }[]>([]);
   const [chatSessionId, setChatSessionId] = useState(initialSessionId);
   const [seedText, setSeedText] = useState<string>();
   const [island, setIsland] = useState<{
@@ -220,7 +223,12 @@ export function ChatApp({
         // assistant bubbles and prompt the user to connect the plugin.
         setShowPluginModal(true);
         setMessages((prev) => prev.slice(0, -2));
+        setQueue([]);
         return;
+      }
+      // Don't fire queued follow-ups into a stopped or failed run.
+      if (event.type === "stopped" || event.type === "error") {
+        setQueue([]);
       }
       setMessages((prev) => {
         const next = [...prev];
@@ -302,6 +310,13 @@ export function ChatApp({
     async (text: string, files: File[] = []) => {
       if (!signedIn) {
         window.location.href = "/api/auth/roblox/login";
+        return;
+      }
+      // Mid-build sends join the queue (max 3) and fire when the run is done.
+      if (busy) {
+        setQueue((q) =>
+          q.length >= 3 ? q : [...q, { text, files }],
+        );
         return;
       }
       const controller = new AbortController();
@@ -399,8 +414,19 @@ export function ChatApp({
         router.refresh(); // refresh server-rendered credit balance + sidebar
       }
     },
-    [signedIn, chatSessionId, modelId, pendingTitle, applyEvent, router],
+    [signedIn, busy, chatSessionId, modelId, pendingTitle, applyEvent, router],
   );
+
+  // Dispatch the next queued message once the current run has finished.
+  useEffect(() => {
+    if (busy || queue.length === 0) return;
+    const next = queue[0]!;
+    const timer = setTimeout(() => {
+      setQueue((q) => q.slice(1));
+      void send(next.text, next.files);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [busy, queue, send]);
 
   const lastMessage = messages[messages.length - 1];
   const runningTool =
@@ -634,6 +660,36 @@ export function ChatApp({
 
       <div className="glass-surface border-t border-white/5 px-4 py-3">
         <div className="mx-auto max-w-3xl">
+          {queue.length > 0 && (
+            <div className="mb-2.5 flex flex-col gap-1.5">
+              {queue.map((item, qi) => (
+                <div
+                  key={qi}
+                  className="glass-chip fade-up flex items-center gap-2.5 rounded-lg border border-white/10 px-3 py-1.5 text-[13px] text-muted"
+                >
+                  <span className="shrink-0 rounded-full border border-ember/40 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-ember">
+                    Queued {qi + 1}/3
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{item.text}</span>
+                  {item.files.length > 0 && (
+                    <span className="shrink-0 text-[11px] text-faint">
+                      +{item.files.length} img
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="Remove queued message"
+                    onClick={() =>
+                      setQueue((q) => q.filter((_, i) => i !== qi))
+                    }
+                    className="shrink-0 px-1 text-faint transition hover:text-foreground"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           {showNotifyPrompt && busy && (
             <div className="fade-up mb-2.5 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
               <svg
@@ -718,6 +774,7 @@ export function ChatApp({
             onModelChange={changeModel}
             balance={balance}
             studioConnected={pluginConnected}
+            canQueue={queue.length < 3}
             compact
           />
         </div>
