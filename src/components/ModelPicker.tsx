@@ -22,7 +22,7 @@ export type ChatModel = {
 const TIER_LABELS: Record<string, string> = {
   flagship: "Most capable",
   balanced: "Balanced",
-  fast: "Fastest",
+  fast: "Fast",
 };
 
 export function ModelPicker({

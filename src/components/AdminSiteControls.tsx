@@ -85,7 +85,7 @@ export function AdminSiteControls({
         onChange={(e) => setText(e.target.value)}
         rows={2}
         maxLength={500}
-        placeholder="e.g. New: Gemini 3 models are live. Pro is 20% off this week."
+        placeholder="e.g. New: Bloxsmith Elite is live. Pro is 20% off this week."
         className="w-full resize-none rounded-lg border border-line-strong bg-surface px-3.5 py-2 text-sm placeholder:text-faint focus:border-ember/60 focus:outline-none"
       />
 

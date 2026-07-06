@@ -140,8 +140,8 @@ const FEATURES = [
   },
   {
     icon: <IconModels />,
-    title: "Claude, Gemini and GLM",
-    body: "Fast, capable models for free — and Pro unlocks Claude Sonnet 5 and GLM-5.2 for whole systems.",
+    title: "A model for every job",
+    body: "From Bloxsmith Lite for quick tweaks to Bloxsmith Elite for whole systems — switch per message. Pro unlocks the top tiers.",
   },
   {
     icon: <IconUndo />,
@@ -188,7 +188,7 @@ const FAQS = [
   },
   {
     q: "Which AI models can I use?",
-    a: "GLM-5, Claude Haiku 4.5 and Gemini 3 Flash on the free plan; Pro unlocks Claude Sonnet 5 and GLM-5.2 — the top coding models. You can switch models per message.",
+    a: "Bloxsmith Lite, Smart and Performance on the free plan; Pro unlocks Bloxsmith Pro and Bloxsmith Elite — our most capable models. You can switch models per message.",
   },
   {
     q: "What does it cost?",
@@ -454,7 +454,7 @@ export function Landing() {
                 <ul className="mt-5 flex flex-col gap-2.5 text-sm text-muted">
                   {[
                     "Free credits on sign-up",
-                    "GLM-5, Claude Haiku 4.5 and Gemini 3 Flash",
+                    "Bloxsmith Lite, Smart and Performance models",
                     "Full Studio plugin and live building",
                     `Top up any time from ${starter ? `$${starter.priceUsd.toFixed(2)}` : "$4.99"}`,
                   ].map((t) => (
