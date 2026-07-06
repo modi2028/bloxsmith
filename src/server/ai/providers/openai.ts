@@ -22,11 +22,13 @@ type CanonicalBlock = {
   input?: Record<string, unknown>;
   tool_use_id?: string;
   content?: unknown;
+  source?: { type?: string; media_type?: string; data?: string };
 };
 
 function toOpenAIMessages(
   system: string,
   messages: ProviderMessage[],
+  supportsImages: boolean,
 ): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
   const out: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: system },
@@ -81,7 +83,33 @@ function toOpenAIMessages(
       .filter((b) => b.type === "text" && typeof b.text === "string")
       .map((b) => b.text)
       .join("");
-    if (text) out.push({ role: "user", content: text });
+    const imageBlocks = blocks.filter(
+      (b) => b.type === "image" && b.source?.data,
+    );
+    if (imageBlocks.length > 0 && supportsImages) {
+      out.push({
+        role: "user",
+        content: [
+          ...imageBlocks.map((b) => ({
+            type: "image_url" as const,
+            image_url: {
+              url: `data:${b.source!.media_type};base64,${b.source!.data}`,
+            },
+          })),
+          ...(text ? [{ type: "text" as const, text }] : []),
+        ],
+      });
+    } else if (imageBlocks.length > 0) {
+      // Text-only model: acknowledge the attachment instead of dropping it
+      // silently so the model can ask the user to describe it.
+      out.push({
+        role: "user",
+        content:
+          `${text}\n\n[The user attached ${imageBlocks.length} image(s), but you cannot view images — ask them to describe what's shown if it matters.]`.trim(),
+      });
+    } else if (text) {
+      out.push({ role: "user", content: text });
+    }
   }
 
   return out;
@@ -96,6 +124,8 @@ export type OpenAICompatOptions = {
    * classic `max_tokens`.
    */
   maxTokensParam?: "max_tokens" | "max_completion_tokens";
+  /** False for text-only models (attached images become a text note). */
+  supportsImages?: boolean;
 };
 
 /**
@@ -117,7 +147,11 @@ export async function streamOpenAICompatibleResponse(
   const stream = await client.chat.completions.create(
     {
       model: params.modelId,
-      messages: toOpenAIMessages(params.system, params.messages),
+      messages: toOpenAIMessages(
+        params.system,
+        params.messages,
+        opts.supportsImages !== false,
+      ),
       tools: params.tools.map((t) => ({
         type: "function" as const,
         function: {

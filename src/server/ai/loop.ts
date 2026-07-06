@@ -50,6 +50,8 @@ export async function runAgentTurn(params: {
   chatSessionId?: string;
   modelId?: string;
   title?: string;
+  /** Reference images attached to this message (base64, no data: prefix). */
+  images?: { mediaType: string; data: string }[];
   signal?: AbortSignal;
   onEvent: (e: AgentEvent) => void | Promise<void>;
 }): Promise<void> {
@@ -172,8 +174,19 @@ export async function runAgentTurn(params: {
         content: m.content,
       }));
 
-    // Persist + append the new user message.
-    const userContent = [{ type: "text", text: params.message }];
+    // Persist + append the new user message. Attached images become canonical
+    // Anthropic-shaped image blocks; adapters translate at their boundary.
+    const userContent: unknown[] = [
+      ...(params.images ?? []).map((img) => ({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: img.mediaType,
+          data: img.data,
+        },
+      })),
+      { type: "text", text: params.message },
+    ];
     await db.insert(schema.chatMessages).values({
       sessionId: chatSession.id,
       role: "user",

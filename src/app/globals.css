@@ -52,17 +52,18 @@ body {
 }
 
 .shimmer-text {
+  /* ChatGPT-style shine: dim text with a narrow bright band sweeping across. */
   background-image: linear-gradient(
     90deg,
-    var(--faint) 25%,
+    var(--faint) 42%,
     var(--foreground) 50%,
-    var(--faint) 75%
+    var(--faint) 58%
   );
   background-size: 200% 100%;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  animation: shimmer-slide 4.5s linear infinite;
+  animation: shimmer-slide 1.8s linear infinite;
 }
 
 /* Infinite horizontal marquee (content must be two identical halves). */

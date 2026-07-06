@@ -20,4 +20,7 @@ export const streamZaiResponse: ProviderAdapter = (params) =>
   streamOpenAICompatibleResponse(params, {
     baseURL: ZAI_BASE_URL,
     maxTokensParam: "max_tokens",
+    // GLM text models can't see images (vision is the separate GLM-V line);
+    // attachments become a text note instead of a hard provider error.
+    supportsImages: false,
   });

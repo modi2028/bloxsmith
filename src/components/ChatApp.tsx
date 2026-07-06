@@ -19,10 +19,26 @@ const SUGGESTIONS = [
 ];
 
 const MODEL_STORAGE_KEY = "bloxsmith-model";
+const NOTIFY_DISMISSED_KEY = "bs-notify-dismissed";
 
 /** Sent when the user presses "Continue building" after an interrupted run. */
 const CONTINUE_PROMPT =
   "Continue from where you left off and finish the remaining work.";
+
+/** Fire a desktop notification if allowed and the user isn't looking. */
+function notifyDone(message: string) {
+  try {
+    if (
+      "Notification" in window &&
+      Notification.permission === "granted" &&
+      document.hidden
+    ) {
+      new Notification("Bloxsmith", { body: message, icon: "/icon.png" });
+    }
+  } catch {
+    // Notifications unavailable — nothing to do.
+  }
+}
 
 function toolLabel(part: UiToolPart): string {
   const a = part.args as Record<string, string | undefined>;
@@ -97,6 +113,8 @@ export function ChatApp({
   const [messages, setMessages] = useState<UiMessage[]>(initialMessages ?? []);
   const [busy, setBusy] = useState(false);
   const [canContinue, setCanContinue] = useState(interrupted);
+  // Offered once a run passes 15s: browser notification when it finishes.
+  const [showNotifyPrompt, setShowNotifyPrompt] = useState(false);
   const [chatSessionId, setChatSessionId] = useState(initialSessionId);
   const [seedText, setSeedText] = useState<string>();
   const [island, setIsland] = useState<{
@@ -145,6 +163,28 @@ export function ChatApp({
     if (pendingTitle) sessionStorage.removeItem(PENDING_TITLE_KEY);
   }, [pendingTitle]);
 
+  // A run that crosses 15s offers a "notify me when done" prompt — once,
+  // and only while notification permission hasn't been decided yet.
+  useEffect(() => {
+    const timer = setTimeout(
+      () => {
+        if (!busy) {
+          setShowNotifyPrompt(false);
+          return;
+        }
+        if (
+          "Notification" in window &&
+          Notification.permission === "default" &&
+          !localStorage.getItem(NOTIFY_DISMISSED_KEY)
+        ) {
+          setShowNotifyPrompt(true);
+        }
+      },
+      busy ? 15_000 : 0,
+    );
+    return () => clearTimeout(timer);
+  }, [busy]);
+
   const showIsland = useCallback((amount: number) => {
     islandTimers.current.forEach(clearTimeout);
     setIsland({ amount, leaving: false });
@@ -163,9 +203,13 @@ export function ChatApp({
       }
       if (event.type === "done") {
         showIsland(event.creditsCharged);
+        notifyDone("Your build is finished — come take a look!");
       }
       if (event.type === "stopped") {
         showIsland(event.creditsCharged);
+      }
+      if (event.type === "error") {
+        notifyDone("Your build hit an error — come check it.");
       }
       // An interrupted or failed run can be resumed with one click.
       if (event.type === "stopped" || event.type === "error") {
@@ -248,11 +292,14 @@ export function ChatApp({
   );
 
   const stop = useCallback(() => {
+    // The run lives server-side (it survives leaving the page), so stopping
+    // means telling the server — aborting the local stream alone won't.
+    void fetch("/api/chat/stop", { method: "POST" }).catch(() => {});
     abortRef.current?.abort();
   }, []);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, files: File[] = []) => {
       if (!signedIn) {
         window.location.href = "/api/auth/roblox/login";
         return;
@@ -261,11 +308,29 @@ export function ChatApp({
       abortRef.current = controller;
       setMessages((prev) => [
         ...prev,
-        { kind: "user", text },
+        { kind: "user", text, ...(files.length ? { images: files.length } : {}) },
         { kind: "assistant", parts: [] },
       ]);
       setBusy(true);
       setCanContinue(false);
+      // Attached reference images ride along as base64.
+      const images = await Promise.all(
+        files.map(
+          (file) =>
+            new Promise<{ mediaType: string; data: string }>(
+              (resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () =>
+                  resolve({
+                    mediaType: file.type,
+                    data: String(reader.result).split(",")[1] ?? "",
+                  });
+                reader.onerror = () => reject(reader.error);
+                reader.readAsDataURL(file);
+              },
+            ),
+        ),
+      ).catch(() => [] as { mediaType: string; data: string }[]);
       // Apply the chosen project name only when creating a new project.
       const titleForNew = chatSessionId ? undefined : (pendingTitle ?? undefined);
       if (pendingTitle) setPendingTitle(null);
@@ -278,16 +343,23 @@ export function ChatApp({
             chatSessionId,
             modelId,
             title: titleForNew,
+            ...(images.length ? { images } : {}),
           }),
           signal: controller.signal,
         });
         if (!res.ok || !res.body) {
+          // Prefer the server's actual reason (e.g. "you already have a build
+          // running") over a generic line.
+          const data = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
           const detail =
-            res.status === 401
+            data.error ??
+            (res.status === 401
               ? "You were signed out — sign in again."
               : res.status === 503
                 ? "Bloxsmith is under maintenance — try again soon."
-                : "The request failed to start. Try again.";
+                : "The request failed to start. Try again.");
           applyEvent({ type: "error", message: detail });
           return;
         }
@@ -446,10 +518,34 @@ export function ChatApp({
         <div className="mx-auto flex max-w-3xl flex-col gap-5 py-6">
           {messages.map((msg, i) =>
             msg.kind === "user" ? (
-              <div key={i} className="flex justify-end">
+              <div key={i} className="flex flex-col items-end gap-1">
                 <div className="glass-chip max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-white/10 px-4 py-2.5 text-[15px]">
                   {msg.text}
                 </div>
+                {msg.images ? (
+                  <span className="flex items-center gap-1 text-[11px] text-faint">
+                    <svg viewBox="0 0 16 16" fill="none" className="size-3">
+                      <rect
+                        x="2"
+                        y="3"
+                        width="12"
+                        height="10"
+                        rx="1.5"
+                        stroke="currentColor"
+                        strokeWidth="1.3"
+                      />
+                      <path
+                        d="m4 11 3-3 2.5 2.5L11 9l1.5 2"
+                        stroke="currentColor"
+                        strokeWidth="1.3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <circle cx="6" cy="6" r="1" fill="currentColor" />
+                    </svg>
+                    {msg.images} image{msg.images > 1 ? "s" : ""} attached
+                  </span>
+                ) : null}
               </div>
             ) : (
               <div key={i} className="flex flex-col gap-2.5">
@@ -538,6 +634,46 @@ export function ChatApp({
 
       <div className="glass-surface border-t border-white/5 px-4 py-3">
         <div className="mx-auto max-w-3xl">
+          {showNotifyPrompt && busy && (
+            <div className="fade-up mb-2.5 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                className="size-4 shrink-0 text-ember"
+              >
+                <path
+                  d="M8 2a4 4 0 0 0-4 4v2.5L2.8 11h10.4L12 8.5V6a4 4 0 0 0-4-4Zm-1.5 10a1.5 1.5 0 0 0 3 0"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="min-w-0 flex-1 text-sm text-muted">
+                Still working — want a notification when it&apos;s done?
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNotifyPrompt(false);
+                  void Notification.requestPermission().catch(() => {});
+                }}
+                className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1.5 text-xs font-semibold text-stone-950 transition hover:brightness-110"
+              >
+                Notify me
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem(NOTIFY_DISMISSED_KEY, "1");
+                  setShowNotifyPrompt(false);
+                }}
+                className="shrink-0 px-1 text-xs text-faint transition hover:text-foreground"
+              >
+                No thanks
+              </button>
+            </div>
+          )}
           {canContinue && !busy && (
             <div className="fade-up mb-2.5 flex items-center gap-3 rounded-xl border border-ember/40 bg-ember-soft/50 px-4 py-2.5">
               <svg

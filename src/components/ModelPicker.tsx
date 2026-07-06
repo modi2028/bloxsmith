@@ -15,6 +15,8 @@ export type ChatModel = {
   proOnly: boolean;
   /** proOnly && the current user isn't Pro — shown but not selectable. */
   locked: boolean;
+  /** Surfaced in the "Recommended · Best at coding" group. */
+  recommended?: boolean;
 };
 
 const TIER_LABELS: Record<string, string> = {
@@ -56,10 +58,10 @@ export function ModelPicker({
 
   if (!current) return null;
 
-  // Claude models are surfaced first under a "Recommended" header — they're
-  // the strongest at writing Luau/code, which is most of what Bloxsmith does.
-  const recommended = models.filter((m) => m.provider === "anthropic");
-  const others = models.filter((m) => m.provider !== "anthropic");
+  // The strongest coding models are surfaced first under a "Recommended"
+  // header (curated in model-catalog RECOMMENDED_MODEL_IDS).
+  const recommended = models.filter((m) => m.recommended);
+  const others = models.filter((m) => !m.recommended);
 
   const renderModel = (m: ChatModel) => {
     const selected = m.id === current.id;

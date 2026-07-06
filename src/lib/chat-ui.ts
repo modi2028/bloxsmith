@@ -19,7 +19,7 @@ export type UiPart =
   | UiToolPart;
 
 export type UiMessage =
-  | { kind: "user"; text: string }
+  | { kind: "user"; text: string; images?: number }
   | { kind: "assistant"; parts: UiPart[]; creditsCharged?: number };
 
 type DbBlock = {
@@ -73,7 +73,10 @@ export function mapDbMessagesToUi(
         .filter((b) => b?.type === "text" && typeof b.text === "string")
         .map((b) => b.text)
         .join("");
-      if (text) out.push({ kind: "user", text });
+      const images = blocks.filter((b) => b?.type === "image").length;
+      if (text || images > 0) {
+        out.push({ kind: "user", text, ...(images > 0 ? { images } : {}) });
+      }
       continue;
     }
 

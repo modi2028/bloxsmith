@@ -26,8 +26,31 @@ export type CatalogModel = {
   sort: number;
 };
 
+/** Shown under "Recommended · Best at coding" in the model picker. */
+export const RECOMMENDED_MODEL_IDS = new Set([
+  "glm-5",
+  "glm-5.2",
+  "claude-sonnet-5",
+]);
+
 export const MODEL_CATALOG: CatalogModel[] = [
   // ---- Live lineup -----------------------------------------------------------
+  {
+    // $1.0/$3.2 per 1M tokens -> x3 markup. The free-tier coding pick.
+    modelId: "glm-5",
+    provider: "zai",
+    displayName: "GLM-5",
+    description: "Strong coding for free",
+    tier: "balanced",
+    inputCreditsPer1k: 0.003,
+    outputCreditsPer1k: 0.0096,
+    baseCost: 0.003,
+    maxCreditsPerRequest: 0.4,
+    proOnly: false,
+    enabled: true,
+    isDefault: false,
+    sort: 5,
+  },
   {
     modelId: "claude-sonnet-5",
     provider: "anthropic",
@@ -89,7 +112,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     proOnly: true,
     enabled: true,
     isDefault: false,
-    sort: 40,
+    sort: 8,
   },
   // ---- Retired from the picker (kept so apply:catalog disables their DB rows)
   {

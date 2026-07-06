@@ -188,7 +188,7 @@ const FAQS = [
   },
   {
     q: "Which AI models can I use?",
-    a: "Claude Haiku 4.5 and Gemini 3 Flash on the free plan; Pro unlocks Claude Sonnet 5 (recommended — best at coding) and GLM-5.2. You can switch models per message.",
+    a: "GLM-5, Claude Haiku 4.5 and Gemini 3 Flash on the free plan; Pro unlocks Claude Sonnet 5 and GLM-5.2 — the top coding models. You can switch models per message.",
   },
   {
     q: "What does it cost?",
@@ -454,7 +454,7 @@ export function Landing() {
                 <ul className="mt-5 flex flex-col gap-2.5 text-sm text-muted">
                   {[
                     "Free credits on sign-up",
-                    "Claude Haiku 4.5 and Gemini 3 Flash",
+                    "GLM-5, Claude Haiku 4.5 and Gemini 3 Flash",
                     "Full Studio plugin and live building",
                     `Top up any time from ${starter ? `$${starter.priceUsd.toFixed(2)}` : "$4.99"}`,
                   ].map((t) => (

@@ -48,10 +48,12 @@ type CanonicalBlock = {
   input?: Record<string, unknown>;
   tool_use_id?: string;
   content?: unknown;
+  source?: { type?: string; media_type?: string; data?: string };
 };
 
 type GeminiPart =
   | { text: string }
+  | { inlineData: { mimeType: string; data: string } }
   | { functionCall: { name: string; args: Record<string, unknown> } }
   | { functionResponse: { name: string; response: Record<string, unknown> } };
 
@@ -99,6 +101,13 @@ function toGeminiContents(
             ? b.content
             : JSON.stringify(b.content ?? {});
         parts.push({ functionResponse: { name, response: { result: raw } } });
+      } else if (b.type === "image" && b.source?.data) {
+        parts.push({
+          inlineData: {
+            mimeType: b.source.media_type ?? "image/png",
+            data: b.source.data,
+          },
+        });
       } else if (b.type === "text" && b.text) {
         parts.push({ text: b.text });
       }

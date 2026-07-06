@@ -6,8 +6,9 @@ import { CoinStack } from "./BrandMarks";
 import { ModelPicker, type ChatModel } from "./ModelPicker";
 import { StudioStatus } from "./StudioStatus";
 
-const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const MAX_IMAGES = 4;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 type PendingImage = {
   id: string;
@@ -37,7 +38,7 @@ export function ChatComposer({
   balance,
   studioConnected,
 }: {
-  onSend: (text: string) => void;
+  onSend: (text: string, files: File[]) => void;
   onStop?: () => void;
   busy: boolean;
   models: ChatModel[];
@@ -73,6 +74,7 @@ export function ChatComposer({
       const next = [...prev];
       for (const file of Array.from(files)) {
         if (!ACCEPTED_TYPES.includes(file.type)) continue;
+        if (file.size > MAX_IMAGE_BYTES) continue; // too big to send
         if (next.length >= MAX_IMAGES) break;
         next.push({
           id: crypto.randomUUID(),
@@ -97,7 +99,13 @@ export function ChatComposer({
   const submit = () => {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
-    onSend(trimmed);
+    onSend(
+      trimmed,
+      images.map((img) => img.file),
+    );
+    setPreview(null);
+    images.forEach((img) => URL.revokeObjectURL(img.url));
+    setImages([]);
     setText("");
   };
 
@@ -172,8 +180,8 @@ export function ChatComposer({
               ))}
             </div>
             <p className="mt-1.5 text-[11px] text-faint">
-              Image references aren&apos;t sent to the AI yet — coming with
-              project storage.
+              Sent with your message so the AI can see them. Click a thumbnail
+              to preview. Max 4 images, 5&nbsp;MB each.
             </p>
           </div>
         )}

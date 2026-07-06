@@ -11,6 +11,7 @@ import { Landing } from "@/components/Landing";
 import { Sidebar } from "@/components/Sidebar";
 import { BRAND } from "@/lib/brand";
 import { formatCredits } from "@/lib/credits-format";
+import { RECOMMENDED_MODEL_IDS } from "@/lib/model-catalog";
 import { mapDbMessagesToUi, type UiMessage } from "@/lib/chat-ui";
 import { getSessionUser, type SessionUser } from "@/server/auth/session";
 import { getBalance } from "@/server/credits/ledger";
@@ -359,6 +360,7 @@ export default async function Home({
     isDefault: m.isDefault,
     proOnly: m.proOnly,
     locked: m.proOnly && !proAccess,
+    recommended: RECOMMENDED_MODEL_IDS.has(m.modelId),
   }));
 
   return (
