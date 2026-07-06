@@ -1,5 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import Link from "next/link";
+import { AdminCodeGenerator } from "@/components/AdminCodeGenerator";
 import { AdminSiteControls } from "@/components/AdminSiteControls";
 import { AdminUsers } from "@/components/AdminUsers";
 import { BRAND } from "@/lib/brand";
@@ -68,6 +69,15 @@ export default async function AdminPage() {
           viewerIsSuper={admin.role === "super_admin"}
         />
       </section>
+
+      {admin.role === "super_admin" && (
+        <section className="mb-10">
+          <h2 className="mb-3 text-sm font-medium text-muted">
+            Pro &amp; credit codes
+          </h2>
+          <AdminCodeGenerator />
+        </section>
+      )}
 
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-medium text-muted">Users</h2>

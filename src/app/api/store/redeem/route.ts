@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/server/auth/session";
@@ -53,6 +53,11 @@ export async function POST(request: NextRequest) {
         eq(schema.redemptionCodes.codeHash, hashToken(code)),
         eq(schema.redemptionCodes.active, true),
         isNull(schema.redemptionCodes.redeemedAt),
+        // Codes with an expiry are only redeemable before it.
+        or(
+          isNull(schema.redemptionCodes.expiresAt),
+          gt(schema.redemptionCodes.expiresAt, new Date()),
+        ),
       ),
     )
     .returning();
