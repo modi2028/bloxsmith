@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatCredits } from "@/lib/credits-format";
 import { CoinStack } from "./BrandMarks";
 import { ModelPicker, type ChatModel } from "./ModelPicker";
@@ -54,8 +54,19 @@ export function ChatComposer({
   const [text, setText] = useState(initialText ?? "");
   const [images, setImages] = useState<PendingImage[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  // Attached image being previewed full-size (click a thumbnail to open).
+  const [preview, setPreview] = useState<PendingImage | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreview(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [preview]);
 
   const addFiles = useCallback((files: FileList | File[]) => {
     setImages((prev) => {
@@ -75,6 +86,7 @@ export function ChatComposer({
   }, []);
 
   const removeImage = (id: string) => {
+    setPreview((p) => (p?.id === id ? null : p));
     setImages((prev) => {
       const target = prev.find((img) => img.id === id);
       if (target) URL.revokeObjectURL(target.url);
@@ -135,12 +147,19 @@ export function ChatComposer({
             <div className="flex flex-wrap gap-2">
               {images.map((img) => (
                 <div key={img.id} className="group relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={img.url}
-                    alt={img.name}
-                    className="h-14 w-14 rounded-lg border border-line object-cover"
-                  />
+                  <button
+                    type="button"
+                    title={`Preview ${img.name}`}
+                    onClick={() => setPreview(img)}
+                    className="block cursor-zoom-in rounded-lg transition hover:brightness-110"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.url}
+                      alt={img.name}
+                      className="h-14 w-14 rounded-lg border border-line object-cover"
+                    />
+                  </button>
                   <button
                     type="button"
                     aria-label={`Remove ${img.name}`}
@@ -265,6 +284,41 @@ export function ChatComposer({
           )}
         </div>
       </div>
+
+      {/* Full-size preview of an attached image (click backdrop / Esc closes). */}
+      {preview && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Preview of ${preview.name}`}
+        >
+          <button
+            type="button"
+            aria-label="Close preview"
+            onClick={() => setPreview(null)}
+            className="absolute inset-0 cursor-zoom-out bg-black/80 backdrop-blur-sm"
+          />
+          <div className="fade-up pointer-events-none relative flex max-h-full max-w-full flex-col items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={preview.url}
+              alt={preview.name}
+              className="max-h-[82vh] max-w-[92vw] rounded-xl border border-white/15 object-contain shadow-2xl shadow-black/60"
+            />
+            <span className="glass-chip pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 py-1.5 pl-4 pr-1.5 text-xs text-muted">
+              <span className="max-w-[50vw] truncate">{preview.name}</span>
+              <button
+                type="button"
+                onClick={() => removeImage(preview.id)}
+                className="rounded-full border border-line-strong px-2.5 py-1 text-xs text-muted transition hover:border-red-500/60 hover:text-red-300"
+              >
+                Remove
+              </button>
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

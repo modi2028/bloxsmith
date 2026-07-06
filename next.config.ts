@@ -8,7 +8,8 @@ const isProd = process.env.NODE_ENV === "production";
 
 const csp = [
   "default-src 'self'",
-  "img-src 'self' data: https:",
+  // blob: is required for local previews of attached reference images.
+  "img-src 'self' data: blob: https:",
   "style-src 'self' 'unsafe-inline'",
   `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
   "connect-src 'self'",
