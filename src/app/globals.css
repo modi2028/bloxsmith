@@ -63,7 +63,7 @@ body {
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  animation: shimmer-slide 1.8s linear infinite;
+  animation: shimmer-slide 6s linear infinite;
 }
 
 /* Infinite horizontal marquee (content must be two identical halves). */
