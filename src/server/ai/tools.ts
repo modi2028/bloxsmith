@@ -176,7 +176,7 @@ export function getStudioTools(
       {
         name: "insert_asset",
         description:
-          "Insert a free Creator Store model (found with search_assets) into the place. Prefer this over building scenery from parts. Position it with the position property; inspect it afterwards with list_children if you need to modify it.",
+          "Insert a free Creator Store model (found with search_assets) into the place. Prefer this over building scenery from parts. The FIRST time you insert a given asset id, the user is automatically shown an Allow/Deny card — you don't need to ask in text; later copies of the same asset need no approval. If denied, build from parts or offer alternatives. Position it with the position property; inspect it afterwards with list_children if you need to modify it.",
         input_schema: {
           type: "object",
           properties: {

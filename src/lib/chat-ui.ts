@@ -16,6 +16,14 @@ export type UiPart =
   | { t: "text"; text: string }
   | { t: "error"; text: string }
   | { t: "info"; text: string }
+  | {
+      // One-click Creator Store consent card (live turns only).
+      t: "approval";
+      id: string;
+      assetId: number;
+      assetName?: string;
+      status: "pending" | "approved" | "denied";
+    }
   | UiToolPart;
 
 export type UiMessage =

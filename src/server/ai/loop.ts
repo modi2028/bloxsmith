@@ -29,6 +29,10 @@ import { streamClaudeResponse } from "./providers/anthropic";
 import { streamGoogleResponse } from "./providers/google";
 import { streamOpenAIResponse } from "./providers/openai";
 import { streamZaiResponse } from "./providers/zai";
+import {
+  isAssetApproved,
+  waitForAssetApproval,
+} from "./asset-approvals";
 import { searchRobloxAssets } from "./asset-search";
 import { getStudioTools } from "./tools";
 
@@ -306,6 +310,43 @@ export async function runAgentTurn(params: {
             error: "Pro required",
           });
           continue;
+        }
+        // First use of an asset id in this project pauses for the user's
+        // one-click approval; that answer covers every later copy of it.
+        if (toolUse.name === "insert_asset") {
+          const assetId = (validated.args as { assetId: number }).assetId;
+          if (!isAssetApproved(chatSession.id, assetId)) {
+            const { approvalId, promise } = waitForAssetApproval({
+              userId: user.id,
+              sessionId: chatSession.id,
+              assetId,
+              signal,
+            });
+            await onEvent({
+              type: "asset_approval",
+              id: approvalId,
+              assetId,
+              assetName: (validated.args as { name?: string }).name,
+            });
+            const approved = await promise;
+            throwIfStopped();
+            if (!approved) {
+              resultBlocks.push(
+                toolResultBlock(
+                  toolUse.id,
+                  `denied: the user declined inserting Creator Store asset ${assetId}. Build it from parts instead, or ask what they'd prefer.`,
+                  true,
+                ),
+              );
+              await onEvent({
+                type: "tool_result",
+                id: toolUse.id,
+                ok: false,
+                error: "Declined by user",
+              });
+              continue;
+            }
+          }
         }
 
         const toolCallId = await enqueueToolCall(db, {

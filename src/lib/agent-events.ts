@@ -20,4 +20,12 @@ export type AgentEvent =
     }
   | { type: "stopped"; creditsCharged: number }
   | { type: "needs_plugin" }
+  // The AI wants to insert a Creator Store asset it hasn't used before in
+  // this project — the user approves once per asset id.
+  | {
+      type: "asset_approval";
+      id: string;
+      assetId: number;
+      assetName?: string;
+    }
   | { type: "error"; message: string };

@@ -132,11 +132,11 @@ export default async function AdminUserChatsPage({
                           ⚙ {p.tool}
                           {p.status === "error" ? " (failed)" : ""}
                         </p>
-                      ) : (
+                      ) : p.t === "error" || p.t === "info" ? (
                         <p key={j} className="text-xs italic text-faint">
                           {p.text}
                         </p>
-                      ),
+                      ) : null,
                     )}
                   </div>
                 ),

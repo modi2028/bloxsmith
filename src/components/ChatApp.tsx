@@ -276,6 +276,15 @@ export function ChatApp({
             }
             break;
           }
+          case "asset_approval":
+            parts.push({
+              t: "approval",
+              id: event.id,
+              assetId: event.assetId,
+              assetName: event.assetName,
+              status: "pending",
+            });
+            break;
           case "error":
             parts.push({ t: "error", text: event.message });
             break;
@@ -301,6 +310,36 @@ export function ChatApp({
       });
     },
     [showIsland],
+  );
+
+  /** Answer a Creator Store consent card (one answer covers the asset). */
+  const answerApproval = useCallback(
+    async (approvalId: string, approve: boolean) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.kind === "assistant"
+            ? {
+                ...m,
+                parts: m.parts.map((p) =>
+                  p.t === "approval" && p.id === approvalId
+                    ? { ...p, status: approve ? "approved" : "denied" }
+                    : p,
+                ),
+              }
+            : m,
+        ),
+      );
+      try {
+        await fetch("/api/chat/approve-asset", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ approvalId, approve }),
+        });
+      } catch {
+        // The approval times out server-side if this never lands.
+      }
+    },
+    [],
   );
 
   const stop = useCallback(() => {
@@ -597,6 +636,59 @@ export function ChatApp({
                     return (
                       <div key={j} className="text-sm italic text-faint">
                         {part.text}
+                      </div>
+                    );
+                  }
+                  if (part.t === "approval") {
+                    return (
+                      <div
+                        key={j}
+                        className="glass-chip rounded-xl border border-ember/40 px-3.5 py-2.5 text-sm"
+                      >
+                        <p>
+                          <span className="font-medium">
+                            Insert from the Creator Store?
+                          </span>{" "}
+                          {part.assetName ? `“${part.assetName}” ` : ""}
+                          <span className="text-muted">
+                            (asset {part.assetId}) — one Allow covers every
+                            copy of this asset in the project.
+                          </span>
+                        </p>
+                        {part.status === "pending" ? (
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void answerApproval(part.id, true)
+                              }
+                              className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1.5 text-xs font-semibold text-stone-950 transition hover:brightness-110"
+                            >
+                              Allow
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void answerApproval(part.id, false)
+                              }
+                              className="rounded-lg border border-line-strong px-3.5 py-1.5 text-xs text-muted transition hover:text-foreground"
+                            >
+                              Deny
+                            </button>
+                          </div>
+                        ) : (
+                          <p
+                            className={`mt-1.5 text-xs ${
+                              part.status === "approved"
+                                ? "text-emerald-300"
+                                : "text-red-300"
+                            }`}
+                          >
+                            {part.status === "approved"
+                              ? "Allowed ✓"
+                              : "Denied ✕"}
+                          </p>
+                        )}
                       </div>
                     );
                   }

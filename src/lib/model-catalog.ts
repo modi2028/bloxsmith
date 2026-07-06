@@ -27,21 +27,21 @@ export type CatalogModel = {
 };
 
 /** Shown under "Recommended · Best at coding" in the model picker. */
-export const RECOMMENDED_MODEL_IDS = new Set(["glm-5.1", "glm-5.2"]);
+export const RECOMMENDED_MODEL_IDS = new Set(["glm-5", "glm-5.2"]);
 
 export const MODEL_CATALOG: CatalogModel[] = [
   // ---- Live lineup -----------------------------------------------------------
   {
-    // GLM-5.1: $1.4/$4.4 per 1M tokens -> x3 markup. Free-tier coding pick.
-    modelId: "glm-5.1",
+    // GLM-5: $1.0/$3.2 per 1M tokens -> x3 markup. Free-tier coding pick.
+    modelId: "glm-5",
     provider: "zai",
     displayName: "Blox Lite",
     description: "Strong everyday building for free",
     tier: "balanced",
-    inputCreditsPer1k: 0.0045,
-    outputCreditsPer1k: 0.0135,
-    baseCost: 0.004,
-    maxCreditsPerRequest: 0.5,
+    inputCreditsPer1k: 0.003,
+    outputCreditsPer1k: 0.0096,
+    baseCost: 0.003,
+    maxCreditsPerRequest: 0.4,
     proOnly: false,
     enabled: true,
     isDefault: false,
@@ -112,15 +112,15 @@ export const MODEL_CATALOG: CatalogModel[] = [
   },
   // ---- Retired from the picker (kept so apply:catalog disables their DB rows)
   {
-    modelId: "glm-5",
+    modelId: "glm-5.1",
     provider: "zai",
-    displayName: "GLM-5",
-    description: "Balanced everyday building with strong code",
+    displayName: "GLM-5.1",
+    description: "Strong everyday building",
     tier: "balanced",
-    inputCreditsPer1k: 0.003,
-    outputCreditsPer1k: 0.0096,
-    baseCost: 0.003,
-    maxCreditsPerRequest: 0.4,
+    inputCreditsPer1k: 0.0045,
+    outputCreditsPer1k: 0.0135,
+    baseCost: 0.004,
+    maxCreditsPerRequest: 0.5,
     proOnly: false,
     enabled: false,
     isDefault: false,

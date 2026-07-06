@@ -1,0 +1,28 @@
+import type { NextRequest } from "next/server";
+import { z } from "zod";
+import { getSessionUser } from "@/server/auth/session";
+import { resolveAssetApproval } from "@/server/ai/asset-approvals";
+
+const bodySchema = z.object({
+  approvalId: z.string().uuid(),
+  approve: z.boolean(),
+});
+
+/**
+ * POST /api/chat/approve-asset — answer the one-click Creator Store consent
+ * card. Only the user who owns the pending approval can answer it.
+ */
+export async function POST(request: NextRequest) {
+  const user = await getSessionUser();
+  if (!user) return Response.json({ error: "Not signed in" }, { status: 401 });
+
+  let body: z.infer<typeof bodySchema>;
+  try {
+    body = bodySchema.parse(await request.json());
+  } catch {
+    return Response.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  const ok = resolveAssetApproval(body.approvalId, user.id, body.approve);
+  return Response.json({ ok });
+}
