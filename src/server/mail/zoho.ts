@@ -32,7 +32,7 @@ export function zohoConfig() {
   };
 }
 
-/** The two mailbox slots the site knows about. */
+/** The mailbox slots the site knows about. */
 export const MAIL_SLOTS: Record<
   string,
   { address: string; minRole: "admin" | "super_admin"; label: string }
@@ -41,11 +41,6 @@ export const MAIL_SLOTS: Record<
     address: "support@bloxsmith.online",
     minRole: "admin",
     label: "Support",
-  },
-  management: {
-    address: "management@bloxsmith.online",
-    minRole: "super_admin",
-    label: "Management",
   },
 };
 

@@ -46,8 +46,8 @@ export default async function AdminPage() {
         <h2 className="mb-3 text-sm font-medium text-muted">Webmail</h2>
         <div className="flex items-center justify-between rounded-xl border border-line bg-surface-raised p-4 text-sm">
           <p className="text-muted">
-            Team inboxes (support{admin.role === "super_admin" ? " + management" : ""}) — no
-            shared passwords, access via your admin rank.
+            The support inbox — no shared passwords, access via your admin
+            rank.
           </p>
           <Link
             href="/admin/mail"
