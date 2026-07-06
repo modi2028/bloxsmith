@@ -1,7 +1,8 @@
 /**
- * Promote a user to the admin role in the DB.
+ * Promote a user to the admin (or super admin) role in the DB.
  *   set-admin.ts <username>            (by username)
  *   set-admin.ts --id <robloxUserId>   (by Roblox user id)
+ *   add --super to grant super_admin (can manage other admins + webmail).
  * With no args, promotes the first user.
  */
 import { config as loadDotenv } from "dotenv";
@@ -12,7 +13,8 @@ import * as schema from "../src/server/db/schema";
 loadDotenv({ path: [".env.local", ".env"] });
 
 async function main() {
-  const args = process.argv.slice(2);
+  const args = process.argv.slice(2).filter((a) => a !== "--super");
+  const wantSuper = process.argv.includes("--super");
   const idIdx = args.indexOf("--id");
   const robloxId = idIdx >= 0 ? Number(args[idIdx + 1]) : null;
   const username = idIdx < 0 ? args[0] : undefined;
@@ -37,12 +39,15 @@ async function main() {
     await close();
     return;
   }
+  const role = wantSuper ? ("super_admin" as const) : ("admin" as const);
   await db
     .update(schema.users)
-    .set({ role: "admin", updatedAt: new Date() })
+    .set({ role, updatedAt: new Date() })
     .where(eq(schema.users.id, user.id));
   await close();
-  console.log(`@${user.username} (robloxId ${user.robloxUserId}) is now admin.`);
+  console.log(
+    `@${user.username} (robloxId ${user.robloxUserId}) is now ${role}.`,
+  );
 }
 
 main().catch((e) => {

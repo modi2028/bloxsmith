@@ -12,6 +12,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { BRAND } from "@/lib/brand";
 import { formatCredits } from "@/lib/credits-format";
 import { RECOMMENDED_MODEL_IDS } from "@/lib/model-catalog";
+import { isAdminRole } from "@/lib/roles";
 import { mapDbMessagesToUi, type UiMessage } from "@/lib/chat-ui";
 import { getSessionUser, type SessionUser } from "@/server/auth/session";
 import { getBalance } from "@/server/credits/ledger";
@@ -110,7 +111,7 @@ function Header({
             <span className="rounded-full border border-ember/50 bg-ember-soft px-2.5 py-1 text-xs font-semibold text-ember">
               Pro
             </span>
-          ) : user.role !== "admin" ? (
+          ) : !isAdminRole(user.role) ? (
             <Link
               href="/store"
               className="glass-chip rounded-full border border-white/10 px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-ember"
@@ -244,7 +245,7 @@ export default async function Home({
     return <Landing />;
   }
 
-  if (site.maintenance && user.role !== "admin") {
+  if (site.maintenance && !isAdminRole(user.role)) {
     return <MaintenanceScreen announcement={site.announcement?.text ?? ""} />;
   }
 
@@ -258,7 +259,7 @@ export default async function Home({
   if (user) {
     const [row] = await db
       .select({
-        access: sql<boolean>`(${schema.users.role} = 'admin' OR (${schema.users.plan} = 'pro' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now())))`,
+        access: sql<boolean>`(${schema.users.role} IN ('admin', 'super_admin') OR (${schema.users.plan} = 'pro' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now())))`,
         plan: sql<boolean>`(${schema.users.plan} = 'pro' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now()))`,
       })
       .from(schema.users)

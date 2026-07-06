@@ -87,6 +87,19 @@ export async function runAgentTurn(params: {
     return;
   }
 
+  // Per-user model bans (admin-managed).
+  const userRow = await db.query.users.findFirst({
+    where: eq(schema.users.id, user.id),
+    columns: { bannedModels: true },
+  });
+  if ((userRow?.bannedModels ?? []).includes(modelId)) {
+    await onEvent({
+      type: "error",
+      message: `You don't have access to ${pricing.displayName}. Pick a different model.`,
+    });
+    return;
+  }
+
   // --- Require a connected Studio plugin -----------------------------------
   // Every build happens live in Studio, so a request without a connected
   // plugin can't do anything. Tell the client to connect it — no credits are

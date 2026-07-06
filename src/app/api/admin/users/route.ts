@@ -1,7 +1,11 @@
 import { eq, inArray, or, sql } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { getAdminForApi, auditAdmin } from "@/server/auth/admin";
+import {
+  getAdminForApi,
+  getSuperAdminForApi,
+  auditAdmin,
+} from "@/server/auth/admin";
 import { adminAdjustCredits } from "@/server/credits/ledger";
 import { db, schema } from "@/server/db";
 import { clientIp } from "@/server/security/ratelimit";
@@ -26,6 +30,18 @@ const actionSchema = z.discriminatedUnion("action", [
     action: z.literal("ban"),
     userId: z.string().uuid(),
     banned: z.boolean(),
+  }),
+  z.object({
+    // Super admin only: promote/demote admins.
+    action: z.literal("role"),
+    userId: z.string().uuid(),
+    role: z.enum(["user", "admin"]),
+  }),
+  z.object({
+    // Ban/unban a user from specific models.
+    action: z.literal("modelBans"),
+    userId: z.string().uuid(),
+    models: z.array(z.string().min(1).max(100)).max(50),
   }),
 ]);
 
@@ -94,10 +110,75 @@ export async function POST(request: NextRequest) {
     return Response.json({ ok: true });
   }
 
+  if (body.action === "role") {
+    const superAdmin = await getSuperAdminForApi();
+    if (!superAdmin) {
+      return Response.json(
+        { error: "Only super admins can manage admins." },
+        { status: 403 },
+      );
+    }
+    if (target.role === "super_admin") {
+      return Response.json(
+        { error: "Super admins can't be changed from the panel." },
+        { status: 400 },
+      );
+    }
+    if (target.id === superAdmin.id) {
+      return Response.json(
+        { error: "You can't change your own role." },
+        { status: 400 },
+      );
+    }
+    await db
+      .update(schema.users)
+      .set({ role: body.role, updatedAt: new Date() })
+      .where(eq(schema.users.id, target.id));
+    await auditAdmin({
+      actorUserId: superAdmin.id,
+      action: body.role === "admin" ? "role.promote" : "role.demote",
+      targetType: "user",
+      targetId: target.id,
+      before: { role: target.role },
+      after: { role: body.role },
+      ip,
+    });
+    return Response.json({
+      ok: true,
+      note:
+        body.role === "admin"
+          ? "Remember: they also need their Roblox id in ADMIN_ROBLOX_USER_IDS to actually get in."
+          : undefined,
+    });
+  }
+
+  if (body.action === "modelBans") {
+    await db
+      .update(schema.users)
+      .set({ bannedModels: body.models, updatedAt: new Date() })
+      .where(eq(schema.users.id, target.id));
+    await auditAdmin({
+      actorUserId: admin.id,
+      action: "user.model_bans",
+      targetType: "user",
+      targetId: target.id,
+      before: { bannedModels: target.bannedModels },
+      after: { bannedModels: body.models },
+      ip,
+    });
+    return Response.json({ ok: true });
+  }
+
   // ban
   if (target.id === admin.id) {
     return Response.json(
       { error: "You can't ban yourself." },
+      { status: 400 },
+    );
+  }
+  if (target.role === "super_admin") {
+    return Response.json(
+      { error: "Super admins can't be banned." },
       { status: 400 },
     );
   }
@@ -141,6 +222,7 @@ export async function GET(request: NextRequest) {
       plan: schema.users.plan,
       proExpiresAt: schema.users.proExpiresAt,
       disabled: schema.users.disabled,
+      bannedModels: schema.users.bannedModels,
       createdAt: schema.users.createdAt,
     })
     .from(schema.users)

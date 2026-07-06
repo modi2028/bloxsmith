@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { SettingsForm } from "@/components/SettingsForm";
 import { BRAND } from "@/lib/brand";
 import { formatCredits } from "@/lib/credits-format";
+import { isAdminRole } from "@/lib/roles";
 import { getSessionUser } from "@/server/auth/session";
 import { getBalance } from "@/server/credits/ledger";
 
@@ -51,9 +52,9 @@ export default async function SettingsPage() {
             >
               {user.plan === "pro" ? "Pro" : "Free"}
             </span>
-            {user.role === "admin" && (
+            {isAdminRole(user.role) && (
               <span className="rounded-full border border-line px-2 py-px text-[10px] uppercase tracking-wide text-faint">
-                admin
+                {user.role === "super_admin" ? "super admin" : "admin"}
               </span>
             )}
           </p>
@@ -78,7 +79,7 @@ export default async function SettingsPage() {
           </Link>
         </div>
 
-        {user.role === "admin" && (
+        {isAdminRole(user.role) && (
           <div className="rounded-2xl border border-ember/40 bg-ember-soft/50 p-5">
             <h2 className="mb-1.5 text-sm font-medium">Admin</h2>
             <p className="mb-3 text-xs text-muted">

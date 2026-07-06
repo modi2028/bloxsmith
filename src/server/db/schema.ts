@@ -16,7 +16,7 @@ import {
 // Enums
 // ---------------------------------------------------------------------------
 
-export const userRole = pgEnum("user_role", ["user", "admin"]);
+export const userRole = pgEnum("user_role", ["user", "admin", "super_admin"]);
 
 export const userPlan = pgEnum("user_plan", ["free", "pro"]);
 
@@ -72,6 +72,8 @@ export const users = pgTable(
     nickname: text("nickname"),
     avatarUrl: text("avatar_url"),
     role: userRole("role").notNull().default("user"),
+    // Model ids this user is banned from using (admin-managed).
+    bannedModels: jsonb("banned_models").$type<string[]>().notNull().default([]),
     // Subscription plan. Pro unlocks pro_only models + monthly credit grant.
     plan: userPlan("plan").notNull().default("free"),
     // When Pro lapses (null = permanent, e.g. admin-granted). Enforced live.

@@ -8,10 +8,11 @@ type AdminUser = {
   username: string;
   displayName: string | null;
   robloxUserId: number;
-  role: "user" | "admin";
+  role: "user" | "admin" | "super_admin";
   plan: "free" | "pro";
   proExpiresAt: string | null;
   disabled: boolean;
+  bannedModels: string[];
   balance: number;
 };
 
@@ -26,7 +27,15 @@ async function act(body: unknown): Promise<string | null> {
   return data.error ?? "Action failed";
 }
 
-export function AdminUsers() {
+export function AdminUsers({
+  viewerIsSuper = false,
+  modelIds = [],
+}: {
+  /** Super admins can additionally promote/demote admins. */
+  viewerIsSuper?: boolean;
+  /** Enabled model ids, shown as hints in the model-ban prompt. */
+  modelIds?: string[];
+}) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
@@ -104,6 +113,31 @@ export function AdminUsers() {
     }
   };
 
+  const editModelBans = (u: AdminUser) => {
+    const input = window.prompt(
+      `Model ids @${u.username} is BANNED from, comma-separated (empty = no bans).\nAvailable: ${modelIds.join(", ") || "—"}`,
+      u.bannedModels.join(", "),
+    );
+    if (input == null) return;
+    const models = input
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    void run(u.id, { action: "modelBans", userId: u.id, models });
+  };
+
+  const setRole = (u: AdminUser, role: "admin" | "user") => {
+    if (
+      !window.confirm(
+        role === "admin"
+          ? `Make @${u.username} an admin? They also need their Roblox id (${u.robloxUserId}) added to ADMIN_ROBLOX_USER_IDS in Railway to get in.`
+          : `Remove admin from @${u.username}?`,
+      )
+    )
+      return;
+    void run(u.id, { action: "role", userId: u.id, role });
+  };
+
   const toggleBan = (u: AdminUser) => {
     if (
       !window.confirm(
@@ -168,9 +202,23 @@ export function AdminUsers() {
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">@{u.username}</span>
+                      {u.role === "super_admin" && (
+                        <span className="rounded-full border border-ember/50 px-1.5 py-px text-[10px] font-semibold uppercase text-ember">
+                          super admin
+                        </span>
+                      )}
                       {u.role === "admin" && (
                         <span className="rounded-full border border-line px-1.5 py-px text-[10px] uppercase text-faint">
                           admin
+                        </span>
+                      )}
+                      {u.bannedModels.length > 0 && (
+                        <span
+                          className="rounded-full border border-red-900/60 px-1.5 py-px text-[10px] uppercase text-red-400"
+                          title={`Banned from: ${u.bannedModels.join(", ")}`}
+                        >
+                          {u.bannedModels.length} model ban
+                          {u.bannedModels.length > 1 ? "s" : ""}
                         </span>
                       )}
                       {u.disabled && (
@@ -227,15 +275,43 @@ export function AdminUsers() {
                       <button
                         type="button"
                         disabled={busyId === u.id}
-                        onClick={() => toggleBan(u)}
-                        className={`rounded border px-2 py-1 text-xs transition disabled:opacity-40 ${
-                          u.disabled
-                            ? "border-line hover:border-ember/60"
-                            : "border-red-900/60 text-red-400 hover:bg-red-950/30"
-                        }`}
+                        onClick={() => editModelBans(u)}
+                        className="rounded border border-line px-2 py-1 text-xs transition hover:border-ember/60 disabled:opacity-40"
                       >
-                        {u.disabled ? "Unban" : "Ban"}
+                        Model bans
                       </button>
+                      <a
+                        href={`/admin/users/${u.id}`}
+                        className="rounded border border-line px-2 py-1 text-xs transition hover:border-ember/60"
+                      >
+                        Chats
+                      </a>
+                      {viewerIsSuper && u.role !== "super_admin" && (
+                        <button
+                          type="button"
+                          disabled={busyId === u.id}
+                          onClick={() =>
+                            setRole(u, u.role === "admin" ? "user" : "admin")
+                          }
+                          className="rounded border border-ember/40 px-2 py-1 text-xs text-ember transition hover:bg-ember-soft disabled:opacity-40"
+                        >
+                          {u.role === "admin" ? "Remove admin" : "Make admin"}
+                        </button>
+                      )}
+                      {u.role !== "super_admin" && (
+                        <button
+                          type="button"
+                          disabled={busyId === u.id}
+                          onClick={() => toggleBan(u)}
+                          className={`rounded border px-2 py-1 text-xs transition disabled:opacity-40 ${
+                            u.disabled
+                              ? "border-line hover:border-ember/60"
+                              : "border-red-900/60 text-red-400 hover:bg-red-950/30"
+                          }`}
+                        >
+                          {u.disabled ? "Unban" : "Ban"}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

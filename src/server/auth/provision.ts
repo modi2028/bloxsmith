@@ -28,13 +28,19 @@ export async function provisionUser(
   });
 
   if (existing) {
+    // super_admin is managed in-app; the allowlist keeps gating access, so an
+    // allowlisted super_admin keeps their tier across logins.
+    const nextRole =
+      isAllowlistedAdmin && existing.role === "super_admin"
+        ? ("super_admin" as const)
+        : role;
     const [updated] = await db
       .update(schema.users)
       .set({
         username: identity.username,
         displayName: identity.displayName,
         avatarUrl: identity.avatarUrl,
-        role,
+        role: nextRole,
         updatedAt: new Date(),
       })
       .where(eq(schema.users.id, existing.id))

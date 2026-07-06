@@ -1,3 +1,5 @@
+import { isAdminRole } from "./roles";
+
 /**
  * Effective Pro status. Admins always have Pro. A Pro plan with no expiry is
  * permanent; with an expiry it's active until that instant.
@@ -9,7 +11,7 @@ export function isProUser(
   user: { role: string; plan: string; proExpiresAt: Date | null },
   now: Date,
 ): boolean {
-  if (user.role === "admin") return true;
+  if (isAdminRole(user.role)) return true;
   if (user.plan !== "pro") return false;
   return user.proExpiresAt == null || user.proExpiresAt.getTime() > now.getTime();
 }

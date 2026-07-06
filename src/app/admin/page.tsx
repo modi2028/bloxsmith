@@ -52,7 +52,10 @@ export default async function AdminPage() {
 
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-medium text-muted">Users</h2>
-        <AdminUsers />
+        <AdminUsers
+          viewerIsSuper={admin.role === "super_admin"}
+          modelIds={models.filter((m) => m.enabled).map((m) => m.modelId)}
+        />
       </section>
 
       <section className="mb-10">

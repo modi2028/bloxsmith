@@ -5,6 +5,7 @@ import { runAgentTurn, type AgentEvent } from "@/server/ai/loop";
 import { registerRun, unregisterRun } from "@/server/ai/run-registry";
 import { acquireSlot, rateLimit, releaseSlot } from "@/server/security/ratelimit";
 import { getSiteSettings } from "@/server/site-settings";
+import { isAdminRole } from "@/lib/roles";
 
 // AI cost controls: at most 1 concurrent run and 20 turns / 5 min per user.
 const MAX_CONCURRENT = 1;
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
 
   // Maintenance mode blocks new AI runs for everyone except admins.
   const site = await getSiteSettings();
-  if (site.maintenance && user.role !== "admin") {
+  if (site.maintenance && !isAdminRole(user.role)) {
     return Response.json(
       { error: "Bloxsmith is under maintenance — try again soon." },
       { status: 503 },
