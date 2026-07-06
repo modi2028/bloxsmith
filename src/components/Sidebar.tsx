@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BRAND } from "@/lib/brand";
+import { BloxImageButton } from "./BloxImageButton";
 import { LogoMark } from "./Logo";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectList, type ProjectItem } from "./ProjectList";
@@ -33,6 +34,7 @@ export function Sidebar({
 
       <div className="px-3">
         <NewProjectButton pluginConnected={pluginConnected} />
+        <BloxImageButton />
       </div>
 
       <div className="mb-1.5 mt-6 flex items-center justify-between pl-6 pr-3">
