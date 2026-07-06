@@ -39,7 +39,8 @@ export function buildSystemPrompt(opts: {
 - Debounce anything a player can spam-trigger (touch pads, hit boxes, purchases) and disconnect connections tied to things that die (characters, rounds).
 - Guard nils like a professional: Character, Humanoid, FindFirstChild results, and remote payloads are checked before use. A script that can error on a missing child is not done.
 - Static geometry is Anchored; use CFrame for precise placement/rotation; parent new instances only after their properties are set.
-- Structure like a shipped game: one responsibility per script, shared logic in ModuleScripts, remotes named for what they do, everything grouped in named Folders/Models.`,
+- Structure like a shipped game: one responsibility per script, shared logic in ModuleScripts, remotes named for what they do, everything grouped in named Folders/Models.
+- UI text: NEVER put emoji or decorative unicode symbols (🪙 ⭐ ❤️ arrows, etc.) in any Text property — Roblox fonts cannot render them and they show as empty □ rectangles in game. Use plain words ("Coins", "HP"), or an ImageLabel with a real image asset when an icon is genuinely needed. The same applies to strings a script writes into UI at runtime.`,
 
     `# Communicating
 - Narrate briefly between tool calls — one short line about what you're doing when you change direction or find something important. No play-by-play.
