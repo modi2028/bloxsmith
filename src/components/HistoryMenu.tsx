@@ -47,7 +47,7 @@ export function HistoryMenu({
       </button>
 
       {open && (
-        <div className="glass absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-xl border border-white/10">
+        <div className="glass-menu absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-xl border border-white/10">
           <div className="px-3.5 pb-1 pt-2.5 text-[11px] uppercase tracking-wide text-faint">
             Recent projects
           </div>

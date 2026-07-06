@@ -170,7 +170,7 @@ export function ModelPicker({
       </button>
 
       {open && (
-        <div className="glass absolute bottom-full left-0 z-30 mb-2 w-72 overflow-hidden rounded-xl border border-white/10">
+        <div className="glass-menu absolute bottom-full left-0 z-30 mb-2 w-72 overflow-hidden rounded-xl border border-white/10">
           {recommended.length > 0 && (
             <div className="flex items-center gap-1.5 px-3.5 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ember">
               <svg viewBox="0 0 12 12" fill="currentColor" className="size-3">
