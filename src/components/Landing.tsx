@@ -4,9 +4,9 @@ import { CREDIT_PACKS, PRO_PLAN } from "@/lib/model-catalog";
 import {
   AnthropicWordmark,
   GeminiMark,
-  OpenAIMark,
   PoweredByBanner,
   RobloxMark,
+  ZaiMark,
 } from "./BrandMarks";
 import { IntroVideo } from "./IntroVideo";
 import { LogoMark } from "./Logo";
@@ -140,8 +140,8 @@ const FEATURES = [
   },
   {
     icon: <IconModels />,
-    title: "Claude and ChatGPT",
-    body: "Switch between the best models from Anthropic and OpenAI. Fast and cheap for tweaks, or a flagship for whole systems.",
+    title: "Claude, Gemini and GLM",
+    body: "Fast, capable models for free — and Pro unlocks Claude Sonnet 5 and GLM-5.2 for whole systems.",
   },
   {
     icon: <IconUndo />,
@@ -188,7 +188,7 @@ const FAQS = [
   },
   {
     q: "Which AI models can I use?",
-    a: "Claude (recommended — best at coding), ChatGPT, and Gemini. You can switch models per message, and Pro unlocks the flagship tiers.",
+    a: "Claude Haiku 4.5 and Gemini 3 Flash on the free plan; Pro unlocks Claude Sonnet 5 (recommended — best at coding) and GLM-5.2. You can switch models per message.",
   },
   {
     q: "What does it cost?",
@@ -323,7 +323,7 @@ export function Landing() {
             style={{ animationDelay: "80ms" }}
           >
             Describe a game mechanic and {BRAND.name} builds it live inside your
-            open Roblox Studio session — powered by Claude and ChatGPT. No
+            open Roblox Studio session — powered by Claude and Gemini. No
             copy-pasting code. It simply appears.
           </p>
           <div
@@ -454,7 +454,7 @@ export function Landing() {
                 <ul className="mt-5 flex flex-col gap-2.5 text-sm text-muted">
                   {[
                     "Free credits on sign-up",
-                    "Claude Sonnet 5, ChatGPT 5.4 and Haiku",
+                    "Claude Haiku 4.5 and Gemini 3 Flash",
                     "Full Studio plugin and live building",
                     `Top up any time from ${starter ? `$${starter.priceUsd.toFixed(2)}` : "$4.99"}`,
                   ].map((t) => (
@@ -576,16 +576,17 @@ export function Landing() {
           <div className="flex items-center gap-2">
             <LogoMark size={20} />
             <span>
-              © {BRAND.name}. Not affiliated with Roblox, Anthropic, or OpenAI.
+              © {BRAND.name}. Not affiliated with Roblox, Anthropic, Google,
+              or Z.ai.
             </span>
           </div>
           <div className="flex items-center gap-4">
             <AnthropicWordmark className="text-[11px] text-muted" />
             <span className="flex items-center gap-1 text-muted">
-              <OpenAIMark className="size-3.5" /> ChatGPT
+              <GeminiMark className="size-3.5" /> Gemini
             </span>
             <span className="flex items-center gap-1 text-muted">
-              <GeminiMark className="size-3.5" /> Gemini
+              <ZaiMark className="size-3.5" /> GLM
             </span>
             <span className="flex items-center gap-1 text-muted">
               <RobloxMark className="size-3.5" /> Roblox

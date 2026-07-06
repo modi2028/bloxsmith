@@ -71,7 +71,7 @@ export async function runAgentTurn(params: {
   if (!adapter) {
     await onEvent({
       type: "error",
-      message: `${pricing.displayName} is not wired up yet — pick a Claude or ChatGPT model for now.`,
+      message: `${pricing.displayName} is not wired up yet — pick another model for now.`,
     });
     return;
   }
@@ -80,7 +80,7 @@ export async function runAgentTurn(params: {
   if (pricing.proOnly && !isProUser(user, new Date())) {
     await onEvent({
       type: "error",
-      message: `${pricing.displayName} is a Pro model. Upgrade to Pro (or use a free model like Claude Sonnet 5) to build with it.`,
+      message: `${pricing.displayName} is a Pro model. Upgrade to Pro (or use a free model like Claude Haiku 4.5) to build with it.`,
     });
     return;
   }
@@ -468,5 +468,5 @@ async function getDefaultModelId(): Promise<string> {
   const row = await db.query.appSettings.findFirst({
     where: eq(schema.appSettings.key, "default_model_id"),
   });
-  return typeof row?.value === "string" ? row.value : "claude-sonnet-5";
+  return typeof row?.value === "string" ? row.value : "claude-haiku-4-5";
 }

@@ -161,9 +161,9 @@ function BannerRow() {
       </span>
       <span className="text-faint">✦</span>
       <span className="flex items-center gap-2 text-sm text-muted">
-        <OpenAIMark className="size-4 text-foreground" />
+        <GeminiMark className="size-4 text-foreground" />
         <span className="text-[13px] font-semibold text-foreground">
-          ChatGPT
+          Gemini
         </span>
       </span>
       <span className="text-faint">✦</span>
@@ -175,7 +175,7 @@ function BannerRow() {
       </span>
       <span className="text-faint">✦</span>
       <span className="text-sm text-muted">
-        Claude &amp; ChatGPT build it live in your Studio session
+        Claude &amp; Gemini build it live in your Studio session
       </span>
       <span className="text-faint">✦</span>
       <span className="flex items-center gap-2.5">
