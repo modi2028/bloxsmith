@@ -158,7 +158,7 @@ export function StudioStatus({ initial }: { initial: boolean }) {
           </div>
         ) : phase === "success" ? (
           <div className="flex flex-col items-center py-2 text-center">
-            <span className="island-enter mb-4 flex size-14 items-center justify-center rounded-full bg-emerald-950/60 ring-2 ring-emerald-400/60">
+            <span className="fade-up mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-950/60 ring-2 ring-emerald-400/60">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"

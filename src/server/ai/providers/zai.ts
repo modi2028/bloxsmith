@@ -3,12 +3,18 @@ import type { ProviderAdapter } from "../provider";
 import { streamOpenAICompatibleResponse } from "./openai";
 
 /**
- * Z.ai (Zhipu) GLM adapter. Z.ai's OpenAI-compatible endpoint implements the
+ * Z.ai (Zhipu) GLM adapter. Z.ai's OpenAI-compatible endpoints implement the
  * full Chat Completions contract — tools, streaming, usage — so we route
  * through the shared OpenAI streamer with their base URL.
+ *
+ * Verified against the live API: GLM Coding Plan keys work on
+ * /api/coding/paas/v4 (the default here); pay-per-token API balance uses
+ * /api/paas/v4 instead — override with the ZAI_BASE_URL env var if needed.
+ * (An /api/openai/v1 path floating around in blog posts 404s.)
  * API keys come from https://z.ai (set with: npm run key:set -- zai <key>).
  */
-const ZAI_BASE_URL = "https://api.z.ai/api/openai/v1";
+const ZAI_BASE_URL =
+  process.env.ZAI_BASE_URL || "https://api.z.ai/api/coding/paas/v4";
 
 export const streamZaiResponse: ProviderAdapter = (params) =>
   streamOpenAICompatibleResponse(params, {
