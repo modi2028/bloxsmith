@@ -43,6 +43,22 @@ export default async function AdminPage() {
       </p>
 
       <section className="mb-10">
+        <h2 className="mb-3 text-sm font-medium text-muted">Webmail</h2>
+        <div className="flex items-center justify-between rounded-xl border border-line bg-surface-raised p-4 text-sm">
+          <p className="text-muted">
+            Team inboxes (support{admin.role === "super_admin" ? " + management" : ""}) — no
+            shared passwords, access via your admin rank.
+          </p>
+          <Link
+            href="/admin/mail"
+            className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+          >
+            Open webmail →
+          </Link>
+        </div>
+      </section>
+
+      <section className="mb-10">
         <h2 className="mb-3 text-sm font-medium text-muted">Site controls</h2>
         <AdminSiteControls
           initialAnnouncement={site.announcement?.text ?? ""}

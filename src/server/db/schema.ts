@@ -158,6 +158,27 @@ export const pairingCodes = pgTable("pairing_codes", {
     .defaultNow(),
 });
 
+/**
+ * Zoho mailboxes connected to the admin webmail. The OAuth refresh token is
+ * AES-encrypted at rest; minRole gates who can open the mailbox (admins get
+ * support@, super admins also get management@).
+ */
+export const mailAccounts = pgTable("mail_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  address: text("address").notNull().unique(),
+  zohoAccountId: text("zoho_account_id").notNull(),
+  refreshTokenEnc: text("refresh_token_enc").notNull(),
+  minRole: text("min_role", { enum: ["admin", "super_admin"] })
+    .notNull()
+    .default("admin"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const connectRequestStatus = pgEnum("connect_request_status", [
   "pending", // waiting for the website user to approve
   "approved", // approved on the site; token not yet delivered to the plugin
