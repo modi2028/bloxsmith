@@ -158,6 +158,7 @@ export async function runAgentTurn(params: {
     const system = buildSystemPrompt({
       projectMemory: chatSession.projectMemory,
       userNickname: user.nickname ?? user.displayName ?? user.username,
+      provider: pricing.provider,
     });
 
     const history = await db.query.chatMessages.findMany({
