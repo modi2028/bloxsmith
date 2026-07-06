@@ -45,11 +45,18 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  // Maintenance mode blocks new AI runs for everyone except admins.
+  // Maintenance mode / a paused chat feature block new AI runs for
+  // everyone except admins.
   const site = await getSiteSettings();
   if (site.maintenance && !isAdminRole(user.role)) {
     return Response.json(
       { error: "Bloxsmith is under maintenance — try again soon." },
+      { status: 503 },
+    );
+  }
+  if (site.chatPaused && !isAdminRole(user.role)) {
+    return Response.json(
+      { error: "Building is temporarily paused — check back soon." },
       { status: 503 },
     );
   }

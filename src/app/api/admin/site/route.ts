@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { getAdminForApi, auditAdmin } from "@/server/auth/admin";
+import {
+  getAdminForApi,
+  getSuperAdminForApi,
+  auditAdmin,
+} from "@/server/auth/admin";
 import { db, schema } from "@/server/db";
 import { clientIp } from "@/server/security/ratelimit";
 
@@ -17,6 +21,13 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("maintenance"),
     enabled: z.boolean(),
+    confirm: z.string(),
+  }),
+  z.object({
+    // Super admin only: pause a single feature for non-admins.
+    action: z.literal("feature"),
+    feature: z.enum(["chat", "image"]),
+    paused: z.boolean(),
     confirm: z.string(),
   }),
 ]);
@@ -75,6 +86,27 @@ export async function POST(request: NextRequest) {
       targetType: "site",
       targetId: "global_announcement",
       after: { text: body.text },
+      ip,
+    });
+    return Response.json({ ok: true });
+  }
+
+  if (body.action === "feature") {
+    const superAdmin = await getSuperAdminForApi();
+    if (!superAdmin) {
+      return Response.json(
+        { error: "Only super admins can pause features." },
+        { status: 403 },
+      );
+    }
+    const key = body.feature === "chat" ? "chat_paused" : "image_paused";
+    await setSetting(key, body.paused);
+    await auditAdmin({
+      actorUserId: superAdmin.id,
+      action: `site.${body.feature}.${body.paused ? "pause" : "resume"}`,
+      targetType: "site",
+      targetId: key,
+      after: { paused: body.paused },
       ip,
     });
     return Response.json({ ok: true });

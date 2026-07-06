@@ -10,12 +10,21 @@ import { useRouter } from "next/navigation";
 export function AdminSiteControls({
   initialAnnouncement,
   initialMaintenance,
+  initialChatPaused = false,
+  initialImagePaused = false,
+  viewerIsSuper = false,
 }: {
   initialAnnouncement: string;
   initialMaintenance: boolean;
+  initialChatPaused?: boolean;
+  initialImagePaused?: boolean;
+  /** Feature pause switches are super-admin only. */
+  viewerIsSuper?: boolean;
 }) {
   const [text, setText] = useState(initialAnnouncement);
   const [maintenance, setMaintenance] = useState(initialMaintenance);
+  const [chatPaused, setChatPaused] = useState(initialChatPaused);
+  const [imagePaused, setImagePaused] = useState(initialImagePaused);
   const [confirm, setConfirm] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{
@@ -49,6 +58,25 @@ export function AdminSiteControls({
       return false;
     } finally {
       setPending(false);
+    }
+  };
+
+  const toggleFeature = async (feature: "chat" | "image") => {
+    const paused = feature === "chat" ? chatPaused : imagePaused;
+    const next = !paused;
+    const label = feature === "chat" ? "AI building" : "Blox Image";
+    if (
+      next &&
+      !window.confirm(`Pause ${label} for everyone except admins?`)
+    )
+      return;
+    const ok = await call(
+      { action: "feature", feature, paused: next },
+      `${label} is ${next ? "paused" : "back on"}.`,
+    );
+    if (ok) {
+      if (feature === "chat") setChatPaused(next);
+      else setImagePaused(next);
     }
   };
 
@@ -107,6 +135,42 @@ export function AdminSiteControls({
           {maintenance ? "ON" : "off"}
         </span>
       </div>
+
+      {/* Feature pauses — super admin only */}
+      {viewerIsSuper && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              ["chat", "AI building (chat)", chatPaused],
+              ["image", "Blox Image", imagePaused],
+            ] as const
+          ).map(([feature, label, paused]) => (
+            <div
+              key={feature}
+              className="flex items-center justify-between rounded-lg border border-line bg-surface px-3.5 py-2.5"
+            >
+              <div>
+                <p className="text-sm">{label}</p>
+                <p className="text-xs text-faint">
+                  {paused ? "Paused for non-admins" : "Running"}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={pending || !confirm}
+                onClick={() => void toggleFeature(feature)}
+                className={`rounded-lg border px-3 py-1.5 text-xs transition disabled:opacity-40 ${
+                  paused
+                    ? "border-emerald-500/50 text-emerald-300 hover:bg-emerald-950/30"
+                    : "border-red-500/50 text-red-300 hover:bg-red-950/30"
+                }`}
+              >
+                {paused ? "Resume" : "Pause"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Confirm + actions */}
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">

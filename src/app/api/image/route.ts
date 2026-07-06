@@ -41,6 +41,12 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
+  if (site.imagePaused && !isAdminRole(user.role)) {
+    return Response.json(
+      { error: "Blox Image is temporarily paused — check back soon." },
+      { status: 503 },
+    );
+  }
 
   const rl = rateLimit(`image:${user.id}`, 10, 5 * 60_000);
   const ipRl = rateLimit(`image-ip:${clientIp(request)}`, 20, 5 * 60_000);

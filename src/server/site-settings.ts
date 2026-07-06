@@ -12,6 +12,9 @@ export type SiteSettings = {
   announcement: { id: string; text: string } | null;
   /** When true, non-admins can't use the app (landing + dashboard + chat). */
   maintenance: boolean;
+  /** Super-admin switches pausing individual features for non-admins. */
+  chatPaused: boolean;
+  imagePaused: boolean;
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -19,6 +22,8 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     where: inArray(schema.appSettings.key, [
       "global_announcement",
       "maintenance_mode",
+      "chat_paused",
+      "image_paused",
     ]),
   });
   const value = (key: string) => rows.find((r) => r.key === key)?.value;
@@ -44,5 +49,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   return {
     announcement,
     maintenance: value("maintenance_mode") === true,
+    chatPaused: value("chat_paused") === true,
+    imagePaused: value("image_paused") === true,
   };
 }

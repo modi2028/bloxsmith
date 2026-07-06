@@ -63,6 +63,9 @@ export default async function AdminPage() {
         <AdminSiteControls
           initialAnnouncement={site.announcement?.text ?? ""}
           initialMaintenance={site.maintenance}
+          initialChatPaused={site.chatPaused}
+          initialImagePaused={site.imagePaused}
+          viewerIsSuper={admin.role === "super_admin"}
         />
       </section>
 
