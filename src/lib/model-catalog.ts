@@ -12,7 +12,7 @@
 
 export type CatalogModel = {
   modelId: string;
-  provider: "anthropic" | "openai" | "google";
+  provider: "anthropic" | "openai" | "google" | "zai";
   displayName: string;
   description: string;
   tier: "flagship" | "balanced" | "fast";
@@ -136,6 +136,39 @@ export const MODEL_CATALOG: CatalogModel[] = [
     enabled: true,
     isDefault: false,
     sort: 45,
+  },
+  // ---- Z.ai GLM -------------------------------------------------------------
+  {
+    // $1.4/$4.4 per 1M tokens → ×3 markup.
+    modelId: "glm-5.2",
+    provider: "zai",
+    displayName: "GLM-5.2",
+    description: "Z.ai's flagship — strong coding at a low price",
+    tier: "balanced",
+    inputCreditsPer1k: 0.0045,
+    outputCreditsPer1k: 0.0135,
+    baseCost: 0.004,
+    maxCreditsPerRequest: 0.5,
+    proOnly: false,
+    enabled: true,
+    isDefault: false,
+    sort: 50,
+  },
+  {
+    // $0.07/$0.4 per 1M tokens → ×3 markup (rounded up to ledger precision).
+    modelId: "glm-4.7-flashx",
+    provider: "zai",
+    displayName: "GLM-4.7 FlashX",
+    description: "Ultra-cheap and fast for small tweaks",
+    tier: "fast",
+    inputCreditsPer1k: 0.0003,
+    outputCreditsPer1k: 0.0012,
+    baseCost: 0.001,
+    maxCreditsPerRequest: 0.15,
+    proOnly: false,
+    enabled: true,
+    isDefault: false,
+    sort: 55,
   },
 ];
 

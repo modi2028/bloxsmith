@@ -28,6 +28,7 @@ import type { ProviderAdapter, ProviderMessage } from "./provider";
 import { streamClaudeResponse } from "./providers/anthropic";
 import { streamGoogleResponse } from "./providers/google";
 import { streamOpenAIResponse } from "./providers/openai";
+import { streamZaiResponse } from "./providers/zai";
 import { getStudioTools } from "./tools";
 
 const MAX_ITERATIONS = 24;
@@ -36,6 +37,7 @@ const PROVIDER_ADAPTERS: Partial<Record<ProviderId, ProviderAdapter>> = {
   anthropic: streamClaudeResponse,
   google: streamGoogleResponse,
   openai: streamOpenAIResponse,
+  zai: streamZaiResponse,
 };
 
 export type { AgentEvent };

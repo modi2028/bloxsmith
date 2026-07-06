@@ -83,7 +83,33 @@ export function GeminiMark({ className = "size-4" }: { className?: string }) {
   );
 }
 
-/** Logo for an AI provider id ("anthropic" | "openai" | "google"). */
+/** Z.ai (Zhipu GLM) — "Z" glyph in a rounded tile. */
+export function ZaiMark({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} aria-hidden>
+      <rect
+        x="6"
+        y="6"
+        width="88"
+        height="88"
+        rx="22"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="9"
+      />
+      <path
+        d="M32 32h36L32 68h36"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="10"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Logo for an AI provider id ("anthropic" | "openai" | "google" | "zai"). */
 export function ProviderIcon({
   provider,
   className = "size-4",
@@ -94,6 +120,7 @@ export function ProviderIcon({
   if (provider === "anthropic") return <ClaudeMark className={className} />;
   if (provider === "openai") return <OpenAIMark className={className} />;
   if (provider === "google") return <GeminiMark className={className} />;
+  if (provider === "zai") return <ZaiMark className={className} />;
   return null;
 }
 

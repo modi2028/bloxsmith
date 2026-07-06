@@ -11,7 +11,7 @@ export class NoProviderKeyError extends Error {
   }
 }
 
-export type ProviderId = "anthropic" | "google" | "openai";
+export type ProviderId = "anthropic" | "google" | "openai" | "zai";
 
 /**
  * Fetch and decrypt a provider API key at the moment of use. The plaintext

@@ -19,10 +19,10 @@ async function main() {
   if (
     !provider ||
     !key ||
-    !["anthropic", "google", "openai"].includes(provider)
+    !["anthropic", "google", "openai", "zai"].includes(provider)
   ) {
     console.error(
-      "Usage: npm run key:set -- <anthropic|google|openai> <api-key>",
+      "Usage: npm run key:set -- <anthropic|google|openai|zai> <api-key>",
     );
     process.exit(1);
   }
@@ -39,7 +39,7 @@ async function main() {
   await db
     .insert(schema.providerKeys)
     .values({
-      provider: provider as "anthropic" | "google" | "openai",
+      provider: provider as "anthropic" | "google" | "openai" | "zai",
       encryptedKey,
       keyLast4: last4(key),
     })

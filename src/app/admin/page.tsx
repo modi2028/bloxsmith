@@ -60,7 +60,7 @@ export default async function AdminPage() {
           Provider API keys
         </h2>
         <div className="rounded-xl border border-line bg-surface-raised p-4 text-sm">
-          {(["anthropic", "openai", "google"] as const).map((provider) => {
+          {(["anthropic", "openai", "google", "zai"] as const).map((provider) => {
             const row = keys.find((k) => k.provider === provider);
             return (
               <div

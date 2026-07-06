@@ -34,6 +34,7 @@ export const providerName = pgEnum("provider_name", [
   "anthropic",
   "google",
   "openai",
+  "zai", // Z.ai (Zhipu) GLM models via their OpenAI-compatible API
 ]);
 
 export const toolCallStatus = pgEnum("tool_call_status", [

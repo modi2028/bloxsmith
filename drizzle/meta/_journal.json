@@ -43,6 +43,13 @@
       "when": 1783150912198,
       "tag": "0005_nice_vertigo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783349218377,
+      "tag": "0006_yielding_skullbuster",
+      "breakpoints": true
     }
   ]
 }
