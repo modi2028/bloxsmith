@@ -31,7 +31,10 @@ export function BloxImageButton() {
         error?: string;
       };
       if (!res.ok || !data.url) {
-        setError(data.error ?? "Couldn't generate the image — try again.");
+        setError(
+          data.error ??
+            `Couldn't generate the image (HTTP ${res.status}) — try again.`,
+        );
         return;
       }
       setUrl(data.url);
