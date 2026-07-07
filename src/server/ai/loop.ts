@@ -220,19 +220,30 @@ export async function runAgentTurn(params: {
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
       throwIfStopped();
       // Cap every model call so a wedged provider connection can never hold
-      // the user's run slot indefinitely.
-      const callSignal = signal
-        ? AbortSignal.any([signal, AbortSignal.timeout(6 * 60_000)])
-        : AbortSignal.timeout(6 * 60_000);
-      const response = await adapter({
-        apiKey,
-        modelId,
-        system,
-        messages,
-        tools,
-        signal: callSignal,
-        onTextDelta: (text) => void onEvent({ type: "text_delta", text }),
-      });
+      // the user's run slot indefinitely. Combined manually (not
+      // AbortSignal.any) so it works on every Node runtime.
+      const callController = new AbortController();
+      const callTimeout = setTimeout(
+        () => callController.abort(),
+        6 * 60_000,
+      );
+      const onRunAbort = () => callController.abort();
+      signal?.addEventListener("abort", onRunAbort, { once: true });
+      let response;
+      try {
+        response = await adapter({
+          apiKey,
+          modelId,
+          system,
+          messages,
+          tools,
+          signal: callController.signal,
+          onTextDelta: (text) => void onEvent({ type: "text_delta", text }),
+        });
+      } finally {
+        clearTimeout(callTimeout);
+        signal?.removeEventListener("abort", onRunAbort);
+      }
 
       inputTokens += response.usage.inputTokens;
       outputTokens += response.usage.outputTokens;

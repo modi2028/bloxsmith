@@ -126,6 +126,18 @@ export async function POST(request: NextRequest) {
     }
   };
 
+  // Keepalive: long thinking stretches produce no bytes, and idle proxies
+  // kill silent connections — clients then saw "connection lost" mid-run.
+  // SSE comment frames keep the pipe warm; the client parser ignores them.
+  const heartbeat = setInterval(() => {
+    if (!out.open || !out.controller) return;
+    try {
+      out.controller.enqueue(encoder.encode(`: keepalive\n\n`));
+    } catch {
+      out.open = false;
+    }
+  }, 15_000);
+
   // Launch the run detached from the response lifecycle.
   void (async () => {
     try {
@@ -144,6 +156,7 @@ export async function POST(request: NextRequest) {
       send({ type: "error", message: "Unexpected server error." });
     } finally {
       clearTimeout(killTimer);
+      clearInterval(heartbeat);
       releaseSlot(slotKey);
       unregisterRun(user.id, controller);
       out.open = false;
