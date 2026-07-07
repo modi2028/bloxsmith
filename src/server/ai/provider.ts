@@ -36,6 +36,8 @@ export type StreamModelParams = {
   messages: ProviderMessage[];
   tools: ModelToolDef[];
   onTextDelta?: (text: string) => void;
+  /** Reasoning stream (models that expose it) — for the live thinking view. */
+  onThinkingDelta?: (text: string) => void;
   signal?: AbortSignal;
 };
 

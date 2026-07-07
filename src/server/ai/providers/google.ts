@@ -182,8 +182,13 @@ export const streamGoogleResponse: ProviderAdapter = async (params) => {
     }
     const candidate = chunk.candidates?.[0];
     for (const part of candidate?.content?.parts ?? []) {
-      // Thought summaries (part.thought === true) are not user-facing text.
-      if (part.thought === true) continue;
+      // Thought summaries (part.thought === true) feed the thinking view.
+      if (part.thought === true) {
+        if (typeof part.text === "string" && part.text) {
+          params.onThinkingDelta?.(part.text);
+        }
+        continue;
+      }
       if (typeof part.text === "string" && part.text) {
         text += part.text;
         params.onTextDelta?.(part.text);

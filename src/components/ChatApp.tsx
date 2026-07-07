@@ -124,6 +124,8 @@ export function ChatApp({
   const [queue, setQueue] = useState<{ text: string; files: File[] }[]>([]);
   // A background run (from before a reload/another tab) is blocking sends.
   const [bgRunBlocking, setBgRunBlocking] = useState(false);
+  // Click the Thinking… shimmer to watch the model's reasoning live.
+  const [showThinking, setShowThinking] = useState(false);
   const [chatSessionId, setChatSessionId] = useState(initialSessionId);
   const [seedText, setSeedText] = useState<string>();
   const [island, setIsland] = useState<{
@@ -243,6 +245,13 @@ export function ChatApp({
         const parts: UiPart[] = [...last.parts];
 
         switch (event.type) {
+          case "thinking_delta":
+            next[next.length - 1] = {
+              ...last,
+              // Cap the buffer — deep reasoners can produce a LOT.
+              thinking: ((last.thinking ?? "") + event.text).slice(-30_000),
+            };
+            return next;
           case "text_delta": {
             const tail = parts[parts.length - 1];
             if (tail?.t === "text") {
@@ -374,6 +383,7 @@ export function ChatApp({
       setBusy(true);
       setCanContinue(false);
       setBgRunBlocking(false);
+      setShowThinking(false);
       // Attached reference images ride along as base64.
       const images = await Promise.all(
         files.map(
@@ -742,8 +752,41 @@ export function ChatApp({
                 })}
 
                 {busy && i === messages.length - 1 && (
-                  <div className="shimmer-text text-sm font-medium">
-                    {runningTool ? "Building in Studio…" : "Thinking…"}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowThinking((v) => !v)}
+                      title={
+                        msg.thinking
+                          ? "Show what the AI is thinking"
+                          : "Thoughts appear here once the model starts reasoning"
+                      }
+                      className="flex items-center gap-1.5"
+                    >
+                      <span className="shimmer-text text-sm font-medium">
+                        {runningTool ? "Building in Studio…" : "Thinking…"}
+                      </span>
+                      <svg
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        className={`size-2.5 text-faint transition-transform ${
+                          showThinking ? "rotate-180" : ""
+                        }`}
+                      >
+                        <path
+                          d="M2.5 4.5 6 8l3.5-3.5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    {showThinking && (
+                      <div className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs leading-relaxed text-faint">
+                        {msg.thinking || "Waiting for the first thoughts…"}
+                      </div>
+                    )}
                   </div>
                 )}
 

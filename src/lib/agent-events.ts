@@ -5,6 +5,8 @@
 export type AgentEvent =
   | { type: "session"; chatSessionId: string }
   | { type: "text_delta"; text: string }
+  // Model reasoning (GLM etc.) — live view only, never persisted.
+  | { type: "thinking_delta"; text: string }
   | {
       type: "tool_call";
       id: string;

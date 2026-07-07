@@ -239,6 +239,8 @@ export async function runAgentTurn(params: {
           tools,
           signal: callController.signal,
           onTextDelta: (text) => void onEvent({ type: "text_delta", text }),
+          onThinkingDelta: (text) =>
+            void onEvent({ type: "thinking_delta", text }),
         });
       } finally {
         clearTimeout(callTimeout);

@@ -174,6 +174,13 @@ export async function streamOpenAICompatibleResponse(
 
   for await (const chunk of stream) {
     const choice = chunk.choices?.[0];
+    // GLM (and friends) stream reasoning separately from the answer.
+    const reasoning = (
+      choice?.delta as { reasoning_content?: string } | undefined
+    )?.reasoning_content;
+    if (typeof reasoning === "string" && reasoning) {
+      params.onThinkingDelta?.(reasoning);
+    }
     if (choice?.delta?.content) {
       text += choice.delta.content;
       params.onTextDelta?.(choice.delta.content);

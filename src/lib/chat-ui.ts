@@ -28,7 +28,13 @@ export type UiPart =
 
 export type UiMessage =
   | { kind: "user"; text: string; images?: number }
-  | { kind: "assistant"; parts: UiPart[]; creditsCharged?: number };
+  | {
+      kind: "assistant";
+      parts: UiPart[];
+      creditsCharged?: number;
+      /** Live model reasoning (viewable via the Thinking… toggle). */
+      thinking?: string;
+    };
 
 type DbBlock = {
   type?: string;
