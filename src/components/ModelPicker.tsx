@@ -19,11 +19,33 @@ export type ChatModel = {
   recommended?: boolean;
 };
 
-const TIER_LABELS: Record<string, string> = {
-  flagship: "Most capable",
-  balanced: "Balanced",
-  fast: "Fast",
+/** Capability meters shown per model (out of 5). */
+const RATINGS: Record<string, { simple: number; complex: number }> = {
+  "claude-haiku-4-5": { simple: 4, complex: 2 },
+  "glm-5": { simple: 4, complex: 3 },
+  "glm-5.2": { simple: 5, complex: 5 },
 };
+const DEFAULT_RATING = { simple: 3, complex: 3 };
+
+function Meter({ level }: { level: number }) {
+  return (
+    <span className="flex gap-1">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span
+          key={i}
+          className={`h-1.5 w-4 rounded-full ${
+            i < level ? "bg-ember" : "bg-white/10"
+          }`}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** $ / $$ / $$$ from the per-request reserve. */
+function priceMarks(reserve: number): string {
+  return reserve <= 0.25 ? "$" : reserve <= 0.45 ? "$$" : "$$$";
+}
 
 export function ModelPicker({
   models,
@@ -70,29 +92,39 @@ export function ModelPicker({
         <span className={`shrink-0 ${m.locked ? "opacity-50" : ""}`}>
           <LogoMark size={17} variant={m.proOnly ? "blue" : "ember"} />
         </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex items-center gap-2 text-sm">
             <span
-              className={
+              className={`font-medium ${
                 m.locked
                   ? "text-muted"
                   : selected
                     ? "text-ember"
                     : "text-foreground"
-              }
+              }`}
             >
               {m.name}
             </span>
-            {m.tier && (
-              <span className="rounded-full border border-line px-1.5 py-px text-[10px] uppercase tracking-wide text-faint">
-                {TIER_LABELS[m.tier] ?? m.tier}
-              </span>
-            )}
-            {m.proOnly && (
+            {m.proOnly ? (
               <span className="rounded-full border border-ember/50 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-ember">
                 Pro
               </span>
+            ) : (
+              <span className="rounded-full border border-emerald-500/50 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+                Free
+              </span>
             )}
+            <span className="ml-auto text-xs font-semibold tracking-wide text-faint">
+              {priceMarks(m.reserve)}
+            </span>
+          </span>
+          <span className="flex items-center justify-between gap-3 text-xs text-muted">
+            Simple tasks
+            <Meter level={(RATINGS[m.id] ?? DEFAULT_RATING).simple} />
+          </span>
+          <span className="flex items-center justify-between gap-3 text-xs text-muted">
+            Complex tasks
+            <Meter level={(RATINGS[m.id] ?? DEFAULT_RATING).complex} />
           </span>
           <span className="text-[11px] text-faint">
             {m.locked
@@ -174,7 +206,7 @@ export function ModelPicker({
       </button>
 
       {open && (
-        <div className="glass-menu absolute bottom-full left-0 z-30 mb-2 w-72 overflow-hidden rounded-xl border border-white/10">
+        <div className="glass-menu absolute bottom-full left-0 z-30 mb-2 w-80 overflow-hidden rounded-xl border border-white/10">
           {recommended.length > 0 && (
             <div className="flex items-center gap-1.5 px-3.5 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ember">
               <svg viewBox="0 0 12 12" fill="currentColor" className="size-3">
