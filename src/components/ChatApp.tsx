@@ -122,6 +122,8 @@ export function ChatApp({
   // Messages queued while a build runs — sent one by one when it finishes
   // cleanly (cleared on stop/error so follow-ups don't fire into a failure).
   const [queue, setQueue] = useState<{ text: string; files: File[] }[]>([]);
+  // A background run (from before a reload/another tab) is blocking sends.
+  const [bgRunBlocking, setBgRunBlocking] = useState(false);
   const [chatSessionId, setChatSessionId] = useState(initialSessionId);
   const [seedText, setSeedText] = useState<string>();
   const [island, setIsland] = useState<{
@@ -371,6 +373,7 @@ export function ChatApp({
       ]);
       setBusy(true);
       setCanContinue(false);
+      setBgRunBlocking(false);
       // Attached reference images ride along as base64.
       const images = await Promise.all(
         files.map(
@@ -418,6 +421,10 @@ export function ChatApp({
               : res.status === 503
                 ? "Bloxsmith is under maintenance — try again soon."
                 : "The request failed to start. Try again.");
+          // A leftover background run is holding the slot — offer a way out.
+          if (res.status === 429 && detail.includes("build running")) {
+            setBgRunBlocking(true);
+          }
           applyEvent({ type: "error", message: detail });
           return;
         }
@@ -823,6 +830,27 @@ export function ChatApp({
                 className="shrink-0 px-1 text-xs text-faint transition hover:text-foreground"
               >
                 No thanks
+              </button>
+            </div>
+          )}
+          {bgRunBlocking && !busy && (
+            <div className="fade-up mb-2.5 flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-950/30 px-4 py-2.5">
+              <span className="size-2 shrink-0 animate-pulse rounded-full bg-red-400" />
+              <span className="min-w-0 flex-1 text-sm text-muted">
+                A previous build is still running in the background and
+                blocking new messages.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setBgRunBlocking(false);
+                  void fetch("/api/chat/stop", { method: "POST" }).catch(
+                    () => {},
+                  );
+                }}
+                className="shrink-0 rounded-lg border border-red-500/50 px-3.5 py-1.5 text-xs text-red-300 transition hover:bg-red-950/40"
+              >
+                Stop that build
               </button>
             </div>
           )}

@@ -26,3 +26,8 @@ export function abortRun(userId: string): boolean {
   controller.abort();
   return true;
 }
+
+/** Whether a run is currently registered for this user. */
+export function hasActiveRun(userId: string): boolean {
+  return controllers.has(userId);
+}

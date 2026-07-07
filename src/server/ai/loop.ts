@@ -219,13 +219,18 @@ export async function runAgentTurn(params: {
     // --- The tool loop ------------------------------------------------------
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
       throwIfStopped();
+      // Cap every model call so a wedged provider connection can never hold
+      // the user's run slot indefinitely.
+      const callSignal = signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(6 * 60_000)])
+        : AbortSignal.timeout(6 * 60_000);
       const response = await adapter({
         apiKey,
         modelId,
         system,
         messages,
         tools,
-        signal,
+        signal: callSignal,
         onTextDelta: (text) => void onEvent({ type: "text_delta", text }),
       });
 

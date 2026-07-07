@@ -2,7 +2,11 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/server/auth/session";
 import { runAgentTurn, type AgentEvent } from "@/server/ai/loop";
-import { registerRun, unregisterRun } from "@/server/ai/run-registry";
+import {
+  hasActiveRun,
+  registerRun,
+  unregisterRun,
+} from "@/server/ai/run-registry";
 import { acquireSlot, rateLimit, releaseSlot } from "@/server/security/ratelimit";
 import { getSiteSettings } from "@/server/site-settings";
 import { isAdminRole } from "@/lib/roles";
@@ -81,16 +85,30 @@ export async function POST(request: NextRequest) {
   // One AI run at a time per user (prevents parallel credit burn / abuse).
   const slotKey = `chat-run:${user.id}`;
   if (!acquireSlot(slotKey, MAX_CONCURRENT)) {
-    return Response.json(
-      {
-        error:
-          "You already have a build running (it keeps going even if you left the page). Let it finish or press Stop.",
-      },
-      { status: 429 },
-    );
+    // Self-heal: a slot with no registered run is an orphan from a crashed
+    // request — reclaim it instead of locking the user out.
+    if (hasActiveRun(user.id)) {
+      return Response.json(
+        {
+          error:
+            "You already have a build running (it keeps going even if you left the page). Let it finish or press Stop.",
+        },
+        { status: 429 },
+      );
+    }
+    releaseSlot(slotKey);
+    if (!acquireSlot(slotKey, MAX_CONCURRENT)) {
+      return Response.json(
+        { error: "Couldn't start the build — try again in a moment." },
+        { status: 429 },
+      );
+    }
   }
 
   const controller = registerRun(user.id);
+  // Failsafe: no run may hold the slot forever (e.g. a wedged provider
+  // connection) — hard-abort after 15 minutes so the user is never stuck.
+  const killTimer = setTimeout(() => controller.abort(), 15 * 60_000);
   const encoder = new TextEncoder();
   const out: {
     controller: ReadableStreamDefaultController<Uint8Array> | null;
@@ -125,6 +143,7 @@ export async function POST(request: NextRequest) {
       console.error("chat run error:", err);
       send({ type: "error", message: "Unexpected server error." });
     } finally {
+      clearTimeout(killTimer);
       releaseSlot(slotKey);
       unregisterRun(user.id, controller);
       out.open = false;
