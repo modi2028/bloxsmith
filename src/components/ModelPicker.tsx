@@ -129,7 +129,9 @@ export function ModelPicker({
           <span className="text-[11px] text-faint">
             {m.locked
               ? "Upgrade to Pro to use this model →"
-              : `~${formatCredits(m.reserve)} credits max / request`}
+              : `~${formatCredits(m.reserve)} credits max / request${
+                  m.id === "glm-5.2" ? " · deep thinker, takes its time" : ""
+                }`}
           </span>
         </span>
         {m.locked && (

@@ -99,7 +99,8 @@ export const MODEL_CATALOG: CatalogModel[] = [
     modelId: "glm-5.2",
     provider: "zai",
     displayName: "Blox Pro",
-    description: "Our most capable model — big, complex builds",
+    description:
+      "Our most capable model — thinks deeply, so builds take longer",
     tier: "flagship",
     inputCreditsPer1k: 0.0045,
     outputCreditsPer1k: 0.0135,

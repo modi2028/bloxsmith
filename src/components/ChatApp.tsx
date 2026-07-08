@@ -19,7 +19,6 @@ const SUGGESTIONS = [
 ];
 
 const MODEL_STORAGE_KEY = "bloxsmith-model";
-const NOTIFY_DISMISSED_KEY = "bs-notify-dismissed";
 
 /** Sent when the user presses "Continue building" after an interrupted run. */
 const CONTINUE_PROMPT =
@@ -174,8 +173,8 @@ export function ChatApp({
     if (pendingTitle) sessionStorage.removeItem(PENDING_TITLE_KEY);
   }, [pendingTitle]);
 
-  // A run that crosses 15s offers a "notify me when done" prompt — once,
-  // and only while notification permission hasn't been decided yet.
+  // Any run that crosses 30s offers the "notify me when done" prompt again
+  // (every slow response, not once-ever) — while permission is undecided.
   useEffect(() => {
     const timer = setTimeout(
       () => {
@@ -185,13 +184,12 @@ export function ChatApp({
         }
         if (
           "Notification" in window &&
-          Notification.permission === "default" &&
-          !localStorage.getItem(NOTIFY_DISMISSED_KEY)
+          Notification.permission === "default"
         ) {
           setShowNotifyPrompt(true);
         }
       },
-      busy ? 15_000 : 0,
+      busy ? 30_000 : 0,
     );
     return () => clearTimeout(timer);
   }, [busy]);
@@ -782,6 +780,12 @@ export function ChatApp({
                         />
                       </svg>
                     </button>
+                    {modelId === "glm-5.2" && !runningTool && (
+                      <p className="mt-1 text-[11px] text-faint">
+                        Blox Pro is a deep-thinking model — complex builds can
+                        take a few minutes. The result is worth it.
+                      </p>
+                    )}
                     {showThinking && (
                       <div className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs leading-relaxed text-faint">
                         {msg.thinking || "Waiting for the first thoughts…"}
@@ -866,10 +870,7 @@ export function ChatApp({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  localStorage.setItem(NOTIFY_DISMISSED_KEY, "1");
-                  setShowNotifyPrompt(false);
-                }}
+                onClick={() => setShowNotifyPrompt(false)}
                 className="shrink-0 px-1 text-xs text-faint transition hover:text-foreground"
               >
                 No thanks
