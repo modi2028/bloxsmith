@@ -36,25 +36,41 @@ export default async function PairPage() {
           <h2 className="text-sm font-semibold">Install the plugin</h2>
         </div>
         <p className="mb-4 pl-9 text-sm text-muted">
-          Download the {BRAND.name} plugin file and drop it into your Roblox
-          plugins folder. You only do this once, and it takes about a minute.
+          Get {BRAND.name} from the Roblox Creator Store — it installs into
+          Studio in one click and auto-updates whenever we ship improvements.
         </p>
-
-        <PluginInstall />
-
-        <p className="mt-5 pl-9 text-xs text-faint">
-          The Roblox Creator Store version is under review.{" "}
+        <div className="pl-9">
           <a
             href={BRAND.pluginUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline underline-offset-2 hover:text-muted"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:brightness-110"
           >
-            Check the Store listing
-          </a>{" "}
-          — if it&apos;s available, installing from there works too and
-          auto-updates.
-        </p>
+            Install on Roblox
+            <svg viewBox="0 0 20 20" fill="none" className="size-4">
+              <path
+                d="M7 5h8v8M15 5 5 15"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </a>
+          <p className="mt-2 text-xs text-faint">
+            Studio will ask for a &quot;Script Injection&quot; permission —
+            allow it so {BRAND.name} can write your game&apos;s scripts.
+          </p>
+        </div>
+
+        <details className="mt-5 pl-9">
+          <summary className="cursor-pointer text-xs text-muted underline-offset-2 hover:underline">
+            Prefer a manual file install? (no permission prompts)
+          </summary>
+          <div className="mt-3 -ml-9">
+            <PluginInstall />
+          </div>
+        </details>
       </div>
 
       {/* Step 2 — open Studio */}
