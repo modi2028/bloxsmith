@@ -216,6 +216,12 @@ export async function runAgentTurn(params: {
     messages.push({ role: "user", content: userContent });
     repairDanglingToolCalls(messages);
 
+    // Anti-flip-flop bookkeeping: models can't see the place, and some (GLM
+    // especially on WedgePart roofs) nudge the same property back and forth
+    // forever. Track per-turn repetition and cut it off with guidance.
+    const exactCalls = new Map<string, number>();
+    const propertyTouches = new Map<string, number>();
+
     // --- The tool loop ------------------------------------------------------
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
       throwIfStopped();
@@ -276,6 +282,36 @@ export async function runAgentTurn(params: {
             id: toolUse.id,
             ok: false,
             error: validated.error,
+          });
+          continue;
+        }
+
+        // Loop breaker: an identical call repeated, or the same property of
+        // the same instance adjusted over and over, is flip-flopping — refuse
+        // with guidance instead of burning iterations.
+        let loopWarning: string | null = null;
+        const exactKey = `${toolUse.name}:${JSON.stringify(validated.args)}`;
+        const exactCount = (exactCalls.get(exactKey) ?? 0) + 1;
+        exactCalls.set(exactKey, exactCount);
+        if (exactCount >= 3) {
+          loopWarning =
+            "loop_detected: you've made this exact call multiple times already. Do NOT repeat it — the previous result stands. Move on to the next requirement or finish with a summary.";
+        } else if (toolUse.name === "set_property") {
+          const a = validated.args as { target: string; name: string };
+          const propKey = `${a.target}|${a.name}`;
+          const touches = (propertyTouches.get(propKey) ?? 0) + 1;
+          propertyTouches.set(propKey, touches);
+          if (touches >= 4) {
+            loopWarning = `loop_detected: you've adjusted ${a.name} on this instance ${touches - 1} times. Stop nudging it — compute the value once from the dimensions, keep the current state, and move on.`;
+          }
+        }
+        if (loopWarning) {
+          resultBlocks.push(toolResultBlock(toolUse.id, loopWarning, true));
+          await onEvent({
+            type: "tool_result",
+            id: toolUse.id,
+            ok: false,
+            error: "Repeating — moving on",
           });
           continue;
         }

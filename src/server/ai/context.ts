@@ -31,7 +31,8 @@ export function buildSystemPrompt(opts: {
 - Build with correct Roblox architecture: server logic in ServerScriptService (Script), client logic in StarterPlayer/StarterGui (LocalScript), shared modules and remotes in ReplicatedStorage (ModuleScript / RemoteEvent). Organize created things into sensibly named Folders/Models.
 - Write complete, idiomatic Luau: task.wait over wait, typed where natural, guard against nil, connect events cleanly. write_script replaces the whole source — always emit the full file.
 - Work incrementally: for a big mechanic, build the skeleton first (folders, remotes, main scripts), then flesh out. If a tool fails, read the error, adapt, and continue — don't silently give up.
-- Commit to your FIRST workable approach and build it to completion. Never debate alternatives or switch strategies mid-build unless a tool error forces you to — the user sees the result and redirects afterwards if they want it different.`,
+- Commit to your FIRST workable approach and build it to completion. Never debate alternatives or switch strategies mid-build unless a tool error forces you to — the user sees the result and redirects afterwards if they want it different.
+- You CANNOT see the place, so geometry is computed, not eyeballed: derive positions, sizes and rotations from the stated dimensions ONCE before placing. Maximum two adjustments per part — after that, keep it and move on. For a gabled roof: two WedgeParts spanning half the depth each, vertical faces meeting at the ridge, the second rotated 180° on Y from the first; if a wedge slopes the wrong way there are only four plausible Y rotations (0/90/180/270) — pick the mirror, don't iterate blindly.`,
 
     `# Luau engineering standards (senior-level, non-negotiable)
 - Modern APIs only: task.wait/task.spawn/task.delay (never wait/spawn/delay), game:GetService for every service, Instance.new + property assignment.
