@@ -232,13 +232,15 @@ export function validateToolArgs(
   }
 
   if (tool === "set_property") {
-    const a = parsed.data as { name: string; value: unknown };
+    const a = parsed.data as unknown as { name: string; value: unknown };
     if (typeof a.value === "string" && NEVER_STRING_PROPS.has(a.name)) {
       return { ok: false, error: stringValueError(a.name) };
     }
   }
   if (tool === "create_instance") {
-    const a = parsed.data as { properties?: Record<string, unknown> };
+    const a = parsed.data as unknown as {
+      properties?: Record<string, unknown>;
+    };
     for (const [name, value] of Object.entries(a.properties ?? {})) {
       if (typeof value === "string" && NEVER_STRING_PROPS.has(name)) {
         return { ok: false, error: stringValueError(name) };
