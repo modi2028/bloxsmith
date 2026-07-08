@@ -86,6 +86,14 @@ function toOpenAIMessages(
     const imageBlocks = blocks.filter(
       (b) => b.type === "image" && b.source?.data,
     );
+    // Vision-bridge descriptions (written by a vision model for text-only
+    // models like GLM). Vision-capable models ignore them — they see the
+    // real image instead.
+    const descriptions = blocks
+      .filter(
+        (b) => b.type === "image_description" && typeof b.text === "string",
+      )
+      .map((b) => b.text as string);
     if (imageBlocks.length > 0 && supportsImages) {
       out.push({
         role: "user",
@@ -100,12 +108,13 @@ function toOpenAIMessages(
         ],
       });
     } else if (imageBlocks.length > 0) {
-      // Text-only model: acknowledge the attachment instead of dropping it
-      // silently so the model can ask the user to describe it.
+      const attachmentInfo =
+        descriptions.length > 0
+          ? `[Attached reference image(s), described by a vision model:\n${descriptions.join("\n\n")}]`
+          : `[The user attached ${imageBlocks.length} image(s), but you cannot view images — ask them to describe what's shown if it matters.]`;
       out.push({
         role: "user",
-        content:
-          `${text}\n\n[The user attached ${imageBlocks.length} image(s), but you cannot view images — ask them to describe what's shown if it matters.]`.trim(),
+        content: `${text}\n\n${attachmentInfo}`.trim(),
       });
     } else if (text) {
       out.push({ role: "user", content: text });

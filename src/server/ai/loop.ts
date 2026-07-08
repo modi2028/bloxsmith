@@ -194,6 +194,46 @@ export async function runAgentTurn(params: {
         content: m.content,
       }));
 
+    // Vision bridge: GLM models can't see images, so a vision model (Haiku)
+    // describes them once and the description is stored as its own block —
+    // text-only models read it, vision models ignore it and use the real
+    // image. Never shown in the user's chat bubble.
+    let imageDescription: string | null = null;
+    if ((params.images?.length ?? 0) > 0 && pricing.provider === "zai") {
+      try {
+        const visionKey = await getProviderApiKey("anthropic");
+        const described = await streamClaudeResponse({
+          apiKey: visionKey,
+          modelId: "claude-haiku-4-5",
+          system:
+            "You describe reference images for a Roblox game builder that cannot see them. Describe each image concretely and completely: overall layout, every notable object and its position, colors and materials, art style, any UI elements with their exact text and placement, and rough proportions. Plain text, no preamble.",
+          messages: [
+            {
+              role: "user",
+              content: [
+                ...params.images!.map((img) => ({
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: img.mediaType,
+                    data: img.data,
+                  },
+                })),
+                {
+                  type: "text",
+                  text: "Describe these reference image(s) for the builder.",
+                },
+              ],
+            },
+          ],
+          tools: [],
+        });
+        imageDescription = described.text.trim() || null;
+      } catch (err) {
+        console.error("vision bridge failed:", err);
+      }
+    }
+
     // Persist + append the new user message. Attached images become canonical
     // Anthropic-shaped image blocks; adapters translate at their boundary.
     const userContent: unknown[] = [
@@ -205,6 +245,9 @@ export async function runAgentTurn(params: {
           data: img.data,
         },
       })),
+      ...(imageDescription
+        ? [{ type: "image_description", text: imageDescription }]
+        : []),
       { type: "text", text: params.message },
     ];
     await db.insert(schema.chatMessages).values({

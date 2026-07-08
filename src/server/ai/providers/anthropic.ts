@@ -15,12 +15,25 @@ import type {
 export const streamClaudeResponse: ProviderAdapter = async (params) => {
   const client = new Anthropic({ apiKey: params.apiKey });
 
+  // Strip vision-bridge description blocks — Claude sees the real images,
+  // and the API rejects unknown block types.
+  const messages = (params.messages as Anthropic.MessageParam[]).map((m) =>
+    Array.isArray(m.content)
+      ? {
+          ...m,
+          content: (m.content as { type?: string }[]).filter(
+            (b) => b?.type !== "image_description",
+          ) as Anthropic.MessageParam["content"],
+        }
+      : m,
+  );
+
   const stream = client.messages.stream(
     {
       model: params.modelId,
       max_tokens: 16000,
       system: params.system,
-      messages: params.messages as Anthropic.MessageParam[],
+      messages,
       tools: params.tools as Anthropic.Tool[],
     },
     { signal: params.signal },
