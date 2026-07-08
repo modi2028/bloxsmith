@@ -9,7 +9,9 @@ import {
   ZaiMark,
 } from "./BrandMarks";
 import { IntroVideo } from "./IntroVideo";
+import { LandingChat } from "./LandingChat";
 import { LogoMark } from "./Logo";
+import type { ChatModel } from "./ModelPicker";
 import { Reveal } from "./Reveal";
 
 const LOGIN = "/api/auth/roblox/login";
@@ -136,17 +138,17 @@ const FEATURES = [
   {
     icon: <IconChat />,
     title: "Describe it, watch it build",
-    body: "Type what you want in plain English. Bloxsmith builds it live in your open Studio session — parts, scripts, remotes, all of it.",
+    body: "Type what you want in plain English. Bloxsmith builds it live in your open Studio session: parts, scripts, remotes, all of it.",
   },
   {
     icon: <IconModels />,
     title: "A model for every job",
-    body: "From Blox Mini for quick tweaks to Blox Pro for whole systems — switch per message. Pro unlocks the top tier.",
+    body: "From Blox Mini for quick tweaks to Blox Pro for whole systems. Switch per message; Pro unlocks the top tier.",
   },
   {
     icon: <IconUndo />,
     title: "Everything is undoable",
-    body: "Every action is a single Ctrl+Z in Studio. Experiment freely — nothing is permanent until you save.",
+    body: "Every action is a single Ctrl+Z in Studio. Experiment freely, nothing is permanent until you save.",
   },
   {
     icon: <IconImage />,
@@ -164,7 +166,7 @@ const STEPS = [
   {
     n: "02",
     title: "Install the Studio plugin",
-    body: "One-time setup — open Studio and the plugin connects to your account automatically. No codes.",
+    body: "One-time setup. Open Studio and the plugin connects to your account automatically. No codes.",
   },
   {
     n: "03",
@@ -184,11 +186,11 @@ const FAQS = [
   },
   {
     q: "Can I undo what it builds?",
-    a: "Always. Every single action — creating parts, editing properties, writing scripts — is wrapped in Studio's change history, so Ctrl+Z works exactly like you'd expect.",
+    a: "Always. Creating parts, editing properties, writing scripts: every action lands in Studio's change history, so Ctrl+Z works exactly like you'd expect.",
   },
   {
     q: "Which AI models can I use?",
-    a: "Blox Mini and Blox Lite on the free plan; Pro unlocks Blox Pro — our most capable model. You can switch models per message.",
+    a: "Blox Mini and Blox Lite on the free plan. Pro unlocks Blox Pro, our most capable model. You can switch models per message.",
   },
   {
     q: "What does it cost?",
@@ -200,54 +202,7 @@ const FAQS = [
   },
 ];
 
-function HeroPreview() {
-  const steps = [
-    "Creating Part — LavaFloor",
-    "Setting Material to Neon",
-    "Writing script — LavaKill",
-  ];
-  return (
-    <div className="relative mx-auto w-full max-w-md">
-      {/* rotating conic light behind the card */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[20px]">
-        <div className="conic-border" />
-      </div>
-      <div className="relative m-px rounded-[19px] border border-line-strong bg-surface-raised/95 p-4 backdrop-blur">
-        <div className="mb-3 flex items-center gap-1.5">
-          <span className="size-2.5 rounded-full bg-stone-700" />
-          <span className="size-2.5 rounded-full bg-stone-700" />
-          <span className="size-2.5 rounded-full bg-stone-700" />
-          <span className="ml-2 text-[11px] text-faint">Studio · Baseplate</span>
-        </div>
-        <div className="flex justify-end">
-          <span className="rounded-2xl rounded-br-md border border-line bg-surface px-3.5 py-2 text-sm">
-            Make a lava floor that kills players who touch it
-          </span>
-        </div>
-        <div className="mt-3 flex flex-col gap-1.5 text-[13px]">
-          {steps.map((t, i) => (
-            <div
-              key={t}
-              className="fade-up flex items-center gap-2 rounded-lg border border-line bg-surface/70 px-3 py-1.5"
-              style={{ animationDelay: `${500 + i * 260}ms` }}
-            >
-              <IconCheck className="size-3.5 text-ember" />
-              <span className="text-muted">{t}</span>
-            </div>
-          ))}
-          <p
-            className="fade-up mt-1 text-muted"
-            style={{ animationDelay: "1300ms" }}
-          >
-            Done — press Play and step on the glowing red floor to test it.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function Landing() {
+export function Landing({ models }: { models: ChatModel[] }) {
   const starter = CREDIT_PACKS[0];
   return (
     <div className="flex min-h-dvh flex-col">
@@ -311,7 +266,7 @@ export function Landing() {
         <div className="relative mx-auto max-w-3xl text-center">
           <span className="fade-up inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-3 py-1 text-xs text-muted">
             <span className="size-1.5 animate-pulse rounded-full bg-ember" />
-            AI pair-builder for Roblox Studio
+            Works inside Roblox Studio
           </span>
           <h1 className="fade-up mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
             Build Roblox games
@@ -322,34 +277,19 @@ export function Landing() {
             className="fade-up mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted"
             style={{ animationDelay: "80ms" }}
           >
-            Describe a game mechanic and {BRAND.name} builds it live inside your
-            open Roblox Studio session — powered by Claude and Gemini. No
-            copy-pasting code. It simply appears.
+            Describe a game mechanic and {BRAND.name} builds it in your open
+            Roblox Studio session while you watch. Parts, scripts, remotes.
+            No copy-pasting code from a chatbot.
           </p>
-          <div
-            className="fade-up mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
-            style={{ animationDelay: "160ms" }}
-          >
-            <SignInButton>Start building — free</SignInButton>
-            <a
-              href="#how"
-              className="rounded-xl border border-line bg-surface px-5 py-2.5 text-sm text-foreground transition hover:-translate-y-0.5 hover:border-line-strong"
-            >
-              See how it works
-            </a>
+          <div className="fade-up mt-10" style={{ animationDelay: "160ms" }}>
+            <LandingChat models={models} />
           </div>
           <p
-            className="fade-up mt-4 text-xs text-faint"
+            className="fade-up mt-6 text-xs text-faint"
             style={{ animationDelay: "240ms" }}
           >
             Free credits on sign-up · No credit card required
           </p>
-          <div
-            className="fade-up mt-14"
-            style={{ animationDelay: "320ms" }}
-          >
-            <HeroPreview />
-          </div>
         </div>
       </section>
 
@@ -363,7 +303,7 @@ export function Landing() {
               See it in action
             </h2>
             <p className="mx-auto mt-3 max-w-md text-center text-sm text-muted">
-              From a chat message to a working mechanic in Studio — watch{" "}
+              From a chat message to a working mechanic in Studio. Watch{" "}
               {BRAND.name} build live.
             </p>
           </Reveal>
@@ -440,8 +380,8 @@ export function Landing() {
               Simple, usage-based pricing
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted">
-              You spend credits per request — a fraction of a credit for most
-              builds. Start free, top up when you need more, or go Pro.
+              You spend credits per request, usually a fraction of a credit.
+              Start free, top up when you need more, or go Pro.
             </p>
           </Reveal>
           <div className="mt-12 grid items-stretch gap-4 sm:grid-cols-2">
@@ -564,7 +504,7 @@ export function Landing() {
               to life in Studio.
             </p>
             <SignInButton className="relative mt-8">
-              Start building — free
+              Start building for free
             </SignInButton>
           </div>
         </Reveal>

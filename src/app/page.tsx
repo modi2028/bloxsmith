@@ -232,7 +232,8 @@ export default async function Home({
   const site = await getSiteSettings();
 
   // Signed-out visitors: maintenance screen (with a quiet sign-in link so
-  // admins can get in and turn it off), otherwise the marketing landing page.
+  // admins can get in and turn it off), otherwise the marketing landing page
+  // with a real composer (send takes them to Roblox sign-in).
   if (!user) {
     if (site.maintenance) {
       return (
@@ -242,7 +243,24 @@ export default async function Home({
         />
       );
     }
-    return <Landing />;
+    const landingModels = (
+      await db.query.modelPricing.findMany({
+        where: eq(schema.modelPricing.enabled, true),
+        orderBy: [asc(schema.modelPricing.sort)],
+      })
+    ).map((m) => ({
+      id: m.modelId,
+      name: m.displayName,
+      provider: m.provider,
+      description: m.description,
+      tier: m.tier,
+      reserve: m.maxCreditsPerRequest,
+      isDefault: m.isDefault,
+      proOnly: m.proOnly,
+      locked: m.proOnly,
+      recommended: RECOMMENDED_MODEL_IDS.has(m.modelId),
+    }));
+    return <Landing models={landingModels} />;
   }
 
   if (site.maintenance && !isAdminRole(user.role)) {
