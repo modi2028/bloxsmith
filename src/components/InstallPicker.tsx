@@ -9,7 +9,8 @@ import { PluginInstall } from "./PluginInstall";
  * the manual plugin file (no permission prompts). Both are first-class.
  */
 export function InstallPicker() {
-  const [tab, setTab] = useState<"store" | "file">("store");
+  // Default to the file install while the Store listing is under review.
+  const [tab, setTab] = useState<"store" | "file">("file");
 
   const tabCls = (active: boolean) =>
     `flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
@@ -64,6 +65,11 @@ export function InstallPicker() {
           <p className="mt-3 text-xs text-faint">
             Studio will ask for a &quot;Script Injection&quot; permission —
             allow it so {BRAND.name} can write your game&apos;s scripts.
+          </p>
+          <p className="mt-2 text-xs text-amber-400/80">
+            Note: the Store listing is currently under Roblox review and may be
+            unavailable — use the Manual file tab if the page doesn&apos;t
+            load.
           </p>
         </div>
       ) : (
