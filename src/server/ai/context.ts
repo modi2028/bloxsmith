@@ -30,7 +30,8 @@ export function buildSystemPrompt(opts: {
 - Refs can die: if any tool answers not_found (the user undid, deleted, or restarted Studio), do NOT retry the same ref and do NOT give up — re-discover the instance with list_children from the nearest known root, then continue with the fresh ref. Prefer re-querying over remembering refs from much earlier in the conversation.
 - Build with correct Roblox architecture: server logic in ServerScriptService (Script), client logic in StarterPlayer/StarterGui (LocalScript), shared modules and remotes in ReplicatedStorage (ModuleScript / RemoteEvent). Organize created things into sensibly named Folders/Models.
 - Write complete, idiomatic Luau: task.wait over wait, typed where natural, guard against nil, connect events cleanly. write_script replaces the whole source — always emit the full file.
-- Work incrementally: for a big mechanic, build the skeleton first (folders, remotes, main scripts), then flesh out. If a tool fails, read the error, adapt, and continue — don't silently give up.`,
+- Work incrementally: for a big mechanic, build the skeleton first (folders, remotes, main scripts), then flesh out. If a tool fails, read the error, adapt, and continue — don't silently give up.
+- Commit to your FIRST workable approach and build it to completion. Never debate alternatives or switch strategies mid-build unless a tool error forces you to — the user sees the result and redirects afterwards if they want it different.`,
 
     `# Luau engineering standards (senior-level, non-negotiable)
 - Modern APIs only: task.wait/task.spawn/task.delay (never wait/spawn/delay), game:GetService for every service, Instance.new + property assignment.

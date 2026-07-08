@@ -23,15 +23,10 @@ export const streamZaiResponse: ProviderAdapter = (params) =>
     // GLM text models can't see images (vision is the separate GLM-V line);
     // attachments become a text note instead of a hard provider error.
     supportsImages: false,
-    // Blox Lite (glm-5) is the fast everyday tier: GLM's deep-thinking pass
-    // doubles wall time even on trivial replies (measured), so switch it off
-    // there. Blox Pro (glm-5.2) keeps thinking for maximum build quality.
-    // Lower temperature keeps GLM decisive — at the default it tends to
-    // dither ("let me… actually… nevermind") in visible text.
-    extraBody: {
-      temperature: 0.7,
-      ...(params.modelId === "glm-5"
-        ? { thinking: { type: "disabled" } }
-        : {}),
-    },
+    // Thinking stays ENABLED for all GLM models: disabling it made the
+    // deliberation leak into visible chat as dithering ("hmm… let me…
+    // nevermind") and loops — worse than the latency it saved. Reasoning
+    // streams into the private thinking channel (viewable via the Thinking…
+    // toggle). Lower temperature keeps GLM decisive.
+    extraBody: { temperature: 0.7 },
   });
