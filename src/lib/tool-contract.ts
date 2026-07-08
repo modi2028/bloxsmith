@@ -190,6 +190,32 @@ export const toolResultEnvelopeSchema = z.discriminatedUnion("ok", [
 ]);
 export type ToolResultEnvelope = z.infer<typeof toolResultEnvelopeSchema>;
 
+/**
+ * Properties that are NEVER plain strings in Roblox — a string here always
+ * means the model forgot the $type wrapper. Failing fast server-side gives
+ * corrective feedback without a Studio roundtrip.
+ */
+const NEVER_STRING_PROPS = new Set([
+  "CFrame",
+  "Position",
+  "Orientation",
+  "Rotation",
+  "Size",
+  "Color",
+  "Velocity",
+  "AssemblyLinearVelocity",
+  "PivotOffset",
+]);
+
+function stringValueError(name: string): string {
+  return (
+    `Invalid arguments: ${name} cannot be a plain string. Use the wrapper format — ` +
+    `{"$type":"Vector3","value":[x,y,z]} for Position/Orientation/Size/Velocity, ` +
+    `{"$type":"CFrame","value":[12 numbers]} for CFrame, ` +
+    `{"$type":"Color3","value":[r,g,b]} (0-1 floats) for Color.`
+  );
+}
+
 /** Validate model-produced args for a tool; returns a friendly error string. */
 export function validateToolArgs(
   tool: string,
@@ -204,5 +230,21 @@ export function validateToolArgs(
       .join("; ");
     return { ok: false, error: `Invalid arguments: ${issues}` };
   }
+
+  if (tool === "set_property") {
+    const a = parsed.data as { name: string; value: unknown };
+    if (typeof a.value === "string" && NEVER_STRING_PROPS.has(a.name)) {
+      return { ok: false, error: stringValueError(a.name) };
+    }
+  }
+  if (tool === "create_instance") {
+    const a = parsed.data as { properties?: Record<string, unknown> };
+    for (const [name, value] of Object.entries(a.properties ?? {})) {
+      if (typeof value === "string" && NEVER_STRING_PROPS.has(name)) {
+        return { ok: false, error: stringValueError(name) };
+      }
+    }
+  }
+
   return { ok: true, args: parsed.data as Record<string, unknown> };
 }

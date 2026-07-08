@@ -276,14 +276,65 @@ local function readProperty(inst: Instance, name: string): (boolean, unknown)
 	end)
 end
 
+-- Models sometimes send "0, 90, 0" as a plain string instead of the $type
+-- wrapper. Parse number-lists out of such strings so the assignment can be
+-- retried as the right rich type.
+local function numbersFromString(s: string): { number }?
+	local nums = {}
+	for token in string.gmatch(s, "%-?%d+%.?%d*") do
+		local n = tonumber(token)
+		if n == nil then
+			return nil
+		end
+		table.insert(nums, n)
+	end
+	if #nums == 0 then
+		return nil
+	end
+	return nums
+end
+
 local function setProperty(inst: Instance, name: string, rawValue: unknown)
 	local value = decodeValue(rawValue)
 	local ok, err = pcall(function()
 		(inst :: any)[name] = value
 	end)
-	if not ok then
-		toolError("invalid_args", "Could not set " .. name .. ": " .. tostring(err))
+	if ok then
+		return
 	end
+
+	-- Coercion rescue for number-like strings: try the plausible rich types.
+	if typeof(rawValue) == "string" then
+		local nums = numbersFromString(rawValue :: string)
+		if nums then
+			local candidates: { unknown } = {}
+			if #nums == 3 then
+				table.insert(candidates, Vector3.new(nums[1], nums[2], nums[3]))
+				table.insert(candidates, Color3.new(nums[1], nums[2], nums[3]))
+			elseif #nums == 12 then
+				table.insert(candidates, CFrame.new(table.unpack(nums)))
+			elseif #nums == 4 then
+				table.insert(candidates, UDim2.new(nums[1], nums[2], nums[3], nums[4]))
+			elseif #nums == 2 then
+				table.insert(candidates, Vector2.new(nums[1], nums[2]))
+				table.insert(candidates, UDim.new(nums[1], nums[2]))
+			end
+			for _, candidate in candidates do
+				local okRetry = pcall(function()
+					(inst :: any)[name] = candidate
+				end)
+				if okRetry then
+					return
+				end
+			end
+		end
+	end
+
+	toolError(
+		"invalid_args",
+		"Could not set " .. name .. ": " .. tostring(err)
+			.. '. Use the wrapper format, e.g. {"$type":"Vector3","value":[x,y,z]} or {"$type":"CFrame","value":[12 numbers]}.'
+	)
 end
 
 local handlers: { [string]: (args: { [string]: any }) -> unknown } = {}
