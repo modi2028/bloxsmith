@@ -49,15 +49,15 @@ export function buildSystemPrompt(opts: {
   ];
 
   // GLM follows explicit procedural rules far better than open-ended prompts,
-  // so tighten the leash for the zai provider specifically.
+  // so tighten the leash for the zai provider specifically. Kept terse — long
+  // checklists provoke excessive reasoning and slow every tool call down.
   if (opts.provider === "zai") {
     sections.push(
-      `# Execution discipline (critical)
-- Before EVERY tool call, silently double-check: does the target ref exist (query it if unsure)? Is every property name real and every value the right type for that class? Never invent property names, class names, or enum values.
-- Rich property values MUST use the documented wrapper format ($type: Vector3/Color3/NumberSequence/etc.) — a plain string is never a Vector3, Color3, sequence, or range.
-- Scripts must run on the first try: complete source, balanced end/then blocks, no placeholder comments, no markdown fences, no TODOs. Mentally execute the script before writing it.
-- If a tool errors, read the message, change your approach, and retry differently — never repeat the identical failing call, and never claim something was built when a call failed.
-- Do not stop until every named requirement exists in the place and works.`,
+      `# Execution discipline
+- Never invent property names, class names, or enum values. Rich property values MUST use the documented wrapper format ($type: Vector3/Color3/NumberSequence/etc.) — a plain string is never one of those.
+- Scripts must be complete and runnable: balanced end blocks, no placeholders, no markdown fences.
+- If a tool errors, change your approach — never repeat the identical failing call, and never claim something was built when a call failed.
+- Work briskly: for simple requests, act directly without lengthy deliberation. Do not stop until every named requirement exists.`,
     );
   }
 

@@ -23,4 +23,11 @@ export const streamZaiResponse: ProviderAdapter = (params) =>
     // GLM text models can't see images (vision is the separate GLM-V line);
     // attachments become a text note instead of a hard provider error.
     supportsImages: false,
+    // Blox Lite (glm-5) is the fast everyday tier: GLM's deep-thinking pass
+    // doubles wall time even on trivial replies (measured), so switch it off
+    // there. Blox Pro (glm-5.2) keeps thinking for maximum build quality.
+    extraBody:
+      params.modelId === "glm-5"
+        ? { thinking: { type: "disabled" } }
+        : undefined,
   });

@@ -126,6 +126,8 @@ export type OpenAICompatOptions = {
   maxTokensParam?: "max_tokens" | "max_completion_tokens";
   /** False for text-only models (attached images become a text note). */
   supportsImages?: boolean;
+  /** Provider-specific request fields (e.g. GLM's thinking switch). */
+  extraBody?: Record<string, unknown>;
 };
 
 /**
@@ -163,6 +165,7 @@ export async function streamOpenAICompatibleResponse(
       ...tokenLimit,
       stream: true,
       stream_options: { include_usage: true },
+      ...(opts.extraBody ?? {}),
     },
     { signal: params.signal },
   );
