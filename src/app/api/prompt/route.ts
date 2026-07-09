@@ -2,14 +2,14 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { isAdminRole } from "@/lib/roles";
 import { getSessionUser } from "@/server/auth/session";
-import { getProviderApiKey, NoProviderKeyError } from "@/server/ai/keys";
-import { streamClaudeResponse } from "@/server/ai/providers/anthropic";
+import { NoProviderKeyError } from "@/server/ai/keys";
+import { freeGlmChat } from "@/server/ai/free-glm";
 import { rateLimit } from "@/server/security/ratelimit";
 import { getSiteSettings } from "@/server/site-settings";
 
 /**
  * Better Prompter — rewrites a rough prompt into a detailed build prompt.
- * Free (it's a tiny fast-model call), but rate-limited per user.
+ * Runs on Z.ai's free GLM tier, so it costs nothing; rate-limited per user.
  */
 const bodySchema = z.object({
   prompt: z.string().trim().min(3).max(4000),
@@ -53,18 +53,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const apiKey = await getProviderApiKey("anthropic");
-    const response = await streamClaudeResponse({
-      apiKey,
-      modelId: "claude-haiku-4-5",
+    const improved = await freeGlmChat({
       system: SYSTEM,
-      messages: [
-        { role: "user", content: [{ type: "text", text: body.prompt }] },
-      ],
-      tools: [],
+      messages: [{ role: "user", text: body.prompt }],
+      maxTokens: 900,
     });
-    const improved = response.text.trim();
-    if (!improved) throw new Error("empty response");
     return Response.json({ improved });
   } catch (err) {
     console.error("Better Prompter failed:", err);

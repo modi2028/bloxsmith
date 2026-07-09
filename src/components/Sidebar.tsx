@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BRAND } from "@/lib/brand";
 import { BetterPrompterButton } from "./BetterPrompterButton";
+import { BloxChatButton } from "./BloxChatButton";
 import { BloxImageButton } from "./BloxImageButton";
 import { LogoMark } from "./Logo";
 import { NewProjectButton } from "./NewProjectButton";
@@ -37,6 +38,7 @@ export function Sidebar({
         <NewProjectButton pluginConnected={pluginConnected} />
         <BloxImageButton />
         <BetterPrompterButton />
+        <BloxChatButton />
       </div>
 
       <div className="mb-1.5 mt-6 flex items-center justify-between pl-6 pr-3">
