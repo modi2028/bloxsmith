@@ -28,6 +28,7 @@ export const creditTxKind = pgEnum("credit_tx_kind", [
   "reserve", // negative hold placed when an AI request starts
   "settle", // positive correction: reserved minus actual usage
   "refund", // full refund of a reserve after a failed request
+  "daily_reward", // daily login reward claim (streak-based)
 ]);
 
 export const providerName = pgEnum("provider_name", [
@@ -95,6 +96,13 @@ export const users = pgTable(
     }),
     // Per-user override of the global run_luau setting. NULL = follow global.
     allowRunLuau: boolean("allow_run_luau"),
+    // Roblox account creation date (cached from the Roblox users API); the
+    // daily reward requires a 6-month-old account to deter alt farming.
+    robloxCreatedAt: timestamp("roblox_created_at", { withTimezone: true }),
+    // Daily login reward: consecutive-day streak + the UTC day ("YYYY-MM-DD")
+    // of the last claim. Missing a day resets the streak.
+    rewardStreak: integer("reward_streak").notNull().default(0),
+    rewardLastClaimDay: text("reward_last_claim_day"),
     disabled: boolean("disabled").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

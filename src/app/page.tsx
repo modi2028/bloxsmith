@@ -6,6 +6,7 @@ import {
   RobloxMark,
 } from "@/components/BrandMarks";
 import { ChatApp } from "@/components/ChatApp";
+import { DailyReward } from "@/components/DailyReward";
 import { HistoryMenu } from "@/components/HistoryMenu";
 import { Landing } from "@/components/Landing";
 import { Sidebar } from "@/components/Sidebar";
@@ -119,6 +120,7 @@ function Header({
               Upgrade
             </Link>
           ) : null}
+          <DailyReward />
           <Link
             href="/store"
             title="Your credit balance"
