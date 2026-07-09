@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatCredits } from "@/lib/credits-format";
 import type { EffortId } from "@/lib/model-catalog";
 import { CoinStack } from "./BrandMarks";
-import { EffortPicker } from "./EffortPicker";
 import { ModelPicker, type ChatModel } from "./ModelPicker";
 import { StudioStatus } from "./StudioStatus";
 
@@ -257,18 +256,12 @@ export function ChatComposer({
               models={models}
               modelId={modelId}
               onChange={onModelChange}
+              effort={effort}
+              onEffortChange={onEffortChange}
+              thinkingVisible={thinkingVisible}
+              onThinkingVisibleChange={onThinkingVisibleChange}
               disabled={busy}
             />
-            {effort && onEffortChange && onThinkingVisibleChange && (
-              <EffortPicker
-                modelId={modelId}
-                effort={effort}
-                onChange={onEffortChange}
-                thinkingVisible={thinkingVisible ?? false}
-                onThinkingVisibleChange={onThinkingVisibleChange}
-                disabled={busy}
-              />
-            )}
             {balance != null && (
               <span
                 className="glass-chip flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs text-muted"
