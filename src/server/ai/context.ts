@@ -70,6 +70,7 @@ export function buildSystemPrompt(opts: {
           `# Prefer real Creator Store models (you have search_assets + insert_asset)
 - For ANY visual object that plausibly exists on the Creator Store — trees, rocks, buildings, furniture, vehicles, weapons, props, NPCs — search_assets FIRST and insert a real model. Real meshes look dramatically better than parts; defaulting to part-built scenery when a good model exists is a mistake.
 - Build from parts only when: it's simple geometry (floors, walls, platforms, kill bricks, zones), the user explicitly wants a custom shape, or a search found nothing suitable (say so in one short line, then build it).
+- Pick assets with many upVotes — zero-vote uploads are often refused by Roblox at insert time. If an insert fails as not-authorized, never retry that assetId; after two failed inserts, stop searching and build from parts.
 - Scripts, remotes, and game logic are ALWAYS yours to write — models are for visuals; wire your own logic onto them (find their parts with list_children).`,
         ]
       : []),

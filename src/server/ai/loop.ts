@@ -304,6 +304,10 @@ export async function runAgentTurn(params: {
     let mutatingCalls = 0;
     let readCalls = 0;
     let nudged = false;
+    // Creator Store inserts that Roblox refused ("not authorized" on assets
+    // whose listing says free). After two, force the parts fallback so the
+    // user isn't dragged through endless approve -> fail rounds.
+    let insertFailures = 0;
 
     // --- The tool loop ------------------------------------------------------
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
@@ -314,7 +318,12 @@ export async function runAgentTurn(params: {
       // mid-build with a silent clamp.
       const runningCost = computeCost(pricing, inputTokens, outputTokens);
       if (iteration > 0 && runningCost >= reserved * 0.92) {
-        const note = `I've used up the ${effort} effort budget for this session (${formatCredits(reserved)} credits). Raise the Effort selector next to the model picker and tell me to continue, and I'll pick up where I left off.`;
+        // On max there is nothing to raise — every new run starts a fresh
+        // budget, so "continue" alone is the right advice.
+        const note =
+          effort === "max"
+            ? `I've used up this session's Max effort budget (${formatCredits(reserved)} credits). Say "continue" and I'll pick up right where I left off with a fresh budget.`
+            : `I've used up this session's ${effort} effort budget (${formatCredits(reserved)} credits). Say "continue" to keep going with a fresh budget — or raise the Effort selector next to the model picker first for a bigger one.`;
         await onEvent({ type: "text_delta", text: `\n\n${note}` });
         await db.insert(schema.chatMessages).values({
           sessionId: chatSession.id,
@@ -562,6 +571,25 @@ export async function runAgentTurn(params: {
             toolResultBlock(toolUse.id, JSON.stringify(result.value ?? {}), false),
           );
           await onEvent({ type: "tool_result", id: toolCallId, ok: true });
+        } else if (
+          toolUse.name === "insert_asset" &&
+          /not authorized|could not insert asset/i.test(result.error.message)
+        ) {
+          insertFailures++;
+          const guidance =
+            insertFailures >= 2
+              ? "insert_failed: Roblox refused this asset too. STOP inserting Creator Store assets for this request — build the object from parts (with your own scripts) instead, starting now. Do not ask to insert anything else this turn."
+              : "insert_failed: Roblox refused to load this asset (the listing says free, but Studio could not insert it — this happens with some marketplace uploads). Never retry this assetId. You may try ONE other search result — prefer older assets with many upVotes — and if that fails too, build it from parts.";
+          resultBlocks.push(toolResultBlock(toolUse.id, guidance, true));
+          await onEvent({
+            type: "tool_result",
+            id: toolCallId,
+            ok: false,
+            error:
+              insertFailures >= 2
+                ? "Asset refused — building from parts instead"
+                : "Asset refused by Roblox — trying another",
+          });
         } else if (result.error.message.startsWith("Unknown tool")) {
           // Older plugin copies predate newer tools (e.g. insert_asset). Turn
           // the raw rejection into guidance so the model adapts in one step.

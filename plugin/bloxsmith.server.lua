@@ -494,11 +494,25 @@ handlers.insert_asset = function(args)
 		return game:GetService("InsertService"):LoadAsset(assetId :: number)
 	end)
 	if not okLoad then
-		toolError(
-			"invalid_args",
-			"Could not insert asset " .. tostring(assetId) .. ": " .. tostring(container)
-				.. " (only free or owned Creator Store models can be inserted)"
-		)
+		-- LoadAsset refuses some Creator Store models even when the listing
+		-- says free (fiat/sandboxed assets). GetObjects loads by content id
+		-- and often succeeds where LoadAsset is denied — try it before failing.
+		local okObjs, objs = pcall(function()
+			return game:GetObjects("rbxassetid://" .. tostring(assetId))
+		end)
+		if okObjs and typeof(objs) == "table" and #objs > 0 then
+			local holder = Instance.new("Model")
+			for _, obj in ipairs(objs) do
+				(obj :: Instance).Parent = holder
+			end
+			container = holder
+		else
+			toolError(
+				"invalid_args",
+				"Could not insert asset " .. tostring(assetId) .. ": " .. tostring(container)
+					.. " (only free or owned Creator Store models can be inserted)"
+			)
+		end
 	end
 
 	local wrapper = container :: Instance

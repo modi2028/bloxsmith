@@ -13,6 +13,11 @@ type SearchResult = {
   name: string;
   creator: string;
   description: string;
+  /** Community proof — older well-voted assets insert far more reliably. */
+  upVotes: number;
+  hasScripts: boolean;
+  /** Contains ready-made Tool instances (weapons the player can equip). */
+  toolCount: number;
 };
 
 export async function searchRobloxAssets(params: {
@@ -59,13 +64,25 @@ export async function searchRobloxAssets(params: {
         name: `Asset ${assetId}`,
         creator: "unknown",
         description: "",
+        upVotes: 0,
+        hasScripts: false,
+        toolCount: 0,
       })),
     };
   }
   const details = (await detailsRes.json()) as {
     data?: {
-      asset?: { id?: number; name?: string; description?: string };
+      asset?: {
+        id?: number;
+        name?: string;
+        description?: string;
+        hasScripts?: boolean;
+        modelTechnicalDetails?: {
+          instanceCounts?: { tool?: number };
+        };
+      };
       creator?: { name?: string };
+      voting?: { upVotes?: number };
     }[];
   };
   const results: SearchResult[] = (details.data ?? [])
@@ -75,6 +92,12 @@ export async function searchRobloxAssets(params: {
       name: d.asset?.name ?? `Asset ${d.asset!.id!}`,
       creator: d.creator?.name ?? "unknown",
       description: (d.asset?.description ?? "").slice(0, 160),
-    }));
+      upVotes: d.voting?.upVotes ?? 0,
+      hasScripts: d.asset?.hasScripts ?? false,
+      toolCount: d.asset?.modelTechnicalDetails?.instanceCounts?.tool ?? 0,
+    }))
+    // Community-proven first: fresh zero-vote uploads are the ones Roblox
+    // most often refuses to insert (and are usually lower quality anyway).
+    .sort((a, b) => b.upVotes - a.upVotes);
   return { results };
 }
