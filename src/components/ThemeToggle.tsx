@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 const THEME_KEY = "bs-theme";
 
 const THEMES = [
-  { id: "", label: "Ember", swatch: "#f59e0b" },
   { id: "dark-grey", label: "Dark Grey", swatch: "#3f3f46" },
   { id: "light-grey", label: "Light Grey", swatch: "#e4e4e7" },
+  { id: "ember", label: "Ember", swatch: "#f59e0b" },
 ] as const;
 
 /**
@@ -16,12 +16,12 @@ const THEMES = [
  * applies it before first paint so there's no flash.
  */
 export function ThemeToggle() {
-  const [theme, setTheme] = useState("");
+  const [theme, setTheme] = useState("dark-grey");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      setTheme(localStorage.getItem(THEME_KEY) ?? "");
+      setTheme(localStorage.getItem(THEME_KEY) || "dark-grey");
       setMounted(true);
     }, 0);
     return () => clearTimeout(t);
@@ -34,8 +34,8 @@ export function ThemeToggle() {
     } catch {
       // storage unavailable — theme still applies for this page view
     }
-    if (id) document.documentElement.setAttribute("data-theme", id);
-    else document.documentElement.removeAttribute("data-theme");
+    if (id === "ember") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", id);
   };
 
   return (

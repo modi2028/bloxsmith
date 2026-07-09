@@ -31,13 +31,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-theme="dark-grey"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {/* Apply the stored theme before first paint (no flash). */}
+        {/* Apply the stored theme before first paint (no flash). Dark Grey
+            is the default; "ember" means no data-theme attribute. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem("bs-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}`,
+            __html: `try{var t=localStorage.getItem("bs-theme")||"dark-grey";if(t==="ember"){document.documentElement.removeAttribute("data-theme")}else{document.documentElement.setAttribute("data-theme",t)}}catch(e){}`,
           }}
         />
         <NavProgress />
