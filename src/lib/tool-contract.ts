@@ -191,28 +191,22 @@ export const toolResultEnvelopeSchema = z.discriminatedUnion("ok", [
 export type ToolResultEnvelope = z.infer<typeof toolResultEnvelopeSchema>;
 
 /**
- * Properties that are NEVER plain strings in Roblox — a string here always
- * means the model forgot the $type wrapper. Failing fast server-side gives
- * corrective feedback without a Studio roundtrip.
+ * Geometric/vector property names are NEVER plain strings in Roblox — a
+ * string here always means the model forgot the $type wrapper. Matched by
+ * suffix so it covers the whole family (Position, GripPos, PivotOffset,
+ * AssemblyLinearVelocity, BackgroundColor3, …) without a hand-kept list.
  */
-const NEVER_STRING_PROPS = new Set([
-  "CFrame",
-  "Position",
-  "Orientation",
-  "Rotation",
-  "Size",
-  "Color",
-  "Velocity",
-  "AssemblyLinearVelocity",
-  "PivotOffset",
-]);
+const GEOMETRIC_PROP_RE =
+  /(CFrame|Position|Orientation|Rotation|Size|Velocity|Offset|Pivot|Color3|Color|Pos|Up|Right|Forward|Extents)$/;
 
 function stringValueError(name: string): string {
   return (
     `Invalid arguments: ${name} cannot be a plain string. Use the wrapper format — ` +
-    `{"$type":"Vector3","value":[x,y,z]} for Position/Orientation/Size/Velocity, ` +
-    `{"$type":"CFrame","value":[12 numbers]} for CFrame, ` +
-    `{"$type":"Color3","value":[r,g,b]} (0-1 floats) for Color.`
+    `{"$type":"Vector3","value":[x,y,z]} for positions/orientations/sizes/velocities, ` +
+    `{"$type":"CFrame","value":[12 numbers]} for CFrames, ` +
+    `{"$type":"Color3","value":[r,g,b]} (0-1 floats) for colors, ` +
+    `{"$type":"BrickColor","value":"Bright red"} for BrickColor, ` +
+    `{"$type":"Enum","enum":"AutomaticSize","item":"XY"} for enum properties.`
   );
 }
 
@@ -233,7 +227,7 @@ export function validateToolArgs(
 
   if (tool === "set_property") {
     const a = parsed.data as unknown as { name: string; value: unknown };
-    if (typeof a.value === "string" && NEVER_STRING_PROPS.has(a.name)) {
+    if (typeof a.value === "string" && GEOMETRIC_PROP_RE.test(a.name)) {
       return { ok: false, error: stringValueError(a.name) };
     }
   }
@@ -242,7 +236,7 @@ export function validateToolArgs(
       properties?: Record<string, unknown>;
     };
     for (const [name, value] of Object.entries(a.properties ?? {})) {
-      if (typeof value === "string" && NEVER_STRING_PROPS.has(name)) {
+      if (typeof value === "string" && GEOMETRIC_PROP_RE.test(name)) {
         return { ok: false, error: stringValueError(name) };
       }
     }
