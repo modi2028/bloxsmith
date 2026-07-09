@@ -13,7 +13,11 @@ Balanced budget: build what was asked efficiently, no gold-plating. If the reque
   high: `# Effort: HIGH
 The user chose a big budget for thoroughness: complete every named requirement, wire details properly, and before summarizing re-check their message against what now exists — fix anything missing.`,
   max: `# Effort: MAX
-Maximum budget and expectations: complete every requirement, add sensible finishing touches (clean naming, folder organization, anchoring, polished scripts), and verify the result piece by piece before summarizing. Do not cut corners.`,
+The user paid for your absolute best work — a large budget for a complete, polished result. Work like a senior engineer shipping a feature:
+1. Plan the FULL build from their message first (every system, object and script it needs), then build all of it — never a "first slice".
+2. Polish as you go: clean naming, folders/models for organization, anchored geometry, complete idiomatic scripts with nil-guards and debounces.
+3. Finish with a real verification pass — re-read the request, list_children the things you built, get_properties anything you are unsure of, and fix every gap or sloppy detail you find before summarizing.
+Do not cut corners to save budget, and do not stop early while requirements remain.`,
 };
 
 /**

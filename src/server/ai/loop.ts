@@ -41,7 +41,15 @@ import {
 import { searchRobloxAssets } from "./asset-search";
 import { getStudioTools } from "./tools";
 
-const MAX_ITERATIONS = 24;
+// Tool-loop depth scales with the chosen effort — a big Max budget is
+// useless if the loop stops after 24 rounds. The credit budget guard is the
+// real limiter; these are backstops against runaways.
+const ITERATIONS_BY_EFFORT: Record<EffortId, number> = {
+  low: 14,
+  medium: 24,
+  high: 40,
+  max: 96,
+};
 
 const PROVIDER_ADAPTERS: Partial<Record<ProviderId, ProviderAdapter>> = {
   anthropic: streamClaudeResponse,
@@ -310,7 +318,8 @@ export async function runAgentTurn(params: {
     let insertFailures = 0;
 
     // --- The tool loop ------------------------------------------------------
-    for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+    const maxIterations = ITERATIONS_BY_EFFORT[effort];
+    for (let iteration = 0; iteration < maxIterations; iteration++) {
       throwIfStopped();
 
       // Effort budget guard: when the session's effort cap is nearly spent,

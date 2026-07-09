@@ -70,7 +70,7 @@ export const EFFORT_TIERS: Record<
     low: { maxCredits: 1 },
     medium: { maxCredits: 2 },
     high: { maxCredits: 3, minToStart: 3 },
-    max: { maxCredits: 5, minToStart: 3 },
+    max: { maxCredits: 25, minToStart: 20 },
   },
 };
 
