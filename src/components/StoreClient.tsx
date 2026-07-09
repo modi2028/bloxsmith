@@ -62,7 +62,7 @@ export function CreditPacks({ packs }: { packs: Pack[] }) {
               }`}
             >
               {featured && (
-                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-br from-ember to-ember-strong px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stone-950">
+                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-br from-ember to-ember-strong px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-on-accent">
                   Most popular
                 </span>
               )}
@@ -90,7 +90,7 @@ export function CreditPacks({ packs }: { packs: Pack[] }) {
                 }
                 className={`mt-4 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-40 ${
                   featured
-                    ? "bg-gradient-to-br from-ember to-ember-strong text-stone-950 hover:brightness-110"
+                    ? "bg-gradient-to-br from-ember to-ember-strong text-on-accent hover:brightness-110"
                     : "border border-line-strong bg-surface text-foreground hover:border-ember/60"
                 }`}
               >
@@ -205,7 +205,7 @@ export function ProCard({
             type="button"
             disabled={pending || (!isPro && !proPurchasable)}
             onClick={action}
-            className="mt-3 w-full rounded-lg bg-gradient-to-br from-ember to-ember-strong px-5 py-2.5 text-sm font-semibold text-stone-950 transition hover:brightness-110 disabled:opacity-40 sm:w-auto"
+            className="mt-3 w-full rounded-lg bg-gradient-to-br from-ember to-ember-strong px-5 py-2.5 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:opacity-40 sm:w-auto"
             title={!isPro && !proPurchasable ? "Payments not configured yet" : ""}
           >
             {pending

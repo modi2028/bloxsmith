@@ -15,7 +15,7 @@ export function InstallPicker() {
   const tabCls = (active: boolean) =>
     `flex-1 rounded-lg px-4 py-2 text-sm font-medium transition ${
       active
-        ? "bg-gradient-to-br from-ember to-ember-strong text-stone-950"
+        ? "bg-gradient-to-br from-ember to-ember-strong text-on-accent"
         : "text-muted hover:text-foreground"
     }`;
 
@@ -49,7 +49,7 @@ export function InstallPicker() {
             href={BRAND.pluginUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-on-accent transition hover:brightness-110"
           >
             Install on Roblox
             <svg viewBox="0 0 20 20" fill="none" className="size-4">

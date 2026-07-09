@@ -34,7 +34,7 @@ export function PluginInstall() {
       <a
         href={BRAND.pluginFileUrl}
         download={BRAND.pluginFileName}
-        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-on-accent transition hover:brightness-110"
       >
         <svg viewBox="0 0 20 20" fill="none" className="size-4">
           <path

@@ -34,6 +34,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Apply the stored theme before first paint (no flash). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("bs-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}`,
+          }}
+        />
         <NavProgress />
         <CreditNotifier />
         {children}

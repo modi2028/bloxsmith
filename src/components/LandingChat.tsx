@@ -43,7 +43,7 @@ export function LandingChat({ models }: { models: ChatModel[] }) {
             key={s}
             type="button"
             onClick={() => setSeed(s)}
-            className="glass-chip rounded-full border border-white/10 px-4 py-1.5 text-[13px] text-muted transition hover:border-ember/50 hover:text-foreground"
+            className="glass-chip rounded-full border border-line px-4 py-1.5 text-[13px] text-muted transition hover:border-ember/50 hover:text-foreground"
           >
             {s}
           </button>

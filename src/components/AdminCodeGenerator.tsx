@@ -127,7 +127,7 @@ export function AdminCodeGenerator() {
           type="button"
           disabled={pending || !confirm}
           onClick={() => void generate()}
-          className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110 disabled:opacity-40"
+          className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:opacity-40"
         >
           {pending ? "Creating…" : "Generate code"}
         </button>

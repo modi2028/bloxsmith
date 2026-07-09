@@ -77,7 +77,7 @@ function CreditIsland({
 }) {
   return (
     <div
-      className={`island glass flex items-center gap-2.5 rounded-full border border-white/10 px-5 py-2.5 ${
+      className={`island glass flex items-center gap-2.5 rounded-full border border-line px-5 py-2.5 ${
         leaving ? "island-leave" : "island-enter"
       }`}
       role="status"
@@ -510,7 +510,7 @@ export function ChatApp({
         </p>
         <a
           href="/pair"
-          className="mt-5 w-full rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+          className="mt-5 w-full rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-on-accent transition hover:brightness-110"
         >
           Set up the plugin →
         </a>
@@ -573,7 +573,7 @@ export function ChatApp({
                 key={s}
                 type="button"
                 onClick={() => setSeedText(s)}
-                className="glass-chip rounded-full border border-white/10 px-4 py-1.5 text-[13px] text-muted transition hover:border-ember/50 hover:text-foreground"
+                className="glass-chip rounded-full border border-line px-4 py-1.5 text-[13px] text-muted transition hover:border-ember/50 hover:text-foreground"
               >
                 {s}
               </button>
@@ -603,7 +603,7 @@ export function ChatApp({
           {messages.map((msg, i) =>
             msg.kind === "user" ? (
               <div key={i} className="flex flex-col items-end gap-1">
-                <div className="glass-chip max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-white/10 px-4 py-2.5 text-[15px]">
+                <div className="glass-chip max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-line px-4 py-2.5 text-[15px]">
                   {msg.text}
                 </div>
                 {msg.images ? (
@@ -677,7 +677,7 @@ export function ChatApp({
                               onClick={() =>
                                 void answerApproval(part.id, true)
                               }
-                              className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1.5 text-xs font-semibold text-stone-950 transition hover:brightness-110"
+                              className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1.5 text-xs font-semibold text-on-accent transition hover:brightness-110"
                             >
                               Allow
                             </button>
@@ -710,7 +710,7 @@ export function ChatApp({
                   return (
                     <div
                       key={j}
-                      className="glass-chip flex items-center gap-2.5 rounded-lg border border-white/[0.07] px-3 py-2 text-[13px]"
+                      className="glass-chip flex items-center gap-2.5 rounded-lg border border-line px-3 py-2 text-[13px]"
                     >
                       {part.status === "running" ? (
                         <span className="size-2 shrink-0 animate-pulse rounded-full bg-ember" />
@@ -787,7 +787,7 @@ export function ChatApp({
                       </p>
                     )}
                     {showThinking && (
-                      <div className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs leading-relaxed text-faint">
+                      <div className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-hover px-3 py-2 text-xs leading-relaxed text-faint">
                         {msg.thinking || "Waiting for the first thoughts…"}
                       </div>
                     )}
@@ -808,14 +808,14 @@ export function ChatApp({
         </div>
       </div>
 
-      <div className="glass-surface border-t border-white/5 px-4 py-3">
+      <div className="glass-surface border-t border-line px-4 py-3">
         <div className="mx-auto max-w-3xl">
           {queue.length > 0 && (
             <div className="mb-2.5 flex flex-col gap-1.5">
               {queue.map((item, qi) => (
                 <div
                   key={qi}
-                  className="glass-chip fade-up flex items-center gap-2.5 rounded-lg border border-white/10 px-3 py-1.5 text-[13px] text-muted"
+                  className="glass-chip fade-up flex items-center gap-2.5 rounded-lg border border-line px-3 py-1.5 text-[13px] text-muted"
                 >
                   <span className="shrink-0 rounded-full border border-ember/40 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-ember">
                     Queued {qi + 1}/3
@@ -841,7 +841,7 @@ export function ChatApp({
             </div>
           )}
           {showNotifyPrompt && busy && (
-            <div className="fade-up mb-2.5 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
+            <div className="fade-up mb-2.5 flex items-center gap-3 rounded-xl border border-line bg-hover px-4 py-2.5">
               <svg
                 viewBox="0 0 16 16"
                 fill="none"
@@ -864,7 +864,7 @@ export function ChatApp({
                   setShowNotifyPrompt(false);
                   void Notification.requestPermission().catch(() => {});
                 }}
-                className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1.5 text-xs font-semibold text-stone-950 transition hover:brightness-110"
+                className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1.5 text-xs font-semibold text-on-accent transition hover:brightness-110"
               >
                 Notify me
               </button>
@@ -919,7 +919,7 @@ export function ChatApp({
               <button
                 type="button"
                 onClick={() => send(CONTINUE_PROMPT)}
-                className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1.5 text-xs font-semibold text-stone-950 transition hover:brightness-110"
+                className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-1.5 text-xs font-semibold text-on-accent transition hover:brightness-110"
               >
                 Continue building
               </button>

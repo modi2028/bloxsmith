@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "@/components/SettingsForm";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { BRAND } from "@/lib/brand";
 import { formatCredits } from "@/lib/credits-format";
 import { isAdminRole } from "@/lib/roles";
@@ -65,6 +66,14 @@ export default async function SettingsPage() {
         <SettingsForm initialNickname={user.nickname} />
 
         <div className="rounded-2xl border border-line bg-surface-raised p-5">
+          <h2 className="mb-1.5 text-sm font-medium">Theme</h2>
+          <p className="mb-3 text-xs text-muted">
+            How {BRAND.name} looks on this device.
+          </p>
+          <ThemeToggle />
+        </div>
+
+        <div className="rounded-2xl border border-line bg-surface-raised p-5">
           <h2 className="mb-1.5 text-sm font-medium">Subscription &amp; credits</h2>
           <p className="mb-3 text-xs text-muted">
             {user.plan === "pro"
@@ -87,7 +96,7 @@ export default async function SettingsPage() {
             </p>
             <Link
               href="/admin"
-              className="inline-block rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+              className="inline-block rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110"
             >
               Open admin panel →
             </Link>

@@ -85,7 +85,7 @@ export default async function AdminUserChatsPage({
               className={`truncate rounded-lg px-3 py-2 text-sm transition ${
                 s.id === activeSession?.id
                   ? "bg-ember-soft text-foreground"
-                  : "text-muted hover:bg-white/5"
+                  : "text-muted hover:bg-hover"
               }`}
             >
               {s.title}
@@ -108,7 +108,7 @@ export default async function AdminUserChatsPage({
               {messages.map((m, i) =>
                 m.kind === "user" ? (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[85%] whitespace-pre-wrap rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-sm">
+                    <div className="max-w-[85%] whitespace-pre-wrap rounded-xl border border-line bg-hover px-3.5 py-2 text-sm">
                       {m.text}
                       {m.images ? (
                         <span className="mt-1 block text-[11px] text-faint">

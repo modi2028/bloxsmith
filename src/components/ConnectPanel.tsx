@@ -134,7 +134,7 @@ export function ConnectPanel() {
         </div>
         <Link
           href="/"
-          className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-2 text-xs font-semibold text-stone-950 transition hover:brightness-110"
+          className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-2 text-xs font-semibold text-on-accent transition hover:brightness-110"
         >
           Start building →
         </Link>
@@ -207,7 +207,7 @@ export function ConnectPanel() {
             type="button"
             disabled={responding}
             onClick={() => respond("approve")}
-            className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110 disabled:opacity-50"
+            className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:opacity-50"
           >
             Connect Studio
           </button>

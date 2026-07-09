@@ -34,7 +34,7 @@ function Meter({ level }: { level: number }) {
         <span
           key={i}
           className={`h-1.5 w-4 rounded-full ${
-            i < level ? "bg-ember" : "bg-white/10"
+            i < level ? "bg-ember" : "bg-line-strong"
           }`}
         />
       ))}
@@ -158,7 +158,7 @@ export function ModelPicker({
         )}
       </>
     );
-    const cls = `flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left transition hover:bg-white/5 ${
+    const cls = `flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left transition hover:bg-hover ${
       selected ? "bg-ember-soft" : ""
     }`;
     return m.locked ? (
@@ -208,7 +208,7 @@ export function ModelPicker({
       </button>
 
       {open && (
-        <div className="glass-menu absolute bottom-full left-0 z-30 mb-2 w-80 overflow-hidden rounded-xl border border-white/10">
+        <div className="glass-menu absolute bottom-full left-0 z-30 mb-2 w-80 overflow-hidden rounded-xl border border-line">
           {recommended.length > 0 && (
             <div className="flex items-center gap-1.5 px-3.5 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ember">
               <svg viewBox="0 0 12 12" fill="currentColor" className="size-3">

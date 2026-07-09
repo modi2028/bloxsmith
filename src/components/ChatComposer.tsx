@@ -143,7 +143,7 @@ export function ChatComposer({
         className={`glass relative rounded-2xl border transition-colors ${
           dragActive
             ? "border-ember shadow-[0_0_0_3px_rgba(245,158,11,0.15)]"
-            : "border-white/10 focus-within:border-ember/60"
+            : "border-line focus-within:border-ember/60"
         }`}
       >
         {dragActive && (
@@ -176,7 +176,7 @@ export function ChatComposer({
                     type="button"
                     aria-label={`Remove ${img.name}`}
                     onClick={() => removeImage(img.id)}
-                    className="absolute -right-1.5 -top-1.5 hidden size-5 items-center justify-center rounded-full bg-stone-800 text-xs text-stone-300 ring-1 ring-line-strong group-hover:flex hover:bg-stone-700"
+                    className="absolute -right-1.5 -top-1.5 hidden size-5 items-center justify-center rounded-full bg-surface-raised text-xs text-muted ring-1 ring-line-strong group-hover:flex hover:bg-surface"
                   >
                     ×
                   </button>
@@ -219,7 +219,7 @@ export function ChatComposer({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               title="Attach reference images (or drag & drop / paste)"
-              className="flex size-8 items-center justify-center rounded-lg text-muted transition hover:bg-white/5 hover:text-foreground"
+              className="flex size-8 items-center justify-center rounded-lg text-muted transition hover:bg-hover hover:text-foreground"
             >
               <svg viewBox="0 0 20 20" fill="none" className="size-[18px]">
                 <path
@@ -249,7 +249,7 @@ export function ChatComposer({
             />
             {balance != null && (
               <span
-                className="glass-chip flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-xs text-muted"
+                className="glass-chip flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs text-muted"
                 title="Your credit balance"
               >
                 <CoinStack className="size-3.5 text-ember" />
@@ -307,7 +307,7 @@ export function ChatComposer({
               disabled={!canSend}
               onClick={submit}
               title="Send (Enter)"
-              className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-ember to-ember-strong text-stone-950 transition enabled:hover:brightness-110 disabled:opacity-30"
+              className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-ember to-ember-strong text-on-accent transition enabled:hover:brightness-110 disabled:opacity-30"
             >
               <svg viewBox="0 0 20 20" fill="none" className="size-4">
                 <path
@@ -342,9 +342,9 @@ export function ChatComposer({
             <img
               src={preview.url}
               alt={preview.name}
-              className="max-h-[82vh] max-w-[92vw] rounded-xl border border-white/15 object-contain shadow-2xl shadow-black/60"
+              className="max-h-[82vh] max-w-[92vw] rounded-xl border border-line-strong object-contain shadow-2xl shadow-black/60"
             />
-            <span className="glass-chip pointer-events-auto flex items-center gap-3 rounded-full border border-white/10 py-1.5 pl-4 pr-1.5 text-xs text-muted">
+            <span className="glass-chip pointer-events-auto flex items-center gap-3 rounded-full border border-line py-1.5 pl-4 pr-1.5 text-xs text-muted">
               <span className="max-w-[50vw] truncate">{preview.name}</span>
               <button
                 type="button"

@@ -26,7 +26,7 @@ export function NewProjectButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110"
       >
         <svg viewBox="0 0 16 16" fill="none" className="size-3.5">
           <path
@@ -86,7 +86,7 @@ export function NewProjectButton({
         <button
           type="button"
           onClick={create}
-          className="mt-5 w-full rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+          className="mt-5 w-full rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-on-accent transition hover:brightness-110"
         >
           Start building
         </button>

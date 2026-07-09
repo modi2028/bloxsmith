@@ -50,7 +50,7 @@ export function BloxImageButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="glass-chip mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-sm text-muted transition hover:border-ember/50 hover:text-foreground"
+        className="glass-chip mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-line px-4 py-2 text-sm text-muted transition hover:border-ember/50 hover:text-foreground"
       >
         <svg viewBox="0 0 16 16" fill="none" className="size-3.5 text-ember">
           <rect
@@ -98,7 +98,7 @@ export function BloxImageButton() {
             <img
               src={url}
               alt="Generated game thumbnail"
-              className="aspect-video w-full rounded-xl border border-white/10 object-cover"
+              className="aspect-video w-full rounded-xl border border-line object-cover"
             />
             <p className="mt-1.5 text-xs text-faint">
               Save it now — the link is temporary. Right-click → Save image, or{" "}
@@ -120,7 +120,7 @@ export function BloxImageButton() {
             type="button"
             disabled={busy || !prompt.trim()}
             onClick={() => void generate()}
-            className="flex-1 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:brightness-110 disabled:opacity-40"
+            className="flex-1 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:opacity-40"
           >
             {busy ? "Generating…" : url ? "Generate another" : "Generate thumbnail"}
           </button>

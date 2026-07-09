@@ -191,7 +191,7 @@ export function AdminSiteControls({
               text.trim() ? "Announcement published." : "Announcement cleared.",
             )
           }
-          className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110 disabled:opacity-40"
+          className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:opacity-40"
         >
           {pending ? "…" : "Publish announcement"}
         </button>

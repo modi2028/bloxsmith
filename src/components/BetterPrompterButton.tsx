@@ -58,7 +58,7 @@ export function BetterPrompterButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="glass-chip mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/10 px-4 py-2 text-sm text-muted transition hover:border-ember/50 hover:text-foreground"
+        className="glass-chip mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-line px-4 py-2 text-sm text-muted transition hover:border-ember/50 hover:text-foreground"
       >
         <svg viewBox="0 0 16 16" fill="none" className="size-3.5 text-ember">
           <path
@@ -117,7 +117,7 @@ export function BetterPrompterButton() {
             type="button"
             disabled={busy || !input.trim()}
             onClick={() => void improve()}
-            className="flex-1 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:brightness-110 disabled:opacity-40"
+            className="flex-1 rounded-xl bg-gradient-to-br from-ember to-ember-strong px-4 py-2.5 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:opacity-40"
           >
             {busy ? "Improving…" : improved ? "Improve again" : "Improve prompt"}
           </button>

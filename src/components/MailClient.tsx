@@ -230,7 +230,7 @@ export function MailClient({ accounts }: { accounts: Account[] }) {
         <button
           type="button"
           onClick={() => setCompose({ to: "", subject: "", body: "" })}
-          className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-1.5 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+          className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-1.5 text-sm font-semibold text-on-accent transition hover:brightness-110"
         >
           Compose
         </button>
@@ -256,7 +256,7 @@ export function MailClient({ accounts }: { accounts: Account[] }) {
                 className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-sm transition ${
                   f.folderId === folderId
                     ? "bg-ember-soft text-foreground"
-                    : "text-muted hover:bg-white/5"
+                    : "text-muted hover:bg-hover"
                 }`}
               >
                 <span className="truncate">{folderLabel(f)}</span>
@@ -283,7 +283,7 @@ export function MailClient({ accounts }: { accounts: Account[] }) {
                   key={m.messageId}
                   type="button"
                   onClick={() => void openMessage(m)}
-                  className={`block w-full border-b border-line/60 px-4 py-2.5 text-left transition hover:bg-white/5 ${
+                  className={`block w-full border-b border-line/60 px-4 py-2.5 text-left transition hover:bg-hover ${
                     active?.messageId === m.messageId ? "bg-ember-soft" : ""
                   }`}
                 >
@@ -316,7 +316,7 @@ export function MailClient({ accounts }: { accounts: Account[] }) {
                     folderId &&
                     void loadMessages(accountId, folderId, start, true)
                   }
-                  className="block w-full px-4 py-2.5 text-center text-sm text-ember hover:bg-white/5"
+                  className="block w-full px-4 py-2.5 text-center text-sm text-ember hover:bg-hover"
                 >
                   Load more
                 </button>
@@ -396,7 +396,7 @@ export function MailClient({ accounts }: { accounts: Account[] }) {
             onClick={() => setCompose(null)}
             className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
           />
-          <div className="glass fade-up relative w-full max-w-xl rounded-2xl border border-white/10 p-5">
+          <div className="glass fade-up relative w-full max-w-xl rounded-2xl border border-line p-5">
             <h2 className="mb-3 text-sm font-semibold">
               New message · from {account.address}
             </h2>
@@ -439,7 +439,7 @@ export function MailClient({ accounts }: { accounts: Account[] }) {
                   !compose.body.trim()
                 }
                 onClick={() => void sendMail()}
-                className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-5 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110 disabled:opacity-40"
+                className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-5 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:opacity-40"
               >
                 {sending ? "Sending…" : "Send"}
               </button>

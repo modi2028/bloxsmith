@@ -47,7 +47,7 @@ export function IntroVideo() {
               <svg
                 viewBox="0 0 24 24"
                 fill="currentColor"
-                className="ml-1 size-7 text-stone-950"
+                className="ml-1 size-7 text-on-accent"
               >
                 <path d="M8 5.5v13l11-6.5-11-6.5Z" />
               </svg>

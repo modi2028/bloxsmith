@@ -52,7 +52,7 @@ export default async function AdminPage() {
           </p>
           <Link
             href="/admin/mail"
-            className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+            className="shrink-0 rounded-lg bg-gradient-to-br from-ember to-ember-strong px-3.5 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110"
           >
             Open webmail →
           </Link>

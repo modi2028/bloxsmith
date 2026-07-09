@@ -36,7 +36,7 @@ export function ScrollHint({
           .getElementById(targetId)
           ?.scrollIntoView({ behavior: "smooth", block: "center" })
       }
-      className="fade-up fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-ember/40 bg-stone-900/95 px-4 py-2 text-sm text-foreground shadow-2xl shadow-black/60 backdrop-blur transition hover:border-ember"
+      className="fade-up fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-ember/40 glass-menu px-4 py-2 text-sm text-foreground shadow-2xl shadow-black/60 backdrop-blur transition hover:border-ember"
     >
       {label}
       <svg

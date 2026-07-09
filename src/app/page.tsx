@@ -114,7 +114,7 @@ function Header({
           ) : !isAdminRole(user.role) ? (
             <Link
               href="/store"
-              className="glass-chip rounded-full border border-white/10 px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-ember"
+              className="glass-chip rounded-full border border-line px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-ember"
             >
               Upgrade
             </Link>
@@ -122,7 +122,7 @@ function Header({
           <Link
             href="/store"
             title="Your credit balance"
-            className="glass-chip flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-foreground"
+            className="glass-chip flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-foreground"
           >
             <CoinStack className="size-3.5 text-ember" />
             <span className="font-semibold text-ember">
@@ -133,7 +133,7 @@ function Header({
           <Link
             href="/store"
             title="Buy credits or upgrade to Pro"
-            className="shine-btn rounded-lg bg-gradient-to-br from-emerald-400 to-green-600 px-5 py-2 text-sm font-bold text-stone-950 shadow-[0_0_20px_-4px_rgba(16,185,129,0.65)] transition hover:brightness-110"
+            className="shine-btn rounded-lg bg-gradient-to-br from-emerald-400 to-green-600 px-5 py-2 text-sm font-bold text-on-accent shadow-[0_0_20px_-4px_rgba(16,185,129,0.65)] transition hover:brightness-110"
           >
             Store
           </Link>
@@ -160,7 +160,7 @@ function Header({
       ) : (
         <a
           href="/api/auth/roblox/login"
-          className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-stone-950 transition hover:brightness-110"
+          className="rounded-lg bg-gradient-to-br from-ember to-ember-strong px-4 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110"
         >
           Sign in with Roblox
         </a>

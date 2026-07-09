@@ -13,6 +13,55 @@
   --ember: #f59e0b;
   --ember-strong: #f97316;
   --ember-soft: rgba(245, 158, 11, 0.12);
+  --on-accent: #0c0a09;
+  --hover-fill: rgba(255, 255, 255, 0.05);
+  --selection: rgba(245, 158, 11, 0.3);
+  --glow-1: transparent;
+  --accent-mid: #fbbf24;
+  --accent-glow: rgba(245, 158, 11, 0.7);
+}
+
+/* Dark Grey — monochrome dark. No bright accent, thin low-contrast borders,
+   subtle glow. The accent slot maps to a light silver used sparingly. */
+:root[data-theme="dark-grey"] {
+  --background: #111113;
+  --surface: #16161a;
+  --surface-raised: #18181b;
+  --border: #26262b;
+  --border-strong: #34343a;
+  --foreground: #e4e4e7;
+  --muted: #a1a1aa;
+  --faint: #52525b;
+  --ember: #d4d4d8;
+  --ember-strong: #a1a1aa;
+  --ember-soft: rgba(212, 212, 216, 0.08);
+  --on-accent: #111113;
+  --hover-fill: rgba(255, 255, 255, 0.05);
+  --selection: rgba(212, 212, 216, 0.25);
+  --glow-1: #1c1c20;
+  --accent-mid: #f4f4f5;
+  --accent-glow: rgba(212, 212, 216, 0.35);
+}
+
+/* Light Grey — monochrome light. Off-white base, dark silver highlight. */
+:root[data-theme="light-grey"] {
+  --background: #f7f7f8;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --foreground: #18181b;
+  --muted: #52525b;
+  --faint: #a1a1aa;
+  --ember: #3f3f46;
+  --ember-strong: #27272a;
+  --ember-soft: rgba(63, 63, 70, 0.08);
+  --on-accent: #fafafa;
+  --hover-fill: rgba(0, 0, 0, 0.04);
+  --selection: rgba(63, 63, 70, 0.2);
+  --glow-1: #ffffff;
+  --accent-mid: #71717a;
+  --accent-glow: rgba(63, 63, 70, 0.3);
 }
 
 @theme inline {
@@ -27,6 +76,8 @@
   --color-ember: var(--ember);
   --color-ember-strong: var(--ember-strong);
   --color-ember-soft: var(--ember-soft);
+  --color-on-accent: var(--on-accent);
+  --color-hover: var(--hover-fill);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -38,7 +89,119 @@ body {
 }
 
 ::selection {
-  background: rgba(245, 158, 11, 0.3);
+  background: var(--selection);
+}
+
+/* Animated background glow for the grey themes: its own fixed layer behind
+   all content, GPU-composited (transform/opacity only), gentle 28s breathe.
+   Static under prefers-reduced-motion. */
+:root[data-theme="dark-grey"] body::before,
+:root[data-theme="light-grey"] body::before {
+  content: "";
+  position: fixed;
+  inset: -12% -8%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 80% 50% at 50% 0%,
+    var(--glow-1),
+    transparent 70%
+  );
+  animation: glow-drift 28s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+@keyframes glow-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1);
+    opacity: 0.75;
+  }
+  to {
+    transform: translate3d(1.5%, 1.2%, 0) scale(1.05);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="dark-grey"] body::before,
+  :root[data-theme="light-grey"] body::before {
+    animation: none;
+  }
+}
+
+/* Glass on the grey themes: neutral tints (no warm cast); light theme flips
+   the sheen to soft shadow on near-white panels. */
+:root[data-theme="dark-grey"] .glass,
+:root[data-theme="dark-grey"] .glass-menu {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.06),
+      rgba(255, 255, 255, 0.012) 40%,
+      rgba(255, 255, 255, 0.04)
+    ),
+    rgba(17, 17, 19, 0.6);
+}
+:root[data-theme="dark-grey"] .glass-menu {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.05),
+      rgba(255, 255, 255, 0.012) 40%,
+      rgba(255, 255, 255, 0.035)
+    ),
+    rgba(17, 17, 19, 0.96);
+}
+:root[data-theme="dark-grey"] .glass-surface {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.035),
+      rgba(255, 255, 255, 0.008) 30%,
+      rgba(255, 255, 255, 0.02)
+    ),
+    rgba(14, 14, 16, 0.55);
+}
+
+:root[data-theme="light-grey"] .glass {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.025),
+      rgba(0, 0, 0, 0.006) 40%,
+      rgba(0, 0, 0, 0.015)
+    ),
+    rgba(255, 255, 255, 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 36px -14px rgba(0, 0, 0, 0.22);
+}
+:root[data-theme="light-grey"] .glass-chip {
+  background: rgba(0, 0, 0, 0.035);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+:root[data-theme="light-grey"] .glass-menu {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.02),
+      rgba(0, 0, 0, 0.005) 40%,
+      rgba(0, 0, 0, 0.012)
+    ),
+    rgba(252, 252, 253, 0.97);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 36px -12px rgba(0, 0, 0, 0.28);
+}
+:root[data-theme="light-grey"] .glass-surface {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.7),
+      rgba(255, 255, 255, 0.35) 30%,
+      rgba(255, 255, 255, 0.55)
+    ),
+    rgba(247, 247, 248, 0.65);
 }
 
 /* Moving grey gradient over text — the "AI is thinking / working" shimmer. */
@@ -272,9 +435,9 @@ body {
   background-image: linear-gradient(
     100deg,
     var(--ember-strong),
-    #fbbf24,
+    var(--accent-mid),
     var(--ember),
-    #fbbf24,
+    var(--accent-mid),
     var(--ember-strong)
   );
   background-size: 200% auto;
@@ -356,10 +519,10 @@ body {
   left: 0;
   height: 2.5px;
   z-index: 100;
-  background: linear-gradient(90deg, var(--ember), #fbbf24);
+  background: linear-gradient(90deg, var(--ember), var(--accent-mid));
   box-shadow:
-    0 0 10px rgba(245, 158, 11, 0.8),
-    0 0 4px rgba(245, 158, 11, 0.6);
+    0 0 10px var(--accent-glow),
+    0 0 4px var(--accent-glow);
   border-radius: 0 2px 2px 0;
   transition:
     width 0.2s ease,
