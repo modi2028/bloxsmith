@@ -38,7 +38,8 @@
   --on-accent: #111113;
   --hover-fill: rgba(255, 255, 255, 0.05);
   --selection: rgba(212, 212, 216, 0.25);
-  --glow-1: #1c1c20;
+  --glow-1: #1f1f26;
+  --glow-2: #26262e;
   --accent-mid: #f4f4f5;
   --accent-glow: rgba(212, 212, 216, 0.35);
 }
@@ -122,9 +123,73 @@ body {
   }
 }
 
+/* Dark Grey only: a second, slower aurora that counter-drifts against the
+   main glow — liquid silver, still monochrome. Transform/opacity only. */
+:root[data-theme="dark-grey"] body::after {
+  content: "";
+  position: fixed;
+  inset: -15% -10%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 46% 34% at 22% 30%, var(--glow-2), transparent 70%),
+    radial-gradient(ellipse 42% 32% at 82% 74%, #1b1b21, transparent 70%);
+  animation: glow-drift-2 38s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+@keyframes glow-drift-2 {
+  from {
+    transform: translate3d(1.8%, 1.4%, 0) scale(1.04);
+    opacity: 0.6;
+  }
+  to {
+    transform: translate3d(-1.8%, -1%, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Dashboard ambient wash — themed and gently animated. Ember keeps its warm
+   radials; Dark Grey gets drifting silver auroras; Light Grey a soft white
+   bloom. Animates transform/opacity only. */
+.dashboard-ambient {
+  background:
+    radial-gradient(55rem 38rem at 10% -10%, rgba(245, 158, 11, 0.09), transparent 60%),
+    radial-gradient(45rem 32rem at 105% 115%, rgba(234, 88, 12, 0.07), transparent 60%),
+    radial-gradient(35rem 28rem at 85% 5%, rgba(120, 113, 108, 0.08), transparent 55%);
+  animation: ambient-drift 32s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+:root[data-theme="dark-grey"] .dashboard-ambient {
+  background:
+    radial-gradient(55rem 38rem at 12% -8%, rgba(212, 212, 216, 0.075), transparent 60%),
+    radial-gradient(48rem 34rem at 100% 110%, rgba(161, 161, 170, 0.055), transparent 60%),
+    radial-gradient(38rem 30rem at 82% 8%, rgba(228, 228, 231, 0.045), transparent 55%);
+}
+
+:root[data-theme="light-grey"] .dashboard-ambient {
+  background:
+    radial-gradient(55rem 38rem at 12% -8%, rgba(255, 255, 255, 0.95), transparent 60%),
+    radial-gradient(48rem 34rem at 100% 110%, rgba(228, 228, 231, 0.5), transparent 60%);
+}
+
+@keyframes ambient-drift {
+  from {
+    transform: translate3d(-1.2%, -0.8%, 0) scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: translate3d(1.2%, 1%, 0) scale(1.05);
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root[data-theme="dark-grey"] body::before,
-  :root[data-theme="light-grey"] body::before {
+  :root[data-theme="light-grey"] body::before,
+  :root[data-theme="dark-grey"] body::after,
+  .dashboard-ambient {
     animation: none;
   }
 }

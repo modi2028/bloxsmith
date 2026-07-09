@@ -384,14 +384,11 @@ export default async function Home({
 
   return (
     <div className="flex h-dvh w-full overflow-hidden">
-      {/* Ambient color wash — gives the glass panels something to refract. */}
+      {/* Ambient color wash — themed + gently animated (see globals.css);
+          gives the glass panels something to refract. */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10"
-        style={{
-          background:
-            "radial-gradient(55rem 38rem at 10% -10%, rgba(245,158,11,0.09), transparent 60%), radial-gradient(45rem 32rem at 105% 115%, rgba(234,88,12,0.07), transparent 60%), radial-gradient(35rem 28rem at 85% 5%, rgba(120,113,108,0.08), transparent 55%)",
-        }}
+        className="dashboard-ambient pointer-events-none fixed inset-0 -z-10"
       />
       <Sidebar
         pluginConnected={pluginConnected}
