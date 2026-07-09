@@ -796,42 +796,51 @@ export function ChatApp({
 
                 {busy && i === messages.length - 1 && (
                   <div>
-                    <button
-                      type="button"
-                      onClick={() => setShowThinking((v) => !v)}
-                      title={
-                        msg.thinking
-                          ? "Show what the AI is thinking"
-                          : "Thoughts appear here once the model starts reasoning"
-                      }
-                      className="flex items-center gap-1.5"
-                    >
+                    {/* The Thinking toggle (model menu) decides whether the
+                        reasoning is viewable at all — OFF means a plain status
+                        line with no expander. */}
+                    {thinkingPref ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowThinking((v) => !v)}
+                        title={
+                          msg.thinking
+                            ? "Show what the AI is thinking"
+                            : "Thoughts appear here once the model starts reasoning"
+                        }
+                        className="flex items-center gap-1.5"
+                      >
+                        <span className="shimmer-text text-sm font-medium">
+                          {runningTool ? "Building in Studio…" : "Thinking…"}
+                        </span>
+                        <svg
+                          viewBox="0 0 12 12"
+                          fill="none"
+                          className={`size-2.5 text-faint transition-transform ${
+                            showThinking ? "rotate-180" : ""
+                          }`}
+                        >
+                          <path
+                            d="M2.5 4.5 6 8l3.5-3.5"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    ) : (
                       <span className="shimmer-text text-sm font-medium">
                         {runningTool ? "Building in Studio…" : "Thinking…"}
                       </span>
-                      <svg
-                        viewBox="0 0 12 12"
-                        fill="none"
-                        className={`size-2.5 text-faint transition-transform ${
-                          showThinking ? "rotate-180" : ""
-                        }`}
-                      >
-                        <path
-                          d="M2.5 4.5 6 8l3.5-3.5"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
+                    )}
                     {modelId === "glm-5.2" && !runningTool && (
                       <p className="mt-1 text-[11px] text-faint">
                         Blox Pro is a deep-thinking model — complex builds can
                         take a few minutes. The result is worth it.
                       </p>
                     )}
-                    {showThinking && (
+                    {thinkingPref && showThinking && (
                       <div className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-hover px-3 py-2 text-xs leading-relaxed text-faint">
                         {msg.thinking || "Waiting for the first thoughts…"}
                       </div>

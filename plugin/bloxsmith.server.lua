@@ -507,10 +507,14 @@ handlers.insert_asset = function(args)
 			end
 			container = holder
 		else
+			-- Report BOTH failures so the backend/chat can see which path ran
+			-- (also distinguishes updated plugins from stale installs).
 			toolError(
 				"invalid_args",
-				"Could not insert asset " .. tostring(assetId) .. ": " .. tostring(container)
-					.. " (only free or owned Creator Store models can be inserted)"
+				"Could not insert asset " .. tostring(assetId)
+					.. " — LoadAsset: " .. tostring(container)
+					.. "; GetObjects: " .. tostring(objs)
+					.. " (Roblox blocks inserting this model programmatically; owning it via its Get button on create.roblox.com would allow it)"
 			)
 		end
 	end

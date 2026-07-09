@@ -15,6 +15,10 @@ type SearchResult = {
   description: string;
   /** Community proof — older well-voted assets insert far more reliably. */
   upVotes: number;
+  /** Curated by Roblox — highest quality and reliably insertable. */
+  endorsed: boolean;
+  /** Year the asset was published (older classics insert more reliably). */
+  created: string;
   hasScripts: boolean;
   /** Contains ready-made Tool instances (weapons the player can equip). */
   toolCount: number;
@@ -65,6 +69,8 @@ export async function searchRobloxAssets(params: {
         creator: "unknown",
         description: "",
         upVotes: 0,
+        endorsed: false,
+        created: "",
         hasScripts: false,
         toolCount: 0,
       })),
@@ -76,6 +82,8 @@ export async function searchRobloxAssets(params: {
         id?: number;
         name?: string;
         description?: string;
+        isEndorsed?: boolean;
+        createdUtc?: string;
         hasScripts?: boolean;
         modelTechnicalDetails?: {
           instanceCounts?: { tool?: number };
@@ -93,11 +101,17 @@ export async function searchRobloxAssets(params: {
       creator: d.creator?.name ?? "unknown",
       description: (d.asset?.description ?? "").slice(0, 160),
       upVotes: d.voting?.upVotes ?? 0,
+      endorsed: d.asset?.isEndorsed ?? false,
+      created: (d.asset?.createdUtc ?? "").slice(0, 4),
       hasScripts: d.asset?.hasScripts ?? false,
       toolCount: d.asset?.modelTechnicalDetails?.instanceCounts?.tool ?? 0,
     }))
-    // Community-proven first: fresh zero-vote uploads are the ones Roblox
-    // most often refuses to insert (and are usually lower quality anyway).
-    .sort((a, b) => b.upVotes - a.upVotes);
+    // Endorsed (Roblox-curated) first, then community-proven: fresh
+    // zero-vote uploads are the ones Roblox most often refuses to insert
+    // (and are usually lower quality anyway).
+    .sort(
+      (a, b) =>
+        Number(b.endorsed) - Number(a.endorsed) || b.upVotes - a.upVotes,
+    );
   return { results };
 }
