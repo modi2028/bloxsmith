@@ -87,6 +87,8 @@ export function mapDbMessagesToUi(
         .filter((b) => b?.type === "text" && typeof b.text === "string")
         .map((b) => b.text)
         .join("");
+      // "(auto) " rows are loop-injected continuation nudges, not the user.
+      if (text.startsWith("(auto) ")) continue;
       const images = blocks.filter((b) => b?.type === "image").length;
       if (text || images > 0) {
         out.push({ kind: "user", text, ...(images > 0 ? { images } : {}) });

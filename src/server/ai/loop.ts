@@ -265,6 +265,20 @@ export async function runAgentTurn(params: {
     const exactCalls = new Map<string, number>();
     const propertyTouches = new Map<string, number>();
 
+    // Premature-stop guard: models sometimes inspect, say "let me check
+    // first", and end the turn without building. If a turn ends with reads
+    // but zero mutations, nudge once to continue building.
+    const MUTATING_TOOLS = new Set([
+      "create_instance",
+      "set_property",
+      "write_script",
+      "delete_instance",
+      "insert_asset",
+    ]);
+    let mutatingCalls = 0;
+    let readCalls = 0;
+    let nudged = false;
+
     // --- The tool loop ------------------------------------------------------
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
       throwIfStopped();
@@ -310,6 +324,26 @@ export async function runAgentTurn(params: {
 
       if (response.stopReason === "pause_turn") continue;
       if (response.stopReason !== "tool_use" || response.toolUses.length === 0) {
+        // Ended after inspecting without building anything: nudge once. The
+        // "(auto) " prefix hides this from the chat UI; models see it as a
+        // normal user instruction.
+        if (!nudged && mutatingCalls === 0 && readCalls > 0) {
+          nudged = true;
+          const nudgeContent = [
+            {
+              type: "text",
+              text: "(auto) You inspected the place but haven't built anything yet. If my request asked you to build or change something, do it NOW in this turn with tool calls, then summarize. If it was purely a question you already answered, just restate the answer in one sentence.",
+            },
+          ];
+          await db.insert(schema.chatMessages).values({
+            sessionId: chatSession.id,
+            role: "user",
+            content: nudgeContent,
+            textContent: null,
+          });
+          messages.push({ role: "user", content: nudgeContent });
+          continue;
+        }
         break;
       }
 
@@ -445,6 +479,9 @@ export async function runAgentTurn(params: {
             }
           }
         }
+
+        if (MUTATING_TOOLS.has(toolUse.name)) mutatingCalls++;
+        else readCalls++;
 
         const toolCallId = await enqueueToolCall(db, {
           aiRequestId: aiRequest.id,
