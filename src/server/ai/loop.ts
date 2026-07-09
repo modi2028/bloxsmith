@@ -265,6 +265,9 @@ export async function runAgentTurn(params: {
     // forever. Track per-turn repetition and cut it off with guidance.
     const exactCalls = new Map<string, number>();
     const propertyTouches = new Map<string, number>();
+    // Tools the user's installed plugin rejected as unknown (outdated copy in
+    // Studio). Short-circuit later calls instead of another Studio roundtrip.
+    const pluginUnsupportedTools = new Set<string>();
 
     // Premature-stop guard: models sometimes inspect, say "let me check
     // first", and end the turn without building. If a turn ends with reads
@@ -394,6 +397,21 @@ export async function runAgentTurn(params: {
           continue;
         }
 
+        // The installed plugin already told us it doesn't know this tool —
+        // answer immediately rather than asking Studio (and the user) again.
+        if (pluginUnsupportedTools.has(toolUse.name)) {
+          resultBlocks.push(
+            toolResultBlock(toolUse.id, outdatedPluginError(toolUse.name), true),
+          );
+          await onEvent({
+            type: "tool_result",
+            id: toolUse.id,
+            ok: false,
+            error: "Plugin outdated — update the Bloxsmith plugin in Studio",
+          });
+          continue;
+        }
+
         // Creator Store search runs server-side — it never touches Studio.
         if (toolUse.name === "search_assets") {
           await onEvent({
@@ -505,6 +523,19 @@ export async function runAgentTurn(params: {
             toolResultBlock(toolUse.id, JSON.stringify(result.value ?? {}), false),
           );
           await onEvent({ type: "tool_result", id: toolCallId, ok: true });
+        } else if (result.error.message.startsWith("Unknown tool")) {
+          // Older plugin copies predate newer tools (e.g. insert_asset). Turn
+          // the raw rejection into guidance so the model adapts in one step.
+          pluginUnsupportedTools.add(toolUse.name);
+          resultBlocks.push(
+            toolResultBlock(toolUse.id, outdatedPluginError(toolUse.name), true),
+          );
+          await onEvent({
+            type: "tool_result",
+            id: toolCallId,
+            ok: false,
+            error: "Plugin outdated — update the Bloxsmith plugin in Studio",
+          });
         } else {
           resultBlocks.push(
             toolResultBlock(
@@ -637,6 +668,20 @@ export async function runAgentTurn(params: {
     await failRequest(aiRequest.id, message);
     await onEvent({ type: "error", message });
   }
+}
+
+/**
+ * Fed to the model when the Studio plugin rejects a tool it's too old to
+ * know. One message must do three jobs: stop retries, give a fallback path,
+ * and get the user told how to fix it.
+ */
+function outdatedPluginError(tool: string): string {
+  return (
+    `plugin_outdated: the Bloxsmith plugin installed in this Studio is an older version that does not support ${tool}. ` +
+    `Do NOT call ${tool} again in this conversation. ` +
+    `Build the object from parts instead, and tell the user (in one short line) to update the Bloxsmith plugin — ` +
+    `download the newest Bloxsmith.lua from the dashboard's Install page, replace the old file in their Plugins folder, then restart Studio.`
+  );
 }
 
 function toolResultBlock(
