@@ -4,10 +4,12 @@
  * app can import it.
  *
  * PRICING MODEL — profitability:
- *   1 credit ≈ $1 (packs are ~$1 / credit). Credits are FRACTIONAL: a typical
- *   request costs ~0.1–0.5 credits. Rates below = provider $/1k tokens × 3
- *   → ~3x markup on raw provider cost, i.e. ~67% gross margin on usage before
- *   Stripe/infra. Everything here is admin-editable at runtime.
+ *   1 credit ≈ $0.20–0.25 (packs are 20/$4.99, 75/$14.99, 200/$39.99).
+ *   Credits are FRACTIONAL: a typical request costs ~0.1–0.5 credits. The
+ *   per-1k rates below were originally set at provider $/1k × 3 when a
+ *   credit sold for ~$1 — at ~$0.20/credit the effective markup on provider
+ *   cost is thin; revisit rates if usage margins matter. Everything here is
+ *   admin-editable at runtime.
  */
 
 export type CatalogModel = {
@@ -269,16 +271,16 @@ export const CREDIT_PACKS: CreditPack[] = [
   {
     lookupKey: "credits_starter",
     name: "Starter",
-    description: "A solid handful of builds",
-    credits: 5,
+    description: "A solid pile of builds",
+    credits: 20,
     priceUsd: 4.99,
     sort: 10,
   },
   {
     lookupKey: "credits_plus",
     name: "Plus",
-    description: "Best for regular building — 20% bonus",
-    credits: 18,
+    description: "Best for regular building — 25% bonus",
+    credits: 75,
     priceUsd: 14.99,
     sort: 20,
   },
@@ -286,7 +288,7 @@ export const CREDIT_PACKS: CreditPack[] = [
     lookupKey: "credits_pro_pack",
     name: "Builder",
     description: "Best value for heavy building",
-    credits: 55,
+    credits: 200,
     priceUsd: 39.99,
     sort: 30,
   },
