@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatCredits } from "@/lib/credits-format";
+import type { EffortId } from "@/lib/model-catalog";
 import { CoinStack } from "./BrandMarks";
+import { EffortPicker } from "./EffortPicker";
 import { ModelPicker, type ChatModel } from "./ModelPicker";
 import { StudioStatus } from "./StudioStatus";
 
@@ -32,6 +34,10 @@ export function ChatComposer({
   models,
   modelId,
   onModelChange,
+  effort,
+  onEffortChange,
+  thinkingVisible,
+  onThinkingVisibleChange,
   compact = false,
   autoFocus = false,
   initialText,
@@ -45,6 +51,12 @@ export function ChatComposer({
   models: ChatModel[];
   modelId: string;
   onModelChange: (id: string) => void;
+  /** Omitted (landing page): the Effort picker is hidden entirely. */
+  effort?: EffortId;
+  onEffortChange?: (id: EffortId) => void;
+  /** "Show thinking" preference — surfaced as a toggle in the effort menu. */
+  thinkingVisible?: boolean;
+  onThinkingVisibleChange?: (v: boolean) => void;
   compact?: boolean;
   autoFocus?: boolean;
   /** Initial text (suggestion chips) — pair with a `key` to re-seed. */
@@ -247,6 +259,16 @@ export function ChatComposer({
               onChange={onModelChange}
               disabled={busy}
             />
+            {effort && onEffortChange && onThinkingVisibleChange && (
+              <EffortPicker
+                modelId={modelId}
+                effort={effort}
+                onChange={onEffortChange}
+                thinkingVisible={thinkingVisible ?? false}
+                onThinkingVisibleChange={onThinkingVisibleChange}
+                disabled={busy}
+              />
+            )}
             {balance != null && (
               <span
                 className="glass-chip flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs text-muted"

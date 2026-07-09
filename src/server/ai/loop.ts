@@ -16,6 +16,11 @@ import {
 import { validateToolArgs } from "@/lib/tool-contract";
 import type { AgentEvent } from "@/lib/agent-events";
 import { isProUser } from "@/lib/plan";
+import {
+  DEFAULT_EFFORT,
+  effortTier,
+  type EffortId,
+} from "@/lib/model-catalog";
 import { formatCredits } from "@/lib/credits-format";
 import { isPluginConnected } from "@/server/auth/plugin";
 import { buildSystemPrompt } from "./context";
@@ -54,6 +59,8 @@ export async function runAgentTurn(params: {
   message: string;
   chatSessionId?: string;
   modelId?: string;
+  /** How hard (and how expensive) this session may run — see EFFORT_TIERS. */
+  effort?: EffortId;
   title?: string;
   /** Reference images attached to this message (base64, no data: prefix). */
   images?: { mediaType: string; data: string }[];
@@ -140,26 +147,40 @@ export async function runAgentTurn(params: {
   await onEvent({ type: "session", chatSessionId: chatSession.id });
 
   // --- Create request row + reserve credits --------------------------------
+  // The effort tier picked by the user sizes the session's credit cap; models
+  // without a tier table fall back to the pricing row's per-request cap.
+  const effort = params.effort ?? DEFAULT_EFFORT;
+  const tier = effortTier(modelId, effort);
+  const maxReserve = tier ? tier.maxCredits : pricing.maxCreditsPerRequest;
+
   const [aiRequest] = await db
     .insert(schema.aiRequests)
     .values({
       sessionId: chatSession.id,
       userId: user.id,
       modelId,
-      creditsReserved: pricing.maxCreditsPerRequest,
+      creditsReserved: maxReserve,
     })
     .returning();
 
+  let reserved = maxReserve;
   try {
-    await reserveCredits({
+    reserved = await reserveCredits({
       userId: user.id,
       aiRequestId: aiRequest.id,
-      amount: pricing.maxCreditsPerRequest,
+      amount: maxReserve,
+      minToStart: tier?.minToStart,
     });
+    if (reserved !== maxReserve) {
+      await db
+        .update(schema.aiRequests)
+        .set({ creditsReserved: reserved })
+        .where(eq(schema.aiRequests.id, aiRequest.id));
+    }
   } catch (err) {
     const message =
       err instanceof InsufficientCreditsError
-        ? `Not enough credits: this request reserves up to ${formatCredits(pricing.maxCreditsPerRequest)} and you have ${formatCredits(err.balance)}. Unused reserve is refunded after each request.`
+        ? `Not enough credits: ${effort} effort on ${pricing.displayName} needs at least ${formatCredits(err.required)} to start and you have ${formatCredits(err.balance)}. Unused reserve is refunded after each request.`
         : err instanceof SpendLimitExceededError
           ? `You've hit your ${err.scope} credit limit.`
           : "Could not reserve credits.";
@@ -168,7 +189,7 @@ export async function runAgentTurn(params: {
     return;
   }
 
-  let reservedToRefund = pricing.maxCreditsPerRequest;
+  let reservedToRefund = reserved;
   let inputTokens = 0;
   let outputTokens = 0;
   let toolCallCount = 0;
@@ -182,6 +203,7 @@ export async function runAgentTurn(params: {
       userNickname: user.nickname ?? user.displayName ?? user.username,
       provider: pricing.provider,
       assetTools: proAccess,
+      effort,
     });
 
     const history = await db.query.chatMessages.findMany({
@@ -286,6 +308,23 @@ export async function runAgentTurn(params: {
     // --- The tool loop ------------------------------------------------------
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
       throwIfStopped();
+
+      // Effort budget guard: when the session's effort cap is nearly spent,
+      // stop cleanly and tell the user how to continue — instead of dying
+      // mid-build with a silent clamp.
+      const runningCost = computeCost(pricing, inputTokens, outputTokens);
+      if (iteration > 0 && runningCost >= reserved * 0.92) {
+        const note = `I've used up the ${effort} effort budget for this session (${formatCredits(reserved)} credits). Raise the Effort selector next to the model picker and tell me to continue, and I'll pick up where I left off.`;
+        await onEvent({ type: "text_delta", text: `\n\n${note}` });
+        await db.insert(schema.chatMessages).values({
+          sessionId: chatSession.id,
+          role: "assistant",
+          content: [{ type: "text", text: note }],
+          textContent: note,
+          modelId,
+        });
+        break;
+      }
       // Cap every model call so a wedged provider connection can never hold
       // the user's run slot indefinitely. Combined manually (not
       // AbortSignal.any) so it works on every Node runtime.
@@ -567,7 +606,7 @@ export async function runAgentTurn(params: {
     const charged = await settleCredits({
       userId: user.id,
       aiRequestId: aiRequest.id,
-      reserved: pricing.maxCreditsPerRequest,
+      reserved,
       actualCost,
     });
     reservedToRefund = 0;

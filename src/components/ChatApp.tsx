@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import type { AgentEvent } from "@/lib/agent-events";
 import type { UiMessage, UiPart, UiToolPart } from "@/lib/chat-ui";
 import { formatCredits } from "@/lib/credits-format";
+import {
+  DEFAULT_EFFORT,
+  EFFORT_IDS,
+  type EffortId,
+} from "@/lib/model-catalog";
 import { CoinStack, PoweredByBanner } from "./BrandMarks";
 import { ChatComposer } from "./ChatComposer";
 import { Markdown } from "./Markdown";
@@ -19,6 +24,8 @@ const SUGGESTIONS = [
 ];
 
 const MODEL_STORAGE_KEY = "bloxsmith-model";
+const EFFORT_STORAGE_KEY = "bloxsmith-effort";
+const THINKING_STORAGE_KEY = "bloxsmith-show-thinking";
 
 /** Sent when the user presses "Continue building" after an interrupted run. */
 const CONTINUE_PROMPT =
@@ -158,6 +165,29 @@ export function ChatApp({
   const changeModel = (id: string) => {
     setModelId(id);
     localStorage.setItem(MODEL_STORAGE_KEY, id);
+  };
+
+  // Effort tier — sizes the session's credit budget; saved like the model.
+  const [effort, setEffort] = useState<EffortId>(() => {
+    if (typeof window === "undefined") return DEFAULT_EFFORT;
+    const saved = localStorage.getItem(EFFORT_STORAGE_KEY) as EffortId | null;
+    return saved && EFFORT_IDS.includes(saved) ? saved : DEFAULT_EFFORT;
+  });
+  const changeEffort = (id: EffortId) => {
+    setEffort(id);
+    localStorage.setItem(EFFORT_STORAGE_KEY, id);
+  };
+
+  // "Show thinking" preference (off by default): when on, the reasoning
+  // panel opens automatically on every run instead of needing a click.
+  const [thinkingPref, setThinkingPref] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(THINKING_STORAGE_KEY) === "1";
+  });
+  const changeThinkingPref = (v: boolean) => {
+    setThinkingPref(v);
+    localStorage.setItem(THINKING_STORAGE_KEY, v ? "1" : "0");
+    setShowThinking(v); // applies to the currently running turn too
   };
 
   useEffect(() => {
@@ -381,7 +411,7 @@ export function ChatApp({
       setBusy(true);
       setCanContinue(false);
       setBgRunBlocking(false);
-      setShowThinking(false);
+      setShowThinking(thinkingPref);
       // Attached reference images ride along as base64.
       const images = await Promise.all(
         files.map(
@@ -411,6 +441,7 @@ export function ChatApp({
             message: text,
             chatSessionId,
             modelId,
+            effort,
             title: titleForNew,
             ...(images.length ? { images } : {}),
           }),
@@ -472,7 +503,17 @@ export function ChatApp({
         router.refresh(); // refresh server-rendered credit balance + sidebar
       }
     },
-    [signedIn, busy, chatSessionId, modelId, pendingTitle, applyEvent, router],
+    [
+      signedIn,
+      busy,
+      chatSessionId,
+      modelId,
+      effort,
+      thinkingPref,
+      pendingTitle,
+      applyEvent,
+      router,
+    ],
   );
 
   // Dispatch the next queued message once the current run has finished.
@@ -559,6 +600,10 @@ export function ChatApp({
             models={models}
             modelId={modelId}
             onModelChange={changeModel}
+            effort={effort}
+            onEffortChange={changeEffort}
+            thinkingVisible={thinkingPref}
+            onThinkingVisibleChange={changeThinkingPref}
             balance={balance}
             studioConnected={pluginConnected}
             initialText={seedText}
@@ -940,6 +985,10 @@ export function ChatApp({
             models={models}
             modelId={modelId}
             onModelChange={changeModel}
+            effort={effort}
+            onEffortChange={changeEffort}
+            thinkingVisible={thinkingPref}
+            onThinkingVisibleChange={changeThinkingPref}
             balance={balance}
             studioConnected={pluginConnected}
             canQueue={queue.length < 3}

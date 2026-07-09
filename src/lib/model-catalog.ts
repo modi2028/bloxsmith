@@ -29,6 +29,57 @@ export type CatalogModel = {
 /** Shown under "Recommended · Best at coding" in the model picker. */
 export const RECOMMENDED_MODEL_IDS = new Set(["glm-5", "glm-5.2"]);
 
+// ---------------------------------------------------------------------------
+// Effort tiers — per model, the user picks how hard (and how expensive) a
+// build session may run. `maxCredits` replaces the model's default per-request
+// reserve. `minToStart` (where set) lets a session start with less than the
+// full cap in the balance: at least that much is required, the reserve is
+// then capped at the current balance so the session can never overdraw.
+// ---------------------------------------------------------------------------
+
+export type EffortId = "low" | "medium" | "high" | "max";
+
+export const EFFORT_IDS: EffortId[] = ["low", "medium", "high", "max"];
+
+export const DEFAULT_EFFORT: EffortId = "medium";
+
+export type EffortTier = { maxCredits: number; minToStart?: number };
+
+export const EFFORT_TIERS: Record<
+  string,
+  Record<EffortId, EffortTier>
+> = {
+  // Blox Mini
+  "claude-haiku-4-5": {
+    low: { maxCredits: 0.1 },
+    medium: { maxCredits: 0.3 },
+    high: { maxCredits: 0.5 },
+    max: { maxCredits: 1 },
+  },
+  // Blox Lite
+  "glm-5": {
+    low: { maxCredits: 0.5 },
+    medium: { maxCredits: 1 },
+    high: { maxCredits: 1.5, minToStart: 1 },
+    max: { maxCredits: 2.5, minToStart: 2 },
+  },
+  // Blox Pro
+  "glm-5.2": {
+    low: { maxCredits: 1 },
+    medium: { maxCredits: 2 },
+    high: { maxCredits: 3, minToStart: 3 },
+    max: { maxCredits: 5, minToStart: 3 },
+  },
+};
+
+/** Effort tier for a model, or null when the model has no effort table. */
+export function effortTier(
+  modelId: string,
+  effort: EffortId,
+): EffortTier | null {
+  return EFFORT_TIERS[modelId]?.[effort] ?? null;
+}
+
 export const MODEL_CATALOG: CatalogModel[] = [
   // ---- Live lineup -----------------------------------------------------------
   {

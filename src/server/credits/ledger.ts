@@ -112,19 +112,25 @@ export class SpendLimitExceededError extends Error {
  * Place a hold for an AI request. Runs inside a transaction with the user row
  * locked so two concurrent requests cannot both pass the balance check.
  * Also enforces the admin-set per-user daily/monthly spend limits.
+ *
+ * `minToStart` (effort tiers): a balance of at least minToStart but below
+ * `amount` reserves the whole balance instead of failing — the session starts
+ * with what the user has and can never overdraw. Returns the actual amount
+ * reserved (== `amount` unless a partial reserve happened).
  */
 export async function reserveCredits(params: {
   userId: string;
   aiRequestId: string;
   amount: number;
-}): Promise<void> {
+  minToStart?: number;
+}): Promise<number> {
   const { userId, aiRequestId } = params;
-  const amount = round4(params.amount);
+  let amount = round4(params.amount);
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("Reserve amount must be a positive number");
   }
 
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     // Serialize concurrent reserves for this user.
     const [user] = await tx
       .select({
@@ -144,7 +150,12 @@ export async function reserveCredits(params: {
       .from(schema.creditTransactions)
       .where(eq(schema.creditTransactions.userId, userId));
     const balance = round4(bal?.balance ?? 0);
-    if (balance < amount) throw new InsufficientCreditsError(balance, amount);
+    const floor =
+      params.minToStart != null
+        ? Math.min(round4(params.minToStart), amount)
+        : amount;
+    if (balance < floor) throw new InsufficientCreditsError(balance, floor);
+    if (balance < amount) amount = balance; // partial reserve (min-to-start)
 
     const now = new Date();
     if (user.dailySpendLimit != null) {
@@ -172,6 +183,7 @@ export async function reserveCredits(params: {
       refType: "ai_request",
       refId: aiRequestId,
     });
+    return amount;
   });
 }
 

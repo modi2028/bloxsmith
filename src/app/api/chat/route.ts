@@ -22,6 +22,7 @@ const bodySchema = z.object({
   message: z.string().min(1).max(8000),
   chatSessionId: z.string().uuid().optional(),
   modelId: z.string().max(100).optional(),
+  effort: z.enum(["low", "medium", "high", "max"]).optional(),
   title: z.string().trim().max(80).optional(),
   // Reference images: base64 (no data: prefix). ~5MB decoded ≈ 7M base64.
   images: z
@@ -146,6 +147,7 @@ export async function POST(request: NextRequest) {
         message: body.message,
         chatSessionId: body.chatSessionId,
         modelId: body.modelId,
+        effort: body.effort,
         title: body.title,
         images: body.images,
         signal: controller.signal,
