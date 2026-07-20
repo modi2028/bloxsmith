@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AgentEvent } from "@/lib/agent-events";
 import type { UiMessage, UiPart, UiToolPart } from "@/lib/chat-ui";
-import { formatCredits } from "@/lib/credits-format";
 import {
   DEFAULT_EFFORT,
   EFFORT_IDS,
@@ -82,7 +81,7 @@ function toolLabel(part: UiToolPart): string {
   }
 }
 
-/** iOS-style dynamic island announcing the credits a finished run used. */
+/** iOS-style dynamic island announcing the tokens a finished run used. */
 function CreditIsland({
   amount,
   leaving,
@@ -99,7 +98,7 @@ function CreditIsland({
     >
       <CoinStack className="size-4 text-ember" />
       <span className="text-sm font-medium text-foreground">
-        {formatCredits(amount)} credits used
+        {formatTokens(amount)} tokens used
       </span>
     </div>
   );
@@ -110,7 +109,7 @@ export function ChatApp({
   greetName,
   tagline,
   models,
-  balance,
+  usagePct: initialUsagePct,
   pluginConnected = null,
   initialSessionId,
   initialMessages,
@@ -120,7 +119,8 @@ export function ChatApp({
   greetName: string | null;
   tagline: string;
   models: ChatModel[];
-  balance: number;
+  /** Percent of the rolling 5-hour allowance used (null = signed out). */
+  usagePct?: number | null;
   /** Studio plugin connection at render time (null = unknown/signed out). */
   pluginConnected?: boolean | null;
   initialSessionId?: string;
@@ -265,12 +265,9 @@ export function ChatApp({
         return;
       }
       if (event.type === "done") {
-        showIsland(event.creditsCharged);
+        showIsland(event.inputTokens + event.outputTokens);
         setWindowPct(event.windowUsedPct ?? null);
         notifyDone("Your build is finished — come take a look!");
-      }
-      if (event.type === "stopped") {
-        showIsland(event.creditsCharged);
       }
       if (event.type === "error") {
         notifyDone("Your build hit an error — come check it.");
@@ -365,6 +362,7 @@ export function ChatApp({
               ...last,
               parts,
               creditsCharged: event.creditsCharged,
+              tokensUsed: event.inputTokens + event.outputTokens,
             };
             return next;
         }
@@ -575,7 +573,7 @@ export function ChatApp({
         <p className="mt-2 text-sm text-muted">
           Bloxsmith builds live inside Roblox Studio, so you need the plugin
           running and connected before you can build. It only takes a minute —
-          and nothing was charged.
+          and nothing was used from your allowance.
         </p>
         <a
           href="/pair"
@@ -632,7 +630,7 @@ export function ChatApp({
             onEffortChange={changeEffort}
             thinkingVisible={thinkingPref}
             onThinkingVisibleChange={changeThinkingPref}
-            balance={balance}
+            usagePct={windowPct ?? initialUsagePct}
             studioConnected={pluginConnected}
             initialText={seedText}
             autoFocus
@@ -879,9 +877,9 @@ export function ChatApp({
 
                 {!busy &&
                   i === messages.length - 1 &&
-                  msg.creditsCharged != null && (
+                  msg.tokensUsed != null && (
                     <div className="text-xs text-faint">
-                      {formatCredits(msg.creditsCharged)} credits used
+                      {formatTokens(msg.tokensUsed)} tokens used
                       {windowPct != null &&
                         ` · ${windowPct}% of your 5-hour limit`}
                     </div>
@@ -1029,7 +1027,7 @@ export function ChatApp({
             onEffortChange={changeEffort}
             thinkingVisible={thinkingPref}
             onThinkingVisibleChange={changeThinkingPref}
-            balance={balance}
+            usagePct={windowPct ?? initialUsagePct}
             studioConnected={pluginConnected}
             canQueue={queue.length < 3}
             compact

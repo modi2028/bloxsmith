@@ -115,36 +115,35 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2>6. Credits, Pro subscription, and payments</h2>
+          <h2>6. Plans, usage limits, and payments</h2>
           <ul>
             <li>
-              <strong>Credits.</strong> The Service runs on credits. Each
-              request consumes credits based on the AI model used and the amount
-              of work performed. Credit costs are shown in the app and may be
-              adjusted over time.
+              <strong>Usage limits.</strong> The Service meters usage in tokens
+              against per-plan allowances (a rolling 5-hour window and a weekly
+              limit). How fast the allowance is consumed depends on the AI
+              model, effort setting, and the amount of work performed. Limits
+              are shown in the app and may be adjusted over time.
             </li>
             <li>
-              <strong>Purchases.</strong> You may buy credit packs and subscribe
-              to {BRAND.name} Pro. Payments are processed by our payment
-              provider, Stripe. We do not receive or store your full card
-              details.
+              <strong>Purchases.</strong> You may subscribe to {BRAND.name} Pro
+              or Max. Payments are processed by our payment provider, Stripe.
+              We do not receive or store your full card details.
             </li>
             <li>
-              <strong>Pro subscription.</strong> {BRAND.name} Pro is billed
-              monthly and renews automatically until cancelled. You may cancel
-              at any time from the store or the billing portal; your Pro
-              benefits continue until the end of the current paid period, after
-              which you return to the free tier. Monthly included credits do not
-              roll over.
+              <strong>Subscriptions.</strong> Pro and Max are billed monthly
+              and renew automatically until cancelled. You may cancel at any
+              time from the store or the billing portal; your benefits continue
+              until the end of the current paid period, after which you return
+              to the free tier. Unused allowance does not roll over.
             </li>
             <li>
               <strong>Refunds.</strong> Except where required by applicable law,
-              purchases of credits and subscription fees are non-refundable,
-              including for partially used periods or unused credits.
+              subscription fees are non-refundable, including for partially
+              used periods or unused allowance.
             </li>
             <li>
-              <strong>Pricing changes.</strong> We may change prices, credit
-              rates, model availability, and included amounts. Material changes
+              <strong>Pricing changes.</strong> We may change prices, usage
+              limits, model availability, and included amounts. Material changes
               to recurring pricing will apply from your next billing period.
             </li>
             <li>
@@ -176,7 +175,7 @@ export default function TermsPage() {
               circumvent Roblox systems, or exfiltrate data;
             </li>
             <li>
-              abuse, defraud, or manipulate the credit or payment system,
+              abuse, defraud, or manipulate the usage-limit or payment system,
               including chargeback abuse or exploiting bugs for free usage;
             </li>
             <li>

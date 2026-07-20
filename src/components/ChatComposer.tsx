@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { formatCredits } from "@/lib/credits-format";
 import type { EffortId } from "@/lib/model-catalog";
-import { CoinStack } from "./BrandMarks";
 import { ModelPicker, type ChatModel } from "./ModelPicker";
 import { StudioStatus } from "./StudioStatus";
 
@@ -40,7 +38,7 @@ export function ChatComposer({
   compact = false,
   autoFocus = false,
   initialText,
-  balance,
+  usagePct,
   studioConnected,
   canQueue = false,
 }: {
@@ -60,7 +58,8 @@ export function ChatComposer({
   autoFocus?: boolean;
   /** Initial text (suggestion chips) — pair with a `key` to re-seed. */
   initialText?: string;
-  balance?: number;
+  /** Percent of the rolling 5-hour allowance used — shown as a mini meter. */
+  usagePct?: number | null;
   /** Plugin connection at render time — shows the live green/red chip. */
   studioConnected?: boolean | null;
   /** While busy: whether another message can still join the queue (max 3). */
@@ -262,16 +261,20 @@ export function ChatComposer({
               onThinkingVisibleChange={onThinkingVisibleChange}
               disabled={busy}
             />
-            {balance != null && (
-              <span
-                className="glass-chip flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs text-muted"
-                title="Your credit balance"
+            {usagePct != null && (
+              <a
+                href="/usage"
+                className="glass-chip flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-muted transition hover:text-foreground"
+                title="Your build allowance — click for details"
               >
-                <CoinStack className="size-3.5 text-ember" />
-                <span className="font-semibold text-ember">
-                  {formatCredits(balance)}
+                <span className="relative h-1.5 w-10 overflow-hidden rounded-full bg-line-strong">
+                  <span
+                    className="absolute inset-y-0 left-0 rounded-full bg-ember"
+                    style={{ width: `${Math.min(100, usagePct)}%` }}
+                  />
                 </span>
-              </span>
+                <span className="font-semibold text-ember">{usagePct}%</span>
+              </a>
             )}
             {studioConnected != null && (
               <StudioStatus initial={studioConnected} />

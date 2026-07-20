@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Modal } from "./Modal";
 
-const IMAGE_COST_CREDITS = 0.05;
 
 /**
  * Blox Image — generate a game thumbnail from a description. Lives in the
@@ -77,8 +76,8 @@ export function BloxImageButton() {
       <Modal open={open} onClose={() => !busy && setOpen(false)} maxWidth="max-w-lg">
         <h2 className="text-lg font-semibold">Blox Image</h2>
         <p className="mt-1 text-sm text-muted">
-          Describe your game and get a thumbnail ({IMAGE_COST_CREDITS} credits
-          per image).
+          Describe your game and get a thumbnail. Each image uses a small part
+          of your build allowance.
         </p>
 
         <textarea

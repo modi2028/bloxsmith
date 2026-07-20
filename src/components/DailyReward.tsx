@@ -183,8 +183,8 @@ export function DailyReward() {
 
               <p className="mt-3 text-[11px] leading-relaxed text-faint">
                 {status.pro
-                  ? "Pro: 1 credit every day, 2 on day 7."
-                  : "Free: a credit every other day, 1 on day 7. Pro gets one every day and 2 on day 7."}{" "}
+                  ? "Paid plans: a build bonus every day, double on day 7."
+                  : "Free: a build bonus every other day, plus day 7. Paid plans get one every day and double on day 7."}{" "}
                 Miss a day and the streak resets.
               </p>
 
@@ -203,13 +203,13 @@ export function DailyReward() {
                 {status.claimedToday
                   ? claimed
                     ? claimed.amount > 0
-                      ? `+${claimed.amount} collected — back tomorrow!`
+                      ? "Bonus collected — back tomorrow!"
                       : "Checked in — back tomorrow!"
                     : "Collected — come back tomorrow"
                   : claiming
                     ? "Collecting…"
                     : status.todayAmount > 0
-                      ? `Collect +${status.todayAmount} credit${status.todayAmount > 1 ? "s" : ""}`
+                      ? "Collect today's build bonus"
                       : "Check in to keep your streak"}
               </button>
             </>

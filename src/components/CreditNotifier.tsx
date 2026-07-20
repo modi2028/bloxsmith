@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatCredits } from "@/lib/credits-format";
 
 type CreditEvent = {
   id: string;
@@ -143,12 +142,9 @@ export function CreditNotifier() {
       </span>
       <span className="flex flex-col leading-tight">
         <span className="text-sm font-semibold text-foreground">
-          {added ? "+" : "−"}
-          {formatCredits(Math.abs(event.delta))} credits
+          Build bonus {added ? "added" : "removed"}
         </span>
-        <span className="text-[11px] text-muted">
-          {added ? "added by an admin" : "removed by an admin"}
-        </span>
+        <span className="text-[11px] text-muted">by an admin</span>
       </span>
     </div>
   );

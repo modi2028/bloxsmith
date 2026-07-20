@@ -22,7 +22,6 @@ import {
   type EffortId,
 } from "@/lib/model-catalog";
 import { tokenWindowUsage } from "@/server/token-usage";
-import { formatCredits } from "@/lib/credits-format";
 import { isPluginConnected } from "@/server/auth/plugin";
 import { buildSystemPrompt } from "./context";
 import {
@@ -200,10 +199,10 @@ export async function runAgentTurn(params: {
   } catch (err) {
     const message =
       err instanceof InsufficientCreditsError
-        ? `Not enough credits: ${effort} effort on ${pricing.displayName} needs at least ${formatCredits(err.required)} to start and you have ${formatCredits(err.balance)}. Unused reserve is refunded after each request.`
+        ? `Your build allowance is too low for ${effort} effort on ${pricing.displayName}. Pick a lower effort, wait for your allowance to refill, or upgrade your plan for higher limits.`
         : err instanceof SpendLimitExceededError
-          ? `You've hit your ${err.scope} credit limit.`
-          : "Could not reserve credits.";
+          ? `You've hit your ${err.scope} usage limit.`
+          : "Could not start the build — try again in a moment.";
     await failRequest(aiRequest.id, message);
     await onEvent({ type: "error", message });
     return;
@@ -347,8 +346,8 @@ export async function runAgentTurn(params: {
         // budget, so "continue" alone is the right advice.
         const note =
           effort === "max"
-            ? `I've used up this session's Max effort budget (${formatCredits(reserved)} credits). Say "continue" and I'll pick up right where I left off with a fresh budget.`
-            : `I've used up this session's ${effort} effort budget (${formatCredits(reserved)} credits). Say "continue" to keep going with a fresh budget — or raise the Effort selector next to the model picker first for a bigger one.`;
+            ? `I've used up this session's Max effort budget. Say "continue" and I'll pick up right where I left off with a fresh one.`
+            : `I've used up this session's ${effort} effort budget. Say "continue" to keep going with a fresh one — or raise the Effort selector next to the model picker first for a bigger budget.`;
         await onEvent({ type: "text_delta", text: `\n\n${note}` });
         await db.insert(schema.chatMessages).values({
           sessionId: chatSession.id,
@@ -705,7 +704,7 @@ export async function runAgentTurn(params: {
       const charged = await settleCredits({
         userId: user.id,
         aiRequestId: aiRequest.id,
-        reserved: pricing.maxCreditsPerRequest,
+        reserved,
         actualCost,
       }).catch(() => 0);
       reservedToRefund = 0;
@@ -755,7 +754,7 @@ export async function runAgentTurn(params: {
       await settleCredits({
         userId: user.id,
         aiRequestId: aiRequest.id,
-        reserved: pricing.maxCreditsPerRequest,
+        reserved,
         actualCost,
       }).catch(() => {});
       reservedToRefund = 0;
@@ -765,8 +764,8 @@ export async function runAgentTurn(params: {
       err instanceof NoProviderKeyError
         ? `No ${err.provider} API key is configured yet — an admin needs to add one (npm run key:set -- ${err.provider} <key>).`
         : consumedTokens
-          ? "The build hit an error partway through. You were charged only for what the AI actually did — try again."
-          : "Something went wrong starting your request — no credits were used. Try again.";
+          ? "The build hit an error partway through. Only the work the AI actually did counts against your allowance — try again."
+          : "Something went wrong starting your request — nothing was used from your allowance. Try again.";
     console.error("Agent turn failed:", err instanceof Error ? err.message : err);
     await failRequest(aiRequest.id, message);
     await onEvent({ type: "error", message });

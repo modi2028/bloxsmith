@@ -47,7 +47,7 @@ export default function PrivacyPage() {
             of the actions taken.
           </p>
           <p>
-            <strong>Credits and billing.</strong> We store your credit ledger,
+            <strong>Usage and billing.</strong> We store your usage records,
             plan status, and, if you purchase, a Stripe customer identifier and
             subscription details. Payment card details are collected and
             processed directly by Stripe; we do not receive or store your full
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
               to process your requests and generate AI-assisted changes in your
               Studio session;
             </li>
-            <li>to manage credits, subscriptions, and payments;</li>
+            <li>to manage usage limits, subscriptions, and payments;</li>
             <li>to save and display your projects and history;</li>
             <li>
               to secure the Service, prevent fraud and abuse, enforce our Terms,

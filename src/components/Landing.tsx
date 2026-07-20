@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BRAND } from "@/lib/brand";
-import { CREDIT_PACKS, PRO_PLAN } from "@/lib/model-catalog";
+import { MAX_PLAN, PRO_PLAN, TOKEN_LIMITS_5H } from "@/lib/model-catalog";
 import {
   AnthropicWordmark,
   GeminiMark,
@@ -190,11 +190,11 @@ const FAQS = [
   },
   {
     q: "Which AI models can I use?",
-    a: "Blox Mini and Blox Lite on the free plan. Pro unlocks Blox Pro, our most capable model. You can switch models per message.",
+    a: "Luna and Vega on the free plan. Pro unlocks Sol with real Creator Store models, and Max unlocks Titan, our flagship with deep thinking and web search. You can switch models per message.",
   },
   {
     q: "What does it cost?",
-    a: "You get free credits on sign-up, and a typical request costs a fraction of a credit. Credit packs start at $4.99, and Pro is $19.99/month with monthly credits plus the most capable models.",
+    a: "Free to start, with a generous build allowance that refills every 5 hours. Pro is $19.99/month with 4x the allowance plus Sol, and Max is $49.99/month with 10x the allowance plus Titan.",
   },
   {
     q: "How does it connect to Roblox Studio?",
@@ -203,7 +203,6 @@ const FAQS = [
 ];
 
 export function Landing({ models }: { models: ChatModel[] }) {
-  const starter = CREDIT_PACKS[0];
   return (
     <div className="flex min-h-dvh flex-col">
       {/* Nav */}
@@ -288,7 +287,7 @@ export function Landing({ models }: { models: ChatModel[] }) {
             className="fade-up mt-6 text-xs text-faint"
             style={{ animationDelay: "240ms" }}
           >
-            Free credits on sign-up · No credit card required
+            Free to start · No credit card required
           </p>
         </div>
       </section>
@@ -380,11 +379,11 @@ export function Landing({ models }: { models: ChatModel[] }) {
               Simple, usage-based pricing
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted">
-              You spend credits per request, usually a fraction of a credit.
-              Start free, top up when you need more, or go Pro.
+              Every plan gets a build allowance that refills every 5 hours.
+              Bigger plans get stronger models and bigger allowances.
             </p>
           </Reveal>
-          <div className="mt-12 grid items-stretch gap-4 sm:grid-cols-2">
+          <div className="mt-12 grid items-stretch gap-4 lg:grid-cols-3">
             <Reveal className="h-full">
               <div className="flex h-full flex-col rounded-2xl border border-line bg-surface-raised p-7">
                 <h3 className="text-lg font-semibold">Free</h3>
@@ -393,10 +392,10 @@ export function Landing({ models }: { models: ChatModel[] }) {
                 </p>
                 <ul className="mt-5 flex flex-col gap-2.5 text-sm text-muted">
                   {[
-                    "Free credits on sign-up",
-                    "Blox Mini and Blox Lite models",
+                    "Luna and Vega models",
+                    `${TOKEN_LIMITS_5H.free / 1000}k tokens every 5 hours`,
                     "Full Studio plugin and live building",
-                    `Top up any time from ${starter ? `$${starter.priceUsd.toFixed(2)}` : "$4.99"}`,
+                    "Daily login rewards",
                   ].map((t) => (
                     <li key={t} className="flex items-start gap-2.5">
                       <IconCheck className="mt-0.5 size-4 shrink-0 text-ember" />
@@ -430,7 +429,12 @@ export function Landing({ models }: { models: ChatModel[] }) {
                   For serious builders.
                 </p>
                 <ul className="relative mt-5 flex flex-col gap-2.5 text-sm text-muted">
-                  {[...PRO_PLAN.perks, "Everything in Free"].map((t) => (
+                  {[
+                    "Everything in Free, plus Sol",
+                    "Insert real Creator Store models",
+                    `${TOKEN_LIMITS_5H.pro / 1_000_000}M tokens every 5 hours`,
+                    "Priority on new models",
+                  ].map((t) => (
                     <li key={t} className="flex items-start gap-2.5">
                       <IconCheck className="mt-0.5 size-4 shrink-0 text-ember" />
                       {t}
@@ -439,6 +443,36 @@ export function Landing({ models }: { models: ChatModel[] }) {
                 </ul>
                 <SignInButton className="relative mt-7 w-full">
                   Go Pro
+                </SignInButton>
+              </div>
+            </Reveal>
+            <Reveal delay={200} className="h-full">
+              <div className="flex h-full flex-col rounded-2xl border border-line-strong bg-surface-raised p-7">
+                <div className="flex items-center justify-between">
+                  <h3 className="titanium text-lg font-semibold">Max</h3>
+                  <span className="titanium text-xl font-bold">
+                    ${MAX_PLAN.priceUsd.toFixed(2)}
+                    <span className="text-sm font-normal">/mo</span>
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-muted">
+                  The full Bloxsmith experience.
+                </p>
+                <ul className="mt-5 flex flex-col gap-2.5 text-sm text-muted">
+                  {[
+                    "Everything in Pro, plus Titan — the flagship",
+                    "Deep thinking and web search",
+                    `${TOKEN_LIMITS_5H.max / 1_000_000}M tokens every 5 hours`,
+                    "First access to every new model and tool",
+                  ].map((t) => (
+                    <li key={t} className="flex items-start gap-2.5">
+                      <IconCheck className="mt-0.5 size-4 shrink-0 text-ember" />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+                <SignInButton className="mt-7 w-full">
+                  Go Max
                 </SignInButton>
               </div>
             </Reveal>

@@ -1,22 +1,17 @@
 import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import Link from "next/link";
-import {
-  AnthropicWordmark,
-  CoinStack,
-  RobloxMark,
-} from "@/components/BrandMarks";
+import { AnthropicWordmark, RobloxMark } from "@/components/BrandMarks";
 import { ChatApp } from "@/components/ChatApp";
 import { DailyReward } from "@/components/DailyReward";
 import { HistoryMenu } from "@/components/HistoryMenu";
 import { Landing } from "@/components/Landing";
 import { Sidebar } from "@/components/Sidebar";
 import { BRAND } from "@/lib/brand";
-import { formatCredits } from "@/lib/credits-format";
+import { tokenWindowUsage } from "@/server/token-usage";
 import { RECOMMENDED_MODEL_IDS } from "@/lib/model-catalog";
 import { isAdminRole } from "@/lib/roles";
 import { mapDbMessagesToUi, type UiMessage } from "@/lib/chat-ui";
 import { getSessionUser, type SessionUser } from "@/server/auth/session";
-import { getBalance } from "@/server/credits/ledger";
 import { db, schema } from "@/server/db";
 import { getSiteSettings } from "@/server/site-settings";
 import { AnnouncementIsland } from "@/components/AnnouncementIsland";
@@ -94,12 +89,13 @@ function BackdropCards() {
 
 function Header({
   user,
-  balance,
+  usagePct,
   paidPlan,
   recentProjects,
 }: {
   user: SessionUser | null;
-  balance: number;
+  /** Percent of the rolling 5-hour allowance used. */
+  usagePct: number;
   /** Active paid subscription tier (NOT admins) — drives the plan badge. */
   paidPlan: "pro" | "max" | null;
   recentProjects: { id: string; title: string }[];
@@ -126,19 +122,21 @@ function Header({
           ) : null}
           <DailyReward />
           <Link
-            href="/store"
-            title="Your credit balance"
-            className="glass-chip flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-foreground"
+            href="/usage"
+            title="Your build allowance — 5-hour and weekly limits"
+            className="glass-chip flex items-center gap-2 rounded-full border border-line px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-foreground"
           >
-            <CoinStack className="size-3.5 text-ember" />
-            <span className="font-semibold text-ember">
-              {formatCredits(balance)}
-            </span>{" "}
-            credits
+            <span className="relative h-1.5 w-12 overflow-hidden rounded-full bg-line-strong">
+              <span
+                className="absolute inset-y-0 left-0 rounded-full bg-ember"
+                style={{ width: `${Math.min(100, usagePct)}%` }}
+              />
+            </span>
+            <span className="font-semibold text-ember">{usagePct}%</span> used
           </Link>
           <Link
             href="/store"
-            title="Buy credits or upgrade to Pro"
+            title="Upgrade your plan"
             className="shine-btn rounded-lg bg-gradient-to-br from-emerald-400 to-green-600 px-5 py-2 text-sm font-bold text-on-accent shadow-[0_0_20px_-4px_rgba(16,185,129,0.65)] transition hover:brightness-110"
           >
             Store
@@ -228,7 +226,6 @@ export default async function Home({
   }>;
 }) {
   const user = await getSessionUser();
-  const balance = user ? await getBalance(user.id) : 0;
   const params = await searchParams;
   const authError = params.auth_error ? AUTH_ERRORS[params.auth_error] : undefined;
   const viewArchived = params.view === "archived";
@@ -295,6 +292,13 @@ export default async function Home({
     paidPlan = row?.paid === "pro" || row?.paid === "max" ? row.paid : null;
   }
   const PLAN_RANK = { free: 0, pro: 1, max: 2 } as const;
+
+  // Rolling 5-hour allowance usage for the header + composer meters.
+  const usagePct = user
+    ? await tokenWindowUsage(user.id, planTier, new Date())
+        .then((w) => w.pct)
+        .catch(() => 0)
+    : 0;
 
   // Plugin considered connected if any active token polled in the last 15s.
   let pluginConnected: boolean | null = null;
@@ -412,7 +416,7 @@ export default async function Home({
         <div className="relative z-10 flex min-h-0 flex-1 flex-col">
           <Header
             user={user}
-            balance={balance}
+            usagePct={usagePct}
             paidPlan={paidPlan}
             recentProjects={projects.slice(0, 8)}
           />
@@ -442,7 +446,7 @@ export default async function Home({
             }
             tagline={BRAND.tagline}
             models={models}
-            balance={balance}
+            usagePct={user ? usagePct : null}
             pluginConnected={pluginConnected}
             initialSessionId={initialSessionId}
             initialMessages={initialMessages}

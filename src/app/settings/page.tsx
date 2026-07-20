@@ -3,17 +3,14 @@ import { redirect } from "next/navigation";
 import { SettingsForm } from "@/components/SettingsForm";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BRAND } from "@/lib/brand";
-import { formatCredits } from "@/lib/credits-format";
 import { isAdminRole } from "@/lib/roles";
 import { getSessionUser } from "@/server/auth/session";
-import { getBalance } from "@/server/credits/ledger";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/api/auth/roblox/login");
-  const balance = await getBalance(user.id);
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-6 py-10">
@@ -39,19 +36,23 @@ export default async function SettingsPage() {
             {user.displayName ?? user.username}
           </h1>
           <p className="flex items-center gap-2 text-sm text-muted">
-            <span>
-              @{user.username} ·{" "}
-              <span className="text-ember">{formatCredits(balance)}</span>{" "}
-              credits
-            </span>
+            <span>@{user.username}</span>
             <span
               className={`rounded-full border px-2 py-px text-[10px] font-semibold uppercase tracking-wide ${
-                user.plan === "pro"
-                  ? "border-ember/50 text-ember"
-                  : "border-line text-faint"
+                user.plan === "max"
+                  ? "border-line-strong"
+                  : user.plan === "pro"
+                    ? "border-ember/50 text-ember"
+                    : "border-line text-faint"
               }`}
             >
-              {user.plan === "pro" ? "Pro" : "Free"}
+              {user.plan === "max" ? (
+                <span className="titanium">Max</span>
+              ) : user.plan === "pro" ? (
+                "Pro"
+              ) : (
+                "Free"
+              )}
             </span>
             {isAdminRole(user.role) && (
               <span className="rounded-full border border-line px-2 py-px text-[10px] uppercase tracking-wide text-faint">
@@ -74,11 +75,27 @@ export default async function SettingsPage() {
         </div>
 
         <div className="rounded-2xl border border-line bg-surface-raised p-5">
-          <h2 className="mb-1.5 text-sm font-medium">Subscription &amp; credits</h2>
+          <h2 className="mb-1.5 text-sm font-medium">Usage &amp; limits</h2>
           <p className="mb-3 text-xs text-muted">
-            {user.plan === "pro"
-              ? "You're on Pro. Manage or cancel your subscription in the store."
-              : "Upgrade to Pro or buy credit packs in the store."}
+            See how much of your 5-hour and weekly build allowance you&apos;ve
+            used.
+          </p>
+          <Link
+            href="/usage"
+            className="inline-block rounded-lg border border-line bg-surface px-3.5 py-2 text-sm transition hover:border-line-strong"
+          >
+            View usage →
+          </Link>
+        </div>
+
+        <div className="rounded-2xl border border-line bg-surface-raised p-5">
+          <h2 className="mb-1.5 text-sm font-medium">Subscription</h2>
+          <p className="mb-3 text-xs text-muted">
+            {user.plan === "max"
+              ? "You're on Max — the top tier. Manage or cancel in the store."
+              : user.plan === "pro"
+                ? "You're on Pro. Upgrade to Max or manage your subscription in the store."
+                : "Upgrade to Pro or Max for stronger models and higher limits."}
           </p>
           <Link
             href="/store"

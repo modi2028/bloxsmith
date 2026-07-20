@@ -32,6 +32,8 @@ export type UiMessage =
       kind: "assistant";
       parts: UiPart[];
       creditsCharged?: number;
+      /** Total tokens (input + output) the finished run used. */
+      tokensUsed?: number;
       /** Live model reasoning (viewable via the Thinking… toggle). */
       thinking?: string;
     };

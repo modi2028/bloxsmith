@@ -96,7 +96,7 @@ export function BloxChatButton() {
           {messages.length === 0 && (
             <p className="text-sm text-faint">
               Try: &quot;What makes a Roblox obby fun?&quot; or &quot;How do
-              credits work?&quot;
+              the plans work?&quot;
             </p>
           )}
           {messages.map((m, i) =>
