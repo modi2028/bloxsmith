@@ -878,7 +878,10 @@ export function ChatApp({
                     )}
                     {showThinking && (
                       <div className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-hover px-3 py-2 text-xs leading-relaxed text-faint">
-                        {msg.thinking || "Waiting for the first thoughts…"}
+                        {msg.thinking ||
+                          (thinkingPref
+                            ? "Waiting for the first thoughts…"
+                            : "Thinking is turned off (model menu, Effort panel), so there's nothing to watch this run.")}
                       </div>
                     )}
                   </div>

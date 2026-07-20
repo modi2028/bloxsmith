@@ -260,7 +260,8 @@ export default async function Home({
       reserve: m.maxCreditsPerRequest,
       isDefault: m.isDefault,
       proOnly: m.proOnly,
-      locked: m.proOnly,
+      minPlan: m.minPlan,
+      locked: m.minPlan !== "free",
       recommended: RECOMMENDED_MODEL_IDS.has(m.modelId),
     }));
     return <Landing models={landingModels} />;

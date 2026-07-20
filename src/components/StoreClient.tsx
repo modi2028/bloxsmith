@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LogoMark } from "./Logo";
 
 async function postJson(url: string, body?: unknown) {
   const res = await fetch(url, {
@@ -101,7 +102,7 @@ export function PlanCards({
 
   return (
     <div>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid items-stretch gap-4 lg:grid-cols-3">
         {plans.map((p) => {
           const isCurrent = p.tier === currentPlan;
           const isUpgrade = TIER_RANK[p.tier] > TIER_RANK[currentPlan];
@@ -109,11 +110,11 @@ export function PlanCards({
           return (
             <div
               key={p.tier}
-              className={`relative flex flex-col rounded-2xl border p-6 ${
+              className={`relative flex flex-col rounded-2xl border p-6 transition duration-300 hover:-translate-y-1 ${
                 isMax
-                  ? "border-line-strong bg-surface-raised"
+                  ? "border-line-strong bg-gradient-to-b from-surface-raised to-surface shadow-[0_24px_70px_-32px_rgba(212,212,216,0.35)] lg:scale-[1.02]"
                   : p.tier === "pro"
-                    ? "border-ember/40 bg-surface-raised"
+                    ? "border-ember/40 bg-gradient-to-br from-ember-soft to-surface-raised shadow-[0_20px_60px_-30px_rgba(245,158,11,0.55)]"
                     : "border-line bg-surface-raised/60"
               }`}
             >
@@ -123,6 +124,9 @@ export function PlanCards({
                 </span>
               )}
               <div className="flex items-center gap-2">
+                {p.tier !== "free" && (
+                  <LogoMark size={20} variant={isMax ? "blue" : "ember"} />
+                )}
                 <span
                   className={`text-lg font-semibold ${isMax ? "titanium" : ""}`}
                 >
@@ -136,7 +140,7 @@ export function PlanCards({
               </div>
               <p className="mt-1 text-xs text-muted">{p.tagline}</p>
               <div
-                className={`mt-3 text-2xl font-bold ${
+                className={`mt-4 text-3xl font-bold tracking-tight ${
                   isMax ? "titanium" : p.tier === "pro" ? "text-ember" : ""
                 }`}
               >

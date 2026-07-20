@@ -225,9 +225,9 @@ export async function runAgentTurn(params: {
       webSearch,
       effort,
     });
-    // Thinking spend follows the user's toggle, but Max effort always thinks
-    // deeply — that's what the tier is for.
-    const thinkingEnabled = effort === "max" ? true : params.thinking !== false;
+    // Thinking spend follows the user's toggle — OFF means off, on every
+    // effort tier. (Max used to force it on; users read that as a bug.)
+    const thinkingEnabled = params.thinking !== false;
 
     const history = await db.query.chatMessages.findMany({
       where: eq(schema.chatMessages.sessionId, chatSession.id),

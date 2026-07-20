@@ -99,11 +99,29 @@ export default async function StorePage({
         ← Back to {BRAND.name}
       </Link>
 
-      <div className="mb-10">
-        <h1 className="text-3xl font-semibold tracking-tight">Plans</h1>
-        <p className="mt-1.5 text-sm text-muted">
-          Pick how much {BRAND.name} you need. Upgrade or cancel any time.
+      <div className="mb-12 text-center">
+        <h1 className="text-4xl font-bold tracking-tight">
+          Pick your <span className="gradient-pan">power level</span>
+        </h1>
+        <p className="mx-auto mt-3 max-w-md text-sm text-muted">
+          Every plan comes with a build allowance that refills every 5 hours.
+          Upgrade or cancel any time.
         </p>
+        {currentPlan !== "free" && (
+          <span
+            className={`mt-4 inline-block rounded-full border px-3 py-1 text-xs font-semibold ${
+              currentPlan === "max"
+                ? "border-line-strong"
+                : "border-ember/50 text-ember"
+            }`}
+          >
+            {currentPlan === "max" ? (
+              <span className="titanium">You&apos;re on Max</span>
+            ) : (
+              "You're on Pro"
+            )}
+          </span>
+        )}
       </div>
 
       {purchase === "success" && (

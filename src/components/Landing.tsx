@@ -33,93 +33,6 @@ function SignInButton({
   );
 }
 
-// ---- Line icons (no emoji) -------------------------------------------------
-
-const iconBase = "size-5";
-
-function IconChat() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={iconBase}>
-      <path
-        d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3.5v-3.5H6.5A2.5 2.5 0 0 1 4 13.5v-7Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 9h8M8 12h5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconModels() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={iconBase}>
-      <path
-        d="M12 3l1.8 4.4L18 9l-4.2 1.6L12 15l-1.8-4.4L6 9l4.2-1.6L12 3Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M18.5 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconUndo() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={iconBase}>
-      <path
-        d="M4 9h9a5 5 0 0 1 0 10H8"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M7 5 3.5 9 7 13"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconImage() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={iconBase}>
-      <rect
-        x="3.5"
-        y="5"
-        width="17"
-        height="14"
-        rx="2.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <circle cx="9" cy="10" r="1.5" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M5 17l4.5-4 3 2.5L16 12l3.5 3.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function IconCheck({ className = "size-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" fill="none" className={className}>
@@ -134,44 +47,99 @@ function IconCheck({ className = "size-4" }: { className?: string }) {
   );
 }
 
-const FEATURES = [
+/**
+ * The hero proof: a real-looking build transcript, the exact thing users see
+ * in the app. Lines stagger in on load; concrete, not decorative.
+ */
+const DEMO_PROMPT = "Make a sword fight arena with a round timer";
+const DEMO_ACTIONS = [
+  'Creating Model "Arena" with walls and spawn pads',
+  'Inserting Creator Store model "Linked Sword"',
+  'Writing Script "RoundTimer" in ServerScriptService',
+  'Wiring RemoteEvent "RoundState" for the countdown UI',
+  'Writing LocalScript "TimerHud" in StarterGui',
+];
+
+function BuildTranscript() {
+  return (
+    <div className="glass mx-auto w-full max-w-md rounded-2xl border border-line p-4 text-left shadow-2xl shadow-black/30">
+      <div className="flex justify-end">
+        <span className="fade-up max-w-[85%] rounded-xl rounded-br-md bg-ember-soft px-3.5 py-2 text-[13px]">
+          {DEMO_PROMPT}
+        </span>
+      </div>
+      <div className="mt-3 flex flex-col gap-1.5">
+        {DEMO_ACTIONS.map((a, i) => (
+          <div
+            key={a}
+            className="fade-up flex items-center gap-2 rounded-lg border border-line px-3 py-1.5"
+            style={{ animationDelay: `${350 + i * 320}ms` }}
+          >
+            <IconCheck className="size-3.5 shrink-0 text-emerald-400" />
+            <span className="truncate text-[12px] text-muted">{a}</span>
+          </div>
+        ))}
+      </div>
+      <p
+        className="fade-up mt-3 text-[13px] leading-relaxed"
+        style={{ animationDelay: `${350 + DEMO_ACTIONS.length * 320 + 200}ms` }}
+      >
+        Done. Press Play and step on a spawn pad to start a round. The timer
+        counts down from 90 in the top bar.
+      </p>
+      <p
+        className="fade-up mt-2 text-[11px] text-faint"
+        style={{ animationDelay: `${350 + DEMO_ACTIONS.length * 320 + 400}ms` }}
+      >
+        41.8k tokens used · every action is one Ctrl+Z in Studio
+      </p>
+    </div>
+  );
+}
+
+/** Concrete things people actually ask for, with what lands in Studio. */
+const EXAMPLES = [
   {
-    icon: <IconChat />,
-    title: "Describe it, watch it build",
-    body: "Type what you want in plain English. Bloxsmith builds it live in your open Studio session: parts, scripts, remotes, all of it.",
+    prompt: "Make a zombie wave survival mode",
+    built: [
+      "Zombies folder with NPC spawner",
+      "WaveManager script with rising difficulty",
+      "Coins for kills, saved between rounds",
+    ],
   },
   {
-    icon: <IconModels />,
-    title: "A model for every job",
-    body: "From Blox Mini for quick tweaks to Blox Pro for whole systems. Switch per message; Pro unlocks the top tier.",
+    prompt: "Build a plot system like Adopt Me",
+    built: [
+      "8 claimable plots with owner signs",
+      "PlotService with claim and unclaim remotes",
+      "Only owners can build on their plot",
+    ],
   },
   {
-    icon: <IconUndo />,
-    title: "Everything is undoable",
-    body: "Every action is a single Ctrl+Z in Studio. Experiment freely, nothing is permanent until you save.",
-  },
-  {
-    icon: <IconImage />,
-    title: "Reference images",
-    body: "Drop in screenshots or mockups so the AI matches the exact look and layout you have in mind.",
+    prompt: "Add double jump and a dash ability",
+    built: [
+      "LocalScript reading jump input twice",
+      "Dash on Q with a 3 second cooldown",
+      "Server checks so exploiters can't spam it",
+    ],
   },
 ];
 
 const STEPS = [
   {
-    n: "01",
+    n: "1",
     title: "Sign in with Roblox",
-    body: "Your Roblox account is your login. No new password to remember.",
+    body: "Your Roblox account is the login. Nothing new to remember.",
   },
   {
-    n: "02",
-    title: "Install the Studio plugin",
-    body: "One-time setup. Open Studio and the plugin connects to your account automatically. No codes.",
+    n: "2",
+    title: "Install the plugin",
+    body: "One file, one time. Open Studio and it connects with a single click.",
   },
   {
-    n: "03",
-    title: "Chat to build",
-    body: "Describe a mechanic and watch it take shape in your place instantly.",
+    n: "3",
+    title: "Say what you want",
+    body: "It builds in your open place while you watch. Undo anything with Ctrl+Z.",
   },
 ];
 
@@ -202,6 +170,15 @@ const FAQS = [
   },
 ];
 
+const PLAN_LABEL: Record<string, { text: string; cls: string }> = {
+  free: {
+    text: "Free",
+    cls: "border-emerald-500/50 text-emerald-300",
+  },
+  pro: { text: "Pro", cls: "border-ember/50 text-ember" },
+  max: { text: "Max", cls: "border-line-strong" },
+};
+
 export function Landing({ models }: { models: ChatModel[] }) {
   return (
     <div className="flex min-h-dvh flex-col">
@@ -217,11 +194,11 @@ export function Landing({ models }: { models: ChatModel[] }) {
           <a href="#demo" className="transition hover:text-foreground">
             Demo
           </a>
-          <a href="#features" className="transition hover:text-foreground">
-            Features
+          <a href="#examples" className="transition hover:text-foreground">
+            Examples
           </a>
-          <a href="#how" className="transition hover:text-foreground">
-            How it works
+          <a href="#models" className="transition hover:text-foreground">
+            Models
           </a>
           <a href="#pricing" className="transition hover:text-foreground">
             Pricing
@@ -234,61 +211,48 @@ export function Landing({ models }: { models: ChatModel[] }) {
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden px-6 pt-20 pb-24">
-        {/* dotted grid + breathing glow + drifting orb */}
+      <section className="relative overflow-hidden px-6 pb-24 pt-16 lg:pt-24">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_at_50%_0%,black,transparent_70%)]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)",
-            backgroundSize: "34px 34px",
-          }}
-        />
-        <div
-          aria-hidden
-          className="glow-breathe pointer-events-none absolute left-1/2 top-[-6rem] size-[42rem] -translate-x-1/2 rounded-full"
+          className="glow-breathe pointer-events-none absolute left-1/2 top-[-8rem] size-[40rem] -translate-x-1/2 rounded-full"
           style={{
             background:
-              "radial-gradient(circle, rgba(245,158,11,0.22), transparent 62%)",
-          }}
-        />
-        <div
-          aria-hidden
-          className="drift pointer-events-none absolute right-[12%] top-40 size-40 rounded-full blur-2xl"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(234,88,12,0.28), transparent 70%)",
+              "radial-gradient(circle, rgba(245,158,11,0.16), transparent 62%)",
           }}
         />
 
-        <div className="relative mx-auto max-w-3xl text-center">
-          <span className="fade-up inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-3 py-1 text-xs text-muted">
-            <span className="size-1.5 animate-pulse rounded-full bg-ember" />
-            Works inside Roblox Studio
-          </span>
-          <h1 className="fade-up mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
-            Build Roblox games
-            <br />
-            <span className="gradient-pan">by just chatting</span>
-          </h1>
-          <p
-            className="fade-up mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted"
-            style={{ animationDelay: "80ms" }}
-          >
-            Describe a game mechanic and {BRAND.name} builds it in your open
-            Roblox Studio session while you watch. Parts, scripts, remotes.
-            No copy-pasting code from a chatbot.
-          </p>
-          <div className="fade-up mt-10" style={{ animationDelay: "160ms" }}>
-            <LandingChat models={models} />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="text-center lg:text-left">
+            <span className="fade-up inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-3 py-1 text-xs text-muted">
+              <span className="size-1.5 animate-pulse rounded-full bg-ember" />
+              Builds live inside Roblox Studio
+            </span>
+            <h1 className="fade-up mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-[3.4rem]">
+              The AI that <span className="gradient-pan">builds your game</span>{" "}
+              for you
+            </h1>
+            <p
+              className="fade-up mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted lg:mx-0"
+              style={{ animationDelay: "80ms" }}
+            >
+              Tell {BRAND.name} what you want. Parts, scripts and remotes land
+              in your open Studio place while you watch. No copy-pasting code
+              from a chatbot, ever.
+            </p>
+            <div className="fade-up mt-8" style={{ animationDelay: "160ms" }}>
+              <LandingChat models={models} />
+            </div>
+            <p
+              className="fade-up mt-5 text-xs text-faint"
+              style={{ animationDelay: "240ms" }}
+            >
+              Free to start · No credit card required · Ctrl+Z undoes anything
+            </p>
           </div>
-          <p
-            className="fade-up mt-6 text-xs text-faint"
-            style={{ animationDelay: "240ms" }}
-          >
-            Free to start · No credit card required
-          </p>
+
+          <div className="fade-up hidden lg:block" style={{ animationDelay: "200ms" }}>
+            <BuildTranscript />
+          </div>
         </div>
       </section>
 
@@ -299,11 +263,11 @@ export function Landing({ models }: { models: ChatModel[] }) {
         <div className="mx-auto max-w-5xl">
           <Reveal>
             <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
-              See it in action
+              Watch a build happen
             </h2>
             <p className="mx-auto mt-3 max-w-md text-center text-sm text-muted">
-              From a chat message to a working mechanic in Studio. Watch{" "}
-              {BRAND.name} build live.
+              One chat message in, a working mechanic out. Recorded in real
+              Studio, not a mockup.
             </p>
           </Reveal>
           <Reveal delay={120} className="mt-10">
@@ -312,62 +276,128 @@ export function Landing({ models }: { models: ChatModel[] }) {
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="px-6 py-24">
+      {/* Examples: concrete prompts and what actually got built */}
+      <section id="examples" className="border-y border-line bg-surface/30 px-6 py-24">
         <div className="mx-auto max-w-5xl">
           <Reveal>
             <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
-              Your idea, built in seconds
+              Say it like you&apos;d say it to a friend
             </h2>
-            <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted">
-              Bloxsmith turns a sentence into working game mechanics inside
-              Studio.
+            <p className="mx-auto mt-3 max-w-lg text-center text-sm text-muted">
+              These are real prompts. The lists underneath are what showed up
+              in the Explorer.
             </p>
           </Reveal>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2">
-            {FEATURES.map((f, i) => (
-              <Reveal key={f.title} delay={i * 90}>
-                <div className="group h-full rounded-2xl border border-line bg-surface-raised p-6 transition duration-300 hover:-translate-y-1 hover:border-ember/40 hover:shadow-[0_12px_40px_-16px_rgba(245,158,11,0.35)]">
-                  <span className="flex size-11 items-center justify-center rounded-xl border border-line bg-ember-soft text-ember transition group-hover:scale-105">
-                    {f.icon}
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {EXAMPLES.map((ex, i) => (
+              <Reveal key={ex.prompt} delay={i * 100}>
+                <div className="flex h-full flex-col rounded-2xl border border-line bg-surface-raised p-5">
+                  <span className="self-start rounded-xl rounded-bl-md bg-ember-soft px-3.5 py-2 text-[13px] font-medium">
+                    {ex.prompt}
                   </span>
-                  <h3 className="mt-4 text-lg font-semibold">{f.title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                    {f.body}
+                  <ul className="mt-4 flex flex-col gap-2 text-[13px] text-muted">
+                    {ex.built.map((b) => (
+                      <li key={b} className="flex items-start gap-2">
+                        <IconCheck className="mt-0.5 size-3.5 shrink-0 text-emerald-400" />
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-auto pt-4 text-[11px] text-faint">
+                    Built in one message, editable like anything you&apos;d
+                    make yourself.
                   </p>
                 </div>
               </Reveal>
             ))}
           </div>
+
+          {/* Quiet capability strip instead of a grid of icon cards */}
+          <Reveal delay={150}>
+            <div className="mx-auto mt-10 flex max-w-3xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-muted">
+              {[
+                "Drop in reference images",
+                "Inserts real Creator Store models",
+                "Writes complete, working Luau",
+                "Everything is one Ctrl+Z",
+              ].map((t) => (
+                <span key={t} className="flex items-center gap-1.5">
+                  <IconCheck className="size-3.5 text-ember" />
+                  {t}
+                </span>
+              ))}
+            </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* How it works */}
-      <section
-        id="how"
-        className="relative border-y border-line bg-surface/30 px-6 py-24"
-      >
+      {/* Models */}
+      <section id="models" className="px-6 py-24">
         <div className="mx-auto max-w-5xl">
           <Reveal>
             <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
-              Up and running in three steps
+              Four models, one job
             </h2>
+            <p className="mx-auto mt-3 max-w-lg text-center text-sm text-muted">
+              Switch per message. Start free with Luna and Vega, go bigger when
+              a build calls for it.
+            </p>
           </Reveal>
-          <div className="relative mt-14 grid gap-10 sm:grid-cols-3">
-            {/* connecting line */}
-            <div className="pointer-events-none absolute inset-x-[16%] top-6 hidden h-px bg-gradient-to-r from-transparent via-line-strong to-transparent sm:block" />
-            {STEPS.map((s, i) => (
-              <Reveal key={s.n} delay={i * 120} className="relative text-center">
-                <span className="mx-auto flex size-12 items-center justify-center rounded-full border border-ember/40 bg-background font-mono text-sm font-bold text-ember shadow-[0_0_24px_-8px_rgba(245,158,11,0.7)]">
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {models.map((m, i) => {
+              const plan = PLAN_LABEL[m.minPlan ?? "free"] ?? PLAN_LABEL.free;
+              const isMax = m.minPlan === "max";
+              return (
+                <Reveal key={m.id} delay={i * 80}>
+                  <div
+                    className={`flex h-full flex-col rounded-2xl border p-5 ${
+                      isMax
+                        ? "border-line-strong bg-surface-raised"
+                        : "border-line bg-surface-raised"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <LogoMark size={20} variant={m.proOnly ? "blue" : "ember"} />
+                      <span
+                        className={`text-lg font-semibold ${isMax ? "titanium" : ""}`}
+                      >
+                        {m.name}
+                      </span>
+                      <span
+                        className={`ml-auto rounded-full border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ${plan.cls}`}
+                      >
+                        {isMax ? <span className="titanium">Max</span> : plan.text}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[13px] leading-relaxed text-muted">
+                      {m.description}
+                    </p>
+                  </div>
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works: compact strip */}
+      <section className="border-y border-line bg-surface/30 px-6 py-16">
+        <div className="mx-auto grid max-w-5xl gap-8 sm:grid-cols-3">
+          {STEPS.map((s, i) => (
+            <Reveal key={s.n} delay={i * 100}>
+              <div className="flex items-start gap-4">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-ember/40 font-mono text-sm font-bold text-ember">
                   {s.n}
                 </span>
-                <h3 className="mt-5 font-semibold">{s.title}</h3>
-                <p className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-muted">
-                  {s.body}
-                </p>
-              </Reveal>
-            ))}
-          </div>
+                <div>
+                  <h3 className="font-semibold">{s.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">
+                    {s.body}
+                  </p>
+                </div>
+              </div>
+            </Reveal>
+          ))}
         </div>
       </section>
 
@@ -376,11 +406,11 @@ export function Landing({ models }: { models: ChatModel[] }) {
         <div className="mx-auto max-w-4xl">
           <Reveal>
             <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
-              Simple, usage-based pricing
+              Plans
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted">
-              Every plan gets a build allowance that refills every 5 hours.
-              Bigger plans get stronger models and bigger allowances.
+              Every plan has a build allowance that refills every 5 hours.
+              Bigger plans get stronger models and more of it.
             </p>
           </Reveal>
           <div className="mt-12 grid items-stretch gap-4 lg:grid-cols-3">
@@ -410,14 +440,6 @@ export function Landing({ models }: { models: ChatModel[] }) {
             </Reveal>
             <Reveal delay={100} className="h-full">
               <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-ember/40 bg-gradient-to-br from-ember-soft to-surface-raised p-7 shadow-[0_20px_60px_-30px_rgba(245,158,11,0.6)]">
-                <div
-                  aria-hidden
-                  className="glow-breathe pointer-events-none absolute -right-16 -top-16 size-48 rounded-full"
-                  style={{
-                    background:
-                      "radial-gradient(circle, rgba(245,158,11,0.25), transparent 70%)",
-                  }}
-                />
                 <div className="relative flex items-center justify-between">
                   <h3 className="text-lg font-semibold">Pro</h3>
                   <span className="text-xl font-bold text-ember">
@@ -456,11 +478,11 @@ export function Landing({ models }: { models: ChatModel[] }) {
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-muted">
-                  The full Bloxsmith experience.
+                  The full {BRAND.name} experience.
                 </p>
                 <ul className="mt-5 flex flex-col gap-2.5 text-sm text-muted">
                   {[
-                    "Everything in Pro, plus Titan — the flagship",
+                    "Everything in Pro, plus Titan the flagship",
                     "Deep thinking and web search",
                     `${TOKEN_LIMITS_5H.max / 1_000_000}M tokens every 5 hours`,
                     "First access to every new model and tool",
@@ -485,7 +507,7 @@ export function Landing({ models }: { models: ChatModel[] }) {
         <div className="mx-auto max-w-3xl">
           <Reveal>
             <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
-              Questions, answered
+              FAQ
             </h2>
           </Reveal>
           <div className="mt-10 flex flex-col gap-3">
@@ -521,23 +543,15 @@ export function Landing({ models }: { models: ChatModel[] }) {
       {/* Final CTA */}
       <section className="px-6 pb-28">
         <Reveal>
-          <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-line-strong bg-gradient-to-br from-surface-raised to-surface p-12 text-center">
-            <div
-              aria-hidden
-              className="glow-breathe pointer-events-none absolute left-1/2 top-0 size-72 -translate-x-1/2 rounded-full"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(245,158,11,0.2), transparent 65%)",
-              }}
-            />
-            <h2 className="relative text-3xl font-semibold tracking-tight sm:text-4xl">
-              Ready to build something?
+          <div className="mx-auto max-w-3xl rounded-3xl border border-line-strong bg-surface-raised p-12 text-center">
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              Your next mechanic is one sentence away
             </h2>
-            <p className="relative mx-auto mt-3 max-w-md text-sm text-muted">
-              Sign in with Roblox and describe your first mechanic. Watch it come
-              to life in Studio.
+            <p className="mx-auto mt-3 max-w-md text-sm text-muted">
+              Sign in with Roblox, connect Studio, and describe it. If you can
+              say it, it can build it.
             </p>
-            <SignInButton className="relative mt-8">
+            <SignInButton className="mt-8">
               Start building for free
             </SignInButton>
           </div>
