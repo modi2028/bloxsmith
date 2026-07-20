@@ -13,7 +13,7 @@ import postgres from "postgres";
 import Stripe from "stripe";
 import { eq } from "drizzle-orm";
 import * as schema from "../src/server/db/schema";
-import { CREDIT_PACKS, PRO_PLAN } from "../src/lib/model-catalog";
+import { CREDIT_PACKS, MAX_PLAN, PRO_PLAN } from "../src/lib/model-catalog";
 
 loadDotenv({ path: [".env.local", ".env"] });
 
@@ -88,6 +88,22 @@ async function main() {
       set: { value: proPriceId, updatedAt: new Date() },
     });
   console.log(`Pro subscription -> ${proPriceId}`);
+
+  // Max subscription (recurring).
+  const maxPriceId = await findOrCreatePrice(stripe, {
+    lookupKey: MAX_PLAN.lookupKey,
+    productName: MAX_PLAN.name,
+    unitAmount: Math.round(MAX_PLAN.priceUsd * 100),
+    recurring: true,
+  });
+  await db
+    .insert(schema.appSettings)
+    .values({ key: "stripe_max_price_id", value: maxPriceId })
+    .onConflictDoUpdate({
+      target: schema.appSettings.key,
+      set: { value: maxPriceId, updatedAt: new Date() },
+    });
+  console.log(`Max subscription -> ${maxPriceId}`);
 
   console.log("\nStripe setup complete. Prices stored in the database.");
   await client.end();

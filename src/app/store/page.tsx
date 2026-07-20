@@ -1,16 +1,18 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CreditPacks, ProCard, RedeemBox } from "@/components/StoreClient";
+import { PlanCards, RedeemBox, type StorePlan } from "@/components/StoreClient";
 import { BRAND } from "@/lib/brand";
-import { formatCredits } from "@/lib/credits-format";
-import { PRO_PLAN } from "@/lib/model-catalog";
+import { MAX_PLAN, PRO_PLAN, TOKEN_LIMITS_5H } from "@/lib/model-catalog";
 import { getSessionUser } from "@/server/auth/session";
-import { getBalance } from "@/server/credits/ledger";
 import { db, schema } from "@/server/db";
 import { isStripeConfigured } from "@/server/stripe/client";
 
 export const metadata = { title: "Store" };
+
+function fmtAllowance(n: number): string {
+  return n >= 1_000_000 ? `${n / 1_000_000}M` : `${Math.round(n / 1000)}k`;
+}
 
 export default async function StorePage({
   searchParams,
@@ -19,68 +21,94 @@ export default async function StorePage({
 }) {
   const user = await getSessionUser();
   if (!user) redirect("/api/auth/roblox/login");
-  const balance = await getBalance(user.id);
   const { purchase } = await searchParams;
 
-  // "Pro" in the store means an actual active subscription (not admin access),
-  // so the card offers Upgrade vs Manage/Cancel correctly.
-  const [{ isPro }] = await db
+  // The user's ACTUAL paid subscription (not admin access) drives the cards.
+  const [{ paid }] = await db
     .select({
-      isPro: sql<boolean>`(${schema.users.plan} = 'pro' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now()))`,
+      paid: sql<string>`CASE
+        WHEN ${schema.users.plan} <> 'free' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now()) THEN ${schema.users.plan}::text
+        ELSE 'free' END`,
     })
     .from(schema.users)
     .where(eq(schema.users.id, user.id));
-
-  const productRows = await db.query.products.findMany({
-    where: eq(schema.products.active, true),
-    orderBy: [asc(schema.products.sort)],
-  });
+  const currentPlan = (paid === "pro" || paid === "max" ? paid : "free") as
+    | "free"
+    | "pro"
+    | "max";
 
   const stripeReady = isStripeConfigured();
-  const proPriceRow = await db.query.appSettings.findFirst({
-    where: eq(schema.appSettings.key, "stripe_pro_price_id"),
-  });
+  const [proRow, maxRow] = await Promise.all([
+    db.query.appSettings.findFirst({
+      where: eq(schema.appSettings.key, "stripe_pro_price_id"),
+    }),
+    db.query.appSettings.findFirst({
+      where: eq(schema.appSettings.key, "stripe_max_price_id"),
+    }),
+  ]);
   const proConfigured =
-    stripeReady && typeof proPriceRow?.value === "string" && !!proPriceRow.value;
+    stripeReady && typeof proRow?.value === "string" && !!proRow.value;
+  const maxConfigured =
+    stripeReady && typeof maxRow?.value === "string" && !!maxRow.value;
 
-  const packs = productRows.map((p) => ({
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    credits: p.credits,
-    priceDisplay: p.priceDisplay,
-    purchasable: stripeReady && !!p.stripePriceId,
-  }));
+  const plans: StorePlan[] = [
+    {
+      tier: "free",
+      name: "Free",
+      priceLabel: "$0",
+      tagline: "Everything you need to start building",
+      perks: [
+        "Luna and Vega models",
+        `${fmtAllowance(TOKEN_LIMITS_5H.free)} tokens per 5 hours`,
+        "Live building in your Studio",
+        "Daily login rewards",
+      ],
+      purchasable: false,
+    },
+    {
+      tier: "pro",
+      name: "Pro",
+      priceLabel: `$${PRO_PLAN.priceUsd.toFixed(2)}/mo`,
+      tagline: "For regular builders",
+      perks: [
+        "Everything in Free, plus Sol",
+        "Insert real Creator Store models",
+        `${fmtAllowance(TOKEN_LIMITS_5H.pro)} tokens per 5 hours`,
+        "Priority on new models",
+      ],
+      purchasable: proConfigured,
+    },
+    {
+      tier: "max",
+      name: "Max",
+      priceLabel: `$${MAX_PLAN.priceUsd.toFixed(2)}/mo`,
+      tagline: "The full Bloxsmith experience",
+      perks: [
+        "Everything in Pro, plus Titan — the flagship",
+        "Deep thinking and web search",
+        `${fmtAllowance(TOKEN_LIMITS_5H.max)} tokens per 5 hours`,
+        "First access to every new model and tool",
+      ],
+      purchasable: maxConfigured,
+    },
+  ];
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col px-6 py-10">
+    <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-6 py-10">
       <Link href="/" className="mb-8 text-sm text-muted hover:text-foreground">
         ← Back to {BRAND.name}
       </Link>
 
-      <div className="mb-10 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Store</h1>
-          <p className="mt-1.5 text-sm text-muted">
-            Credits and Pro for building with {BRAND.name}.
-          </p>
-        </div>
-        <span className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs text-muted">
-          <span className="font-semibold text-ember">
-            {formatCredits(balance)}
-          </span>{" "}
-          credits
-          {isPro && (
-            <span className="rounded-full border border-ember/50 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-ember">
-              Pro
-            </span>
-          )}
-        </span>
+      <div className="mb-10">
+        <h1 className="text-3xl font-semibold tracking-tight">Plans</h1>
+        <p className="mt-1.5 text-sm text-muted">
+          Pick how much {BRAND.name} you need. Upgrade or cancel any time.
+        </p>
       </div>
 
       {purchase === "success" && (
         <p className="mb-6 rounded-lg border border-emerald-900/60 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-300">
-          Payment received — your credits/Pro will appear within a few seconds.
+          Payment received — your plan will be active within a few seconds.
         </p>
       )}
       {purchase === "cancelled" && (
@@ -89,25 +117,7 @@ export default async function StorePage({
         </p>
       )}
 
-      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
-        Subscription
-      </h2>
-      <div className="mb-10">
-        <ProCard
-          isPro={isPro}
-          proPurchasable={proConfigured}
-          perks={[...PRO_PLAN.perks]}
-          priceLabel={`$${PRO_PLAN.priceUsd.toFixed(2)}/mo`}
-        />
-      </div>
-
-      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
-        Credit packs
-      </h2>
-      <p className="-mt-1 mb-4 text-xs text-muted">
-        One-time top-ups — they stack with your monthly Pro credits.
-      </p>
-      <CreditPacks packs={packs} />
+      <PlanCards plans={plans} currentPlan={currentPlan} />
 
       <div className="mt-10">
         <RedeemBox />

@@ -9,7 +9,9 @@ import { clientIp, rateLimit } from "@/server/security/ratelimit";
 
 const bodySchema = z.union([
   z.object({ type: z.literal("credits"), productId: z.string().uuid() }),
+  // "pro" kept as an alias for older clients.
   z.object({ type: z.literal("pro") }),
+  z.object({ type: z.literal("plan"), plan: z.enum(["pro", "max"]) }),
 ]);
 
 /**
@@ -69,26 +71,31 @@ export async function POST(request: NextRequest) {
       return Response.json({ url: session.url });
     }
 
-    // Pro subscription.
+    // Plan subscription (Pro or Max).
+    const plan = body.type === "plan" ? body.plan : "pro";
+    const settingKey =
+      plan === "max" ? "stripe_max_price_id" : "stripe_pro_price_id";
     const priceRow = await db.query.appSettings.findFirst({
-      where: eq(schema.appSettings.key, "stripe_pro_price_id"),
+      where: eq(schema.appSettings.key, settingKey),
     });
-    const proPriceId = typeof priceRow?.value === "string" ? priceRow.value : "";
-    if (!proPriceId) {
+    const planPriceId =
+      typeof priceRow?.value === "string" ? priceRow.value : "";
+    if (!planPriceId) {
       return Response.json(
-        { error: "Pro isn't configured yet." },
+        { error: `${plan === "max" ? "Max" : "Pro"} isn't configured yet.` },
         { status: 400 },
       );
     }
+    const planMeta = { ...commonMeta, kind: "plan", plan };
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      line_items: [{ price: proPriceId, quantity: 1 }],
+      line_items: [{ price: planPriceId, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl,
       customer,
       client_reference_id: user.id,
-      metadata: { ...commonMeta, kind: "pro" },
-      subscription_data: { metadata: { ...commonMeta, kind: "pro" } },
+      metadata: planMeta,
+      subscription_data: { metadata: planMeta },
     });
     return Response.json({ url: session.url });
   } catch (err) {

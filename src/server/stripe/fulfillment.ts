@@ -50,19 +50,25 @@ async function handleCheckoutCompleted(
     }
   }
 
-  if (session.mode === "subscription" && kind === "pro") {
-    // Mark Pro immediately; invoice.paid grants the monthly credits + sets the
-    // precise expiry from the subscription period.
+  if (session.mode === "subscription" && (kind === "pro" || kind === "plan")) {
+    // Mark the plan immediately; invoice.paid grants the monthly credits +
+    // sets the precise expiry from the subscription period.
+    const plan = session.metadata?.plan === "max" ? "max" : "pro";
     const subId =
       typeof session.subscription === "string" ? session.subscription : null;
     await db
       .update(schema.users)
       .set({
-        plan: "pro",
+        plan,
         stripeSubscriptionId: subId,
       })
       .where(eq(schema.users.id, userId));
   }
+}
+
+/** Which tier a Stripe subscription is for (metadata; legacy subs = pro). */
+function subPlan(sub: Stripe.Subscription): "pro" | "max" {
+  return sub.metadata?.plan === "max" ? "max" : "pro";
 }
 
 /** invoice.paid — initial + recurring subscription payments. */
@@ -81,30 +87,34 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
 
   const stripe = getStripe();
   const sub = await stripe.subscriptions.retrieve(subId);
+  const plan = subPlan(sub);
   const periodEnd = sub.items.data[0]?.current_period_end;
   const proExpiresAt = periodEnd ? new Date(periodEnd * 1000) : null;
 
   await db
     .update(schema.users)
     .set({
-      plan: "pro",
+      plan,
       proExpiresAt,
       stripeSubscriptionId: subId,
       updatedAt: new Date(),
     })
     .where(eq(schema.users.id, user.id));
 
-  // Grant the monthly credit allotment (idempotent via the invoice id ref).
+  // Grant the tier's monthly credit allotment (idempotent via invoice id).
   const monthlyRow = await db.query.appSettings.findFirst({
-    where: eq(schema.appSettings.key, "pro_monthly_credits"),
+    where: eq(
+      schema.appSettings.key,
+      plan === "max" ? "max_monthly_credits" : "pro_monthly_credits",
+    ),
   });
-  const monthly = Number(monthlyRow?.value ?? 20000);
+  const monthly = Number(monthlyRow?.value ?? 0);
   if (monthly > 0) {
     await grantCredits({
       userId: user.id,
       amount: monthly,
       kind: "purchase",
-      reason: "Pro monthly credits",
+      reason: `${plan === "max" ? "Max" : "Pro"} monthly credits`,
       refType: "stripe_invoice",
       refId: invoice.id,
     });
@@ -127,7 +137,7 @@ async function handleSubscriptionChange(
   await db
     .update(schema.users)
     .set({
-      plan: active ? "pro" : "free",
+      plan: active ? subPlan(sub) : "free",
       proExpiresAt:
         active && periodEnd ? new Date(periodEnd * 1000) : null,
       updatedAt: new Date(),
