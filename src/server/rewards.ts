@@ -35,6 +35,23 @@ export function rewardTrack(pro: boolean): number[] {
   return Array.from({ length: 7 }, (_, i) => rewardAmount(i + 1, pro));
 }
 
+/** Allowance boost a claim grants: +5% of the 5-hour limit, +10% on day 7. */
+export function boostPctFor(cycleDay: number): number {
+  return cycleDay === 7 ? 10 : 5;
+}
+
+/**
+ * The 5-hour-allowance boost currently in effect: claiming today's reward
+ * grants it for the rest of that UTC day. 0 when unclaimed.
+ */
+export function activeRewardBoostPct(
+  user: { rewardStreak: number; rewardLastClaimDay: string | null },
+  now: Date,
+): number {
+  if (user.rewardLastClaimDay !== utcDayString(now)) return 0;
+  return boostPctFor(cycleDayOf(user.rewardStreak));
+}
+
 /** UTC calendar day as "YYYY-MM-DD" — the claim granularity. */
 export function utcDayString(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -80,6 +97,8 @@ export type RewardStatus = {
   /** 1-7 position today's claim lands on (or landed on, if claimed). */
   todayDay: number;
   todayAmount: number;
+  /** Allowance boost today's claim grants (+5%, +10% on day 7). */
+  todayBoostPct: number;
   pro: boolean;
   track: number[];
 };
@@ -118,6 +137,7 @@ export async function getRewardStatus(
     streak: unbroken,
     todayDay,
     todayAmount: rewardAmount(todayDay, pro),
+    todayBoostPct: boostPctFor(todayDay),
     pro,
     track: rewardTrack(pro),
   };

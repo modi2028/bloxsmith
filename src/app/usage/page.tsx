@@ -102,7 +102,11 @@ export default async function UsagePage() {
       <div className="flex flex-col gap-4">
         <UsageBar
           label="5-hour window"
-          sub="Rolls continuously — usage older than 5 hours frees up on its own"
+          sub={
+            usage.bonusPct > 0
+              ? `Includes today's +${usage.bonusPct}% daily reward boost — rolls continuously`
+              : "Rolls continuously — usage older than 5 hours frees up on its own"
+          }
           used={usage.used}
           limit={usage.limit}
           pct={usage.pct}

@@ -10,6 +10,8 @@ type RewardStatus = {
   streak: number;
   todayDay: number;
   todayAmount: number;
+  /** Allowance boost today's claim grants (+5%, +10% on day 7). */
+  todayBoostPct: number;
   pro: boolean;
   track: number[];
 };
@@ -147,7 +149,7 @@ export function DailyReward() {
           ) : (
             <>
               <div className="mt-3 grid grid-cols-7 gap-1.5">
-                {status.track.map((amount, i) => {
+                {status.track.map((_, i) => {
                   const day = i + 1;
                   const isToday = day === status.todayDay;
                   const collected =
@@ -166,15 +168,11 @@ export function DailyReward() {
                     >
                       <span className="text-[10px] text-faint">D{day}</span>
                       <span
-                        className={`text-xs font-semibold ${
-                          collected
-                            ? "text-muted"
-                            : amount > 0
-                              ? "text-ember"
-                              : "text-faint"
+                        className={`text-[11px] font-semibold ${
+                          collected ? "text-muted" : "text-ember"
                         }`}
                       >
-                        {collected ? "✓" : `+${amount}`}
+                        {collected ? "✓" : day === 7 ? "+10%" : "+5%"}
                       </span>
                     </div>
                   );
@@ -182,10 +180,9 @@ export function DailyReward() {
               </div>
 
               <p className="mt-3 text-[11px] leading-relaxed text-faint">
-                {status.pro
-                  ? "Paid plans: a build bonus every day, double on day 7."
-                  : "Free: a build bonus every other day, plus day 7. Paid plans get one every day and double on day 7."}{" "}
-                Miss a day and the streak resets.
+                Checking in boosts your 5-hour build allowance for the day:
+                +5%, and +10% on day 7 of your streak. Miss a day and the
+                streak resets.
               </p>
 
               {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
@@ -202,15 +199,11 @@ export function DailyReward() {
               >
                 {status.claimedToday
                   ? claimed
-                    ? claimed.amount > 0
-                      ? "Bonus collected — back tomorrow!"
-                      : "Checked in — back tomorrow!"
+                    ? `+${status.todayBoostPct}% boost active — back tomorrow!`
                     : "Collected — come back tomorrow"
                   : claiming
                     ? "Collecting…"
-                    : status.todayAmount > 0
-                      ? "Collect today's build bonus"
-                      : "Check in to keep your streak"}
+                    : `Collect today's +${status.todayBoostPct}% boost`}
               </button>
             </>
           )}

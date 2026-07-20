@@ -53,6 +53,11 @@ export type EffortTier = { maxCredits: number; minToStart?: number };
 
 /**
  * Not every model offers every effort (Titan is Low or Max, nothing between).
+ *
+ * Budgets are sized so the TOKEN estimates ascend with the tier — cheap
+ * models must not show bigger session budgets than expensive ones (Luna's
+ * rates are ~10x cheaper than Sol's, so equal credits looked upside-down).
+ * Approx tokens at max: Luna 670k < Vega 830k < Sol 1.6M < Titan 3.7M.
  */
 export const EFFORT_TIERS: Record<
   string,
@@ -60,10 +65,10 @@ export const EFFORT_TIERS: Record<
 > = {
   // Luna
   "glm-4.7-flash": {
-    low: { maxCredits: 0.1 },
-    medium: { maxCredits: 0.3 },
-    high: { maxCredits: 0.5 },
-    max: { maxCredits: 1 },
+    low: { maxCredits: 0.05 },
+    medium: { maxCredits: 0.12 },
+    high: { maxCredits: 0.2 },
+    max: { maxCredits: 0.35 },
   },
   // Vega
   "glm-5-turbo": {
@@ -75,9 +80,9 @@ export const EFFORT_TIERS: Record<
   // Sol
   "glm-5": {
     low: { maxCredits: 1 },
-    medium: { maxCredits: 2 },
-    high: { maxCredits: 3, minToStart: 3 },
-    max: { maxCredits: 5, minToStart: 3 },
+    medium: { maxCredits: 2.5 },
+    high: { maxCredits: 4.5, minToStart: 3 },
+    max: { maxCredits: 7.5, minToStart: 4 },
   },
   // Titan — Low for quick work, Max for the full flagship experience.
   "glm-5.2": {

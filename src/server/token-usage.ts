@@ -6,6 +6,7 @@ import {
   WEEKLY_MULTIPLIER,
   type PlanTier,
 } from "@/lib/model-catalog";
+import { activeRewardBoostPct } from "@/server/rewards";
 
 /**
  * Rolling-window token usage, measured on real tokens recorded per AI request
@@ -40,12 +41,22 @@ export async function tokenWindowUsage(
   used: number;
   limit: number;
   pct: number;
+  /** Daily-reward allowance boost in effect (+5%, +10% on day 7; 0 = none). */
+  bonusPct: number;
   weeklyUsed: number;
   weeklyLimit: number;
   weeklyPct: number;
 }> {
-  const limit = TOKEN_LIMITS_5H[plan];
-  const weeklyLimit = limit * WEEKLY_MULTIPLIER;
+  // Claiming the daily reward boosts the 5-hour allowance for the rest of
+  // that UTC day (+5%, +10% on streak day 7). The weekly cap is unaffected.
+  const rewardRow = await db.query.users.findFirst({
+    where: eq(schema.users.id, userId),
+    columns: { rewardStreak: true, rewardLastClaimDay: true },
+  });
+  const bonusPct = rewardRow ? activeRewardBoostPct(rewardRow, now) : 0;
+
+  const limit = Math.round(TOKEN_LIMITS_5H[plan] * (1 + bonusPct / 100));
+  const weeklyLimit = TOKEN_LIMITS_5H[plan] * WEEKLY_MULTIPLIER;
   const [used, weeklyUsed] = await Promise.all([
     tokensSince(userId, new Date(now.getTime() - FIVE_HOURS_MS)),
     tokensSince(userId, new Date(now.getTime() - WEEK_MS)),
@@ -54,6 +65,7 @@ export async function tokenWindowUsage(
     used,
     limit,
     pct: Math.min(100, Math.round((used / limit) * 100)),
+    bonusPct,
     weeklyUsed,
     weeklyLimit,
     weeklyPct: Math.min(100, Math.round((weeklyUsed / weeklyLimit) * 100)),
