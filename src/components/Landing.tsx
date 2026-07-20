@@ -162,7 +162,7 @@ const FAQS = [
   },
   {
     q: "What does it cost?",
-    a: "Free to start, with a generous build allowance that refills every 5 hours. Pro is $19.99/month with 4x the allowance plus Sol, and Max is $49.99/month with 10x the allowance plus Titan.",
+    a: "Free to start, with a build allowance that refills every 5 hours. Pro is $19.99/month with 20x the allowance plus Sol, and Max is $49.99/month with 50x the allowance plus Titan.",
   },
   {
     q: "How does it connect to Roblox Studio?",

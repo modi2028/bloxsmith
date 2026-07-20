@@ -410,7 +410,7 @@ export const PRO_PLAN = {
   perks: [
     "Unlocks Sol — strong builds with real Creator Store models",
     "Insert Creator Store models (trees, props, vehicles)",
-    "4x the build allowance of Free",
+    "20x the build allowance of Free",
     "Priority on new models",
   ],
 } as const;
@@ -424,7 +424,7 @@ export const MAX_PLAN = {
   perks: [
     "Unlocks Titan — the flagship with deep thinking and web search",
     "Everything in Pro, including Creator Store models",
-    "10x the build allowance of Free",
+    "50x the build allowance of Free",
     "First access to every new model and tool",
   ],
 } as const;
