@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  EFFORT_IDS,
   EFFORT_TIERS,
+  MODEL_LIMITS,
+  effortIdsFor,
+  effortTokenEstimate,
   type EffortId,
 } from "@/lib/model-catalog";
 import { LogoMark } from "./Logo";
@@ -17,11 +19,19 @@ export type ChatModel = {
   reserve: number;
   isDefault: boolean;
   proOnly: boolean;
-  /** proOnly && the current user isn't Pro — shown but not selectable. */
+  /** Minimum plan required: free | pro | max. */
+  minPlan?: string;
+  /** Plan-gated above the current user's plan — shown but not selectable. */
   locked: boolean;
   /** Surfaced in the "Recommended · Best at coding" group. */
   recommended?: boolean;
 };
+
+/** 83000 -> "83k", 1850000 -> "1.9M". */
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  return `${Math.round(n / 1000)}k`;
+}
 
 const EFFORT_LABELS: Record<EffortId, string> = {
   low: "Low",
@@ -119,11 +129,15 @@ export function ModelPicker({
             >
               {m.name}
             </span>
-            {m.proOnly && (
+            {m.minPlan === "max" ? (
+              <span className="titanium rounded-full border border-line-strong px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide">
+                Max
+              </span>
+            ) : m.minPlan === "pro" || m.proOnly ? (
               <span className="rounded-full border border-ember/50 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-ember">
                 Pro
               </span>
-            )}
+            ) : null}
           </span>
           <span className="text-[11px] text-faint">
             {m.locked
@@ -193,7 +207,17 @@ export function ModelPicker({
         <span suppressHydrationWarning className="flex items-center gap-1.5">
           <LogoMark size={15} variant={current.proOnly ? "blue" : "ember"} />
           <span className="font-medium text-foreground">{current.name}</span>
-          {showEffort && <span className="text-faint">{EFFORT_LABELS[effort]}</span>}
+          {showEffort && (
+            <span
+              className={
+                current.id === "glm-5.2" && effort === "max"
+                  ? "titanium font-semibold"
+                  : "text-faint"
+              }
+            >
+              {EFFORT_LABELS[effort]}
+            </span>
+          )}
         </span>
         <svg viewBox="0 0 12 12" fill="none" className="size-2.5">
           <path
@@ -240,29 +264,54 @@ export function ModelPicker({
                 <div className="glass-menu absolute bottom-0 left-full z-40 ml-2 w-64 rounded-xl border border-line max-sm:left-auto max-sm:right-0 max-sm:bottom-full max-sm:mb-2 max-sm:ml-0">
                   <p className="border-b border-line px-3.5 py-2.5 text-[11px] leading-relaxed text-faint">
                     Higher effort means bigger, more thorough builds, but takes
-                    longer and can use more credits.
+                    longer and uses your limits faster.
                   </p>
-                  {EFFORT_IDS.map((id) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => {
-                        onEffortChange?.(id);
-                        setEffortOpen(false);
-                      }}
-                      className="flex w-full items-center gap-2 px-3.5 py-2 text-left transition hover:bg-hover"
-                    >
-                      <span className="flex-1 text-sm text-foreground">
-                        {EFFORT_LABELS[id]}
-                      </span>
-                      {id === "medium" && (
-                        <span className="rounded-full border border-line-strong px-1.5 py-px text-[10px] text-muted">
-                          Default
+                  {effortIdsFor(current.id).map((id) => {
+                    const est = effortTokenEstimate(current.id, id);
+                    const isTitanMax = current.id === "glm-5.2" && id === "max";
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => {
+                          onEffortChange?.(id);
+                          setEffortOpen(false);
+                        }}
+                        className="flex w-full items-center gap-2 px-3.5 py-2 text-left transition hover:bg-hover"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className={`text-sm ${
+                              isTitanMax
+                                ? "titanium font-semibold"
+                                : "text-foreground"
+                            }`}
+                          >
+                            {EFFORT_LABELS[id]}
+                          </span>
+                          {est != null && (
+                            <span className="block text-[10px] text-faint">
+                              ≈ {fmtTokens(est)} tokens
+                            </span>
+                          )}
                         </span>
-                      )}
-                      {id === effort && <Check />}
-                    </button>
-                  ))}
+                        {id === "medium" && (
+                          <span className="rounded-full border border-line-strong px-1.5 py-px text-[10px] text-muted">
+                            Default
+                          </span>
+                        )}
+                        {id === effort && <Check />}
+                      </button>
+                    );
+                  })}
+                  {MODEL_LIMITS[current.id] && (
+                    <p className="border-t border-line px-3.5 py-2 text-[10px] text-faint">
+                      {current.name}: {MODEL_LIMITS[current.id].contextK}k
+                      context · ≈{" "}
+                      {fmtTokens(effortTokenEstimate(current.id, effort) ?? 0)}{" "}
+                      tokens at {EFFORT_LABELS[effort]} effort
+                    </p>
+                  )}
 
                   {onThinkingVisibleChange && (
                     <div className="border-t border-line px-3.5 py-2.5">
@@ -278,7 +327,7 @@ export function ModelPicker({
                             Thinking
                           </span>
                           <span className="block text-[11px] text-faint">
-                            Watch the AI&apos;s reasoning while it builds
+                            Think deeper on hard builds — uses more tokens
                           </span>
                         </span>
                         <span

@@ -8,6 +8,7 @@ import { formatCredits } from "@/lib/credits-format";
 import {
   DEFAULT_EFFORT,
   EFFORT_IDS,
+  effortIdsFor,
   type EffortId,
 } from "@/lib/model-catalog";
 import { CoinStack, PoweredByBanner } from "./BrandMarks";
@@ -30,6 +31,13 @@ const THINKING_STORAGE_KEY = "bloxsmith-show-thinking";
 /** Sent when the user presses "Continue building" after an interrupted run. */
 const CONTINUE_PROMPT =
   "Continue from where you left off and finish the remaining work.";
+
+/** 1234 -> "1.2k", 2500000 -> "2.5M" — for the live token counter. */
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
 
 /** Fire a desktop notification if allowed and the user isn't looking. */
 function notifyDone(message: string) {
@@ -162,11 +170,6 @@ export function ChatApp({
   const bottomRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const changeModel = (id: string) => {
-    setModelId(id);
-    localStorage.setItem(MODEL_STORAGE_KEY, id);
-  };
-
   // Effort tier — sizes the session's credit budget; saved like the model.
   const [effort, setEffort] = useState<EffortId>(() => {
     if (typeof window === "undefined") return DEFAULT_EFFORT;
@@ -178,17 +181,34 @@ export function ChatApp({
     localStorage.setItem(EFFORT_STORAGE_KEY, id);
   };
 
-  // "Show thinking" preference (off by default): when on, the reasoning
-  // panel opens automatically on every run instead of needing a click.
+  const changeModel = (id: string) => {
+    setModelId(id);
+    localStorage.setItem(MODEL_STORAGE_KEY, id);
+    // Not every model offers every effort (Titan: Low or Max only) — snap
+    // an unavailable choice down to Low.
+    const available = effortIdsFor(id);
+    if (available.length > 0 && !available.includes(effort)) {
+      changeEffort("low");
+    }
+  };
+
+  // "Thinking" spend toggle (default ON): how deeply the model reasons —
+  // NOT whether the thinking viewer is visible (that's always click-to-view).
   const [thinkingPref, setThinkingPref] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(THINKING_STORAGE_KEY) === "1";
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem(THINKING_STORAGE_KEY) !== "0";
   });
   const changeThinkingPref = (v: boolean) => {
     setThinkingPref(v);
     localStorage.setItem(THINKING_STORAGE_KEY, v ? "1" : "0");
-    setShowThinking(v); // applies to the currently running turn too
   };
+
+  // Live token usage for the current run + the 5-hour-window readout.
+  const [liveUsage, setLiveUsage] = useState<{
+    input: number;
+    output: number;
+  } | null>(null);
+  const [windowPct, setWindowPct] = useState<number | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -240,8 +260,13 @@ export function ChatApp({
         setChatSessionId(event.chatSessionId);
         return;
       }
+      if (event.type === "usage") {
+        setLiveUsage({ input: event.inputTokens, output: event.outputTokens });
+        return;
+      }
       if (event.type === "done") {
         showIsland(event.creditsCharged);
+        setWindowPct(event.windowUsedPct ?? null);
         notifyDone("Your build is finished — come take a look!");
       }
       if (event.type === "stopped") {
@@ -411,7 +436,9 @@ export function ChatApp({
       setBusy(true);
       setCanContinue(false);
       setBgRunBlocking(false);
-      setShowThinking(thinkingPref);
+      setShowThinking(false);
+      setLiveUsage(null);
+      setWindowPct(null);
       // Attached reference images ride along as base64.
       const images = await Promise.all(
         files.map(
@@ -442,6 +469,7 @@ export function ChatApp({
             chatSessionId,
             modelId,
             effort,
+            thinking: thinkingPref,
             title: titleForNew,
             ...(images.length ? { images } : {}),
           }),
@@ -796,51 +824,52 @@ export function ChatApp({
 
                 {busy && i === messages.length - 1 && (
                   <div>
-                    {/* The Thinking toggle (model menu) decides whether the
-                        reasoning is viewable at all — OFF means a plain status
-                        line with no expander. */}
-                    {thinkingPref ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowThinking((v) => !v)}
-                        title={
-                          msg.thinking
-                            ? "Show what the AI is thinking"
-                            : "Thoughts appear here once the model starts reasoning"
-                        }
-                        className="flex items-center gap-1.5"
-                      >
-                        <span className="shimmer-text text-sm font-medium">
-                          {runningTool ? "Building in Studio…" : "Thinking…"}
-                        </span>
-                        <svg
-                          viewBox="0 0 12 12"
-                          fill="none"
-                          className={`size-2.5 text-faint transition-transform ${
-                            showThinking ? "rotate-180" : ""
-                          }`}
-                        >
-                          <path
-                            d="M2.5 4.5 6 8l3.5-3.5"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
-                    ) : (
+                    {/* Reasoning indicator — always shown while the model
+                        works; click to watch the thoughts live. The Thinking
+                        toggle controls SPEND (how deeply it reasons), not
+                        visibility. */}
+                    <button
+                      type="button"
+                      onClick={() => setShowThinking((v) => !v)}
+                      title={
+                        msg.thinking
+                          ? "Show what the AI is thinking"
+                          : "Thoughts appear here once the model starts reasoning"
+                      }
+                      className="flex items-center gap-1.5"
+                    >
                       <span className="shimmer-text text-sm font-medium">
                         {runningTool ? "Building in Studio…" : "Thinking…"}
                       </span>
+                      <svg
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        className={`size-2.5 text-faint transition-transform ${
+                          showThinking ? "rotate-180" : ""
+                        }`}
+                      >
+                        <path
+                          d="M2.5 4.5 6 8l3.5-3.5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    {liveUsage && (
+                      <p className="mt-0.5 text-[11px] tabular-nums text-faint">
+                        {formatTokens(liveUsage.input)} in ·{" "}
+                        {formatTokens(liveUsage.output)} out
+                      </p>
                     )}
                     {modelId === "glm-5.2" && !runningTool && (
                       <p className="mt-1 text-[11px] text-faint">
-                        Blox Pro is a deep-thinking model — complex builds can
+                        Titan is a deep-thinking model — complex builds can
                         take a few minutes. The result is worth it.
                       </p>
                     )}
-                    {thinkingPref && showThinking && (
+                    {showThinking && (
                       <div className="mt-1.5 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-hover px-3 py-2 text-xs leading-relaxed text-faint">
                         {msg.thinking || "Waiting for the first thoughts…"}
                       </div>
@@ -853,6 +882,8 @@ export function ChatApp({
                   msg.creditsCharged != null && (
                     <div className="text-xs text-faint">
                       {formatCredits(msg.creditsCharged)} credits used
+                      {windowPct != null &&
+                        ` · ${windowPct}% of your 5-hour limit`}
                     </div>
                   )}
               </div>

@@ -95,20 +95,24 @@ function BackdropCards() {
 function Header({
   user,
   balance,
-  hasProPlan,
+  paidPlan,
   recentProjects,
 }: {
   user: SessionUser | null;
   balance: number;
-  /** True only for an actual active Pro subscription (NOT admins). */
-  hasProPlan: boolean;
+  /** Active paid subscription tier (NOT admins) — drives the plan badge. */
+  paidPlan: "pro" | "max" | null;
   recentProjects: { id: string; title: string }[];
 }) {
   return (
     <header className="flex h-16 shrink-0 items-center justify-end gap-3 px-6">
       {user ? (
         <>
-          {hasProPlan ? (
+          {paidPlan === "max" ? (
+            <span className="rounded-full border border-line-strong bg-hover px-2.5 py-1 text-xs font-semibold">
+              <span className="titanium">Max</span>
+            </span>
+          ) : paidPlan === "pro" ? (
             <span className="rounded-full border border-ember/50 bg-ember-soft px-2.5 py-1 text-xs font-semibold text-ember">
               Pro
             </span>
@@ -269,24 +273,28 @@ export default async function Home({
     return <MaintenanceScreen announcement={site.announcement?.text ?? ""} />;
   }
 
-  // Two distinct notions of "Pro":
-  //   proAccess   — can use Pro models (admins OR active Pro plan). Drives locks.
-  //   hasProPlan  — an actual paid/active Pro subscription (NOT admins). Drives
-  //                 the "Pro" badge, so admins on the free plan aren't shown as
-  //                 subscribers.
-  let proAccess = false;
-  let hasProPlan = false;
+  // Effective plan tier (free/pro/max): admins get max; an expired paid plan
+  // falls back to free. Drives model locks and the header plan badge.
+  // Computed in SQL (now()) to keep the render pure.
+  let planTier: "free" | "pro" | "max" = "free";
+  let paidPlan: "pro" | "max" | null = null;
   if (user) {
     const [row] = await db
       .select({
-        access: sql<boolean>`(${schema.users.role} IN ('admin', 'super_admin') OR (${schema.users.plan} = 'pro' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now())))`,
-        plan: sql<boolean>`(${schema.users.plan} = 'pro' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now()))`,
+        tier: sql<string>`CASE
+          WHEN ${schema.users.role} IN ('admin', 'super_admin') THEN 'max'
+          WHEN ${schema.users.plan} <> 'free' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now()) THEN ${schema.users.plan}::text
+          ELSE 'free' END`,
+        paid: sql<string>`CASE
+          WHEN ${schema.users.plan} <> 'free' AND (${schema.users.proExpiresAt} IS NULL OR ${schema.users.proExpiresAt} > now()) THEN ${schema.users.plan}::text
+          ELSE '' END`,
       })
       .from(schema.users)
       .where(eq(schema.users.id, user.id));
-    proAccess = !!row?.access;
-    hasProPlan = !!row?.plan;
+    planTier = (row?.tier ?? "free") as "free" | "pro" | "max";
+    paidPlan = row?.paid === "pro" || row?.paid === "max" ? row.paid : null;
   }
+  const PLAN_RANK = { free: 0, pro: 1, max: 2 } as const;
 
   // Plugin considered connected if any active token polled in the last 15s.
   let pluginConnected: boolean | null = null;
@@ -380,7 +388,8 @@ export default async function Home({
     reserve: m.maxCreditsPerRequest,
     isDefault: m.isDefault,
     proOnly: m.proOnly,
-    locked: m.proOnly && !proAccess,
+    minPlan: m.minPlan,
+    locked: PLAN_RANK[(m.minPlan ?? "free") as keyof typeof PLAN_RANK] > PLAN_RANK[planTier],
     recommended: RECOMMENDED_MODEL_IDS.has(m.modelId),
   }));
 
@@ -404,7 +413,7 @@ export default async function Home({
           <Header
             user={user}
             balance={balance}
-            hasProPlan={hasProPlan}
+            paidPlan={paidPlan}
             recentProjects={projects.slice(0, 8)}
           />
           {site.maintenance && (

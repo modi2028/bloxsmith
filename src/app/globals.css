@@ -293,6 +293,29 @@ body {
   animation: shimmer-slide 4.5s linear infinite;
 }
 
+/* Titanium-grey metallic sweep — Titan's Max effort. */
+.titanium {
+  background-image: linear-gradient(
+    110deg,
+    #71717a 0%,
+    #d4d4d8 30%,
+    #fafafa 50%,
+    #a1a1aa 70%,
+    #71717a 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: shimmer-slide 3.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .titanium {
+    animation: none;
+    background-position: 50% 0;
+  }
+}
+
 /* Infinite horizontal marquee (content must be two identical halves). */
 @keyframes marquee-slide {
   from {
