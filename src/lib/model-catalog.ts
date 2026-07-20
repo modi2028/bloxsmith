@@ -137,7 +137,7 @@ export const MODEL_LIMITS: Record<string, { contextK: number }> = {
  * ships): rolling 5-hour window per plan; weekly cap = 5-hour limit x 4.
  */
 export const TOKEN_LIMITS_5H: Record<PlanTier, number> = {
-  free: 250_000,
+  free: 50_000,
   pro: 1_000_000,
   max: 2_500_000,
 };
