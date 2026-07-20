@@ -39,14 +39,14 @@ export default async function SettingsPage() {
             <span>@{user.username}</span>
             <span
               className={`rounded-full border px-2 py-px text-[10px] font-semibold uppercase tracking-wide ${
-                user.plan === "max"
+                user.plan === "max" || isAdminRole(user.role)
                   ? "border-line-strong"
                   : user.plan === "pro"
                     ? "border-ember/50 text-ember"
                     : "border-line text-faint"
               }`}
             >
-              {user.plan === "max" ? (
+              {user.plan === "max" || isAdminRole(user.role) ? (
                 <span className="titanium">Max</span>
               ) : user.plan === "pro" ? (
                 "Pro"

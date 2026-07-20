@@ -1,0 +1,1 @@
+ALTER TABLE "redemption_codes" ADD COLUMN "plan_tier" "user_plan" DEFAULT 'pro' NOT NULL;

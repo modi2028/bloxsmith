@@ -378,9 +378,11 @@ export const redemptionCodes = pgTable(
     credits: numeric("credits", { precision: 14, scale: 4, mode: "number" })
       .notNull()
       .default(0),
-    // Optionally also grant Pro for N days on redemption.
+    // Optionally also grant a plan for N days on redemption.
     grantsPro: boolean("grants_pro").notNull().default(false),
     proDays: integer("pro_days"),
+    // Which tier the code grants when grantsPro (pro | max).
+    planTier: userPlan("plan_tier").notNull().default("pro"),
     active: boolean("active").notNull().default(true),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     redeemedBy: uuid("redeemed_by").references(() => users.id),

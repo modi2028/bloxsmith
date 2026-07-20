@@ -23,7 +23,7 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("plan"),
     userId: z.string().uuid(),
-    plan: z.enum(["free", "pro"]),
+    plan: z.enum(["free", "pro", "max"]),
     days: z.number().int().positive().max(3650).optional(),
   }),
   z.object({
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
   if (body.action === "plan") {
     const proExpiresAt =
-      body.plan === "pro" && body.days
+      body.plan !== "free" && body.days
         ? new Date(Date.now() + body.days * 86400_000)
         : null;
     await db

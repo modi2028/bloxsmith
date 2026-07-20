@@ -9,7 +9,7 @@ type AdminUser = {
   displayName: string | null;
   robloxUserId: number;
   role: "user" | "admin" | "super_admin";
-  plan: "free" | "pro";
+  plan: "free" | "pro" | "max";
   proExpiresAt: string | null;
   disabled: boolean;
   bannedModels: string[];
@@ -95,22 +95,23 @@ export function AdminUsers({
     void run(u.id, { action: "credits", userId: u.id, delta });
   };
 
-  const setPro = (u: AdminUser, on: boolean) => {
-    if (on) {
-      const input = window.prompt(
-        `Grant Pro to @${u.username} for how many days? Leave blank for permanent.`,
-        "30",
-      );
-      if (input === null) return;
-      const days = input.trim() === "" ? undefined : Number(input);
-      if (days !== undefined && (!Number.isInteger(days) || days <= 0)) {
-        setError("Enter a positive number of days, or leave blank.");
-        return;
-      }
-      void run(u.id, { action: "plan", userId: u.id, plan: "pro", days });
-    } else {
+  const setPlan = (u: AdminUser, plan: "free" | "pro" | "max") => {
+    if (plan === "free") {
       void run(u.id, { action: "plan", userId: u.id, plan: "free" });
+      return;
     }
+    const label = plan === "max" ? "Max" : "Pro";
+    const input = window.prompt(
+      `Grant ${label} to @${u.username} for how many days? Leave blank for permanent.`,
+      "30",
+    );
+    if (input === null) return;
+    const days = input.trim() === "" ? undefined : Number(input);
+    if (days !== undefined && (!Number.isInteger(days) || days <= 0)) {
+      setError("Enter a positive number of days, or leave blank.");
+      return;
+    }
+    void run(u.id, { action: "plan", userId: u.id, plan, days });
   };
 
   const editModelBans = (u: AdminUser) => {
@@ -232,13 +233,17 @@ export function AdminUsers({
                     </span>
                   </td>
                   <td className="px-3 py-2">
-                    <span
-                      className={
-                        u.plan === "pro" ? "text-ember" : "text-muted"
-                      }
-                    >
-                      {u.plan === "pro" ? "Pro" : "Free"}
-                    </span>
+                    {u.plan === "max" ? (
+                      <span className="titanium font-semibold">Max</span>
+                    ) : (
+                      <span
+                        className={
+                          u.plan === "pro" ? "text-ember" : "text-muted"
+                        }
+                      >
+                        {u.plan === "pro" ? "Pro" : "Free"}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2 tabular-nums">
                     {formatCredits(u.balance)}
@@ -253,23 +258,34 @@ export function AdminUsers({
                       >
                         ± Credits
                       </button>
-                      {u.plan === "pro" ? (
+                      {u.plan !== "pro" && (
                         <button
                           type="button"
                           disabled={busyId === u.id}
-                          onClick={() => setPro(u, false)}
-                          className="rounded border border-line px-2 py-1 text-xs transition hover:border-ember/60 disabled:opacity-40"
-                        >
-                          Remove Pro
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={busyId === u.id}
-                          onClick={() => setPro(u, true)}
+                          onClick={() => setPlan(u, "pro")}
                           className="rounded border border-line px-2 py-1 text-xs transition hover:border-ember/60 disabled:opacity-40"
                         >
                           Give Pro
+                        </button>
+                      )}
+                      {u.plan !== "max" && (
+                        <button
+                          type="button"
+                          disabled={busyId === u.id}
+                          onClick={() => setPlan(u, "max")}
+                          className="rounded border border-line px-2 py-1 text-xs transition hover:border-ember/60 disabled:opacity-40"
+                        >
+                          Give Max
+                        </button>
+                      )}
+                      {u.plan !== "free" && (
+                        <button
+                          type="button"
+                          disabled={busyId === u.id}
+                          onClick={() => setPlan(u, "free")}
+                          className="rounded border border-line px-2 py-1 text-xs transition hover:border-red-500/60 disabled:opacity-40"
+                        >
+                          Remove plan
                         </button>
                       )}
                       <button

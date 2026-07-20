@@ -85,16 +85,25 @@ export async function POST(request: NextRequest) {
     granted.push(`${redeemed.credits.toLocaleString()} credits`);
   }
   if (redeemed.grantsPro) {
-    const proExpiresAt = redeemed.proDays
-      ? new Date(Date.now() + redeemed.proDays * 86400_000)
-      : null;
-    await db
-      .update(schema.users)
-      .set({ plan: "pro", proExpiresAt, updatedAt: new Date() })
-      .where(eq(schema.users.id, user.id));
-    granted.push(
-      redeemed.proDays ? `Pro for ${redeemed.proDays} days` : "Pro access",
-    );
+    const tier = redeemed.planTier === "max" ? "max" : "pro";
+    const label = tier === "max" ? "Max" : "Pro";
+    // Never let a Pro code downgrade someone already on Max.
+    if (user.plan === "max" && tier === "pro") {
+      granted.push("Pro (you already have Max, so nothing changed)");
+    } else {
+      const proExpiresAt = redeemed.proDays
+        ? new Date(Date.now() + redeemed.proDays * 86400_000)
+        : null;
+      await db
+        .update(schema.users)
+        .set({ plan: tier, proExpiresAt, updatedAt: new Date() })
+        .where(eq(schema.users.id, user.id));
+      granted.push(
+        redeemed.proDays
+          ? `${label} for ${redeemed.proDays} days`
+          : `${label} access`,
+      );
+    }
   }
 
   return Response.json({ ok: true, granted });

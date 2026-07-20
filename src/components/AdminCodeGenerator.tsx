@@ -8,6 +8,7 @@ import { useState } from "react";
  */
 export function AdminCodeGenerator() {
   const [proDays, setProDays] = useState("30");
+  const [plan, setPlan] = useState<"pro" | "max">("pro");
   const [credits, setCredits] = useState("0");
   const [validDays, setValidDays] = useState("90");
   const [confirm, setConfirm] = useState("");
@@ -37,6 +38,7 @@ export function AdminCodeGenerator() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           proDays: pro,
+          plan,
           credits: cr,
           validDays: valid,
           confirm,
@@ -51,7 +53,7 @@ export function AdminCodeGenerator() {
         return;
       }
       const parts = [
-        pro > 0 ? `Pro for ${pro} days` : null,
+        pro > 0 ? `${plan === "max" ? "Max" : "Pro"} for ${pro} days` : null,
         cr > 0 ? `${cr} credits` : null,
       ].filter(Boolean);
       setResult({
@@ -78,9 +80,20 @@ export function AdminCodeGenerator() {
 
   return (
     <div className="rounded-xl border border-line bg-surface-raised p-4">
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-4">
         <label className="text-xs text-muted">
-          Pro days
+          Plan tier
+          <select
+            value={plan}
+            onChange={(e) => setPlan(e.target.value as "pro" | "max")}
+            className="mt-1 w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-foreground focus:border-ember/60 focus:outline-none"
+          >
+            <option value="pro">Pro</option>
+            <option value="max">Max</option>
+          </select>
+        </label>
+        <label className="text-xs text-muted">
+          Plan days
           <input
             value={proDays}
             onChange={(e) => setProDays(e.target.value)}

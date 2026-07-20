@@ -12,13 +12,15 @@ const CONFIRM_CODE = "Bloxsmith-Admin";
 const bodySchema = z
   .object({
     proDays: z.number().int().min(0).max(3650),
+    /** Which tier the days grant (pro | max). */
+    plan: z.enum(["pro", "max"]).default("pro"),
     credits: z.number().min(0).max(1000),
     /** How long the code stays redeemable. */
     validDays: z.number().int().min(1).max(365).default(90),
     confirm: z.string(),
   })
   .refine((v) => v.proDays > 0 || v.credits > 0, {
-    message: "The code must grant Pro days and/or credits",
+    message: "The code must grant plan days and/or credits",
   });
 
 /**
@@ -71,6 +73,7 @@ export async function POST(request: NextRequest) {
       credits: body.credits,
       grantsPro: body.proDays > 0,
       proDays: body.proDays > 0 ? body.proDays : null,
+      planTier: body.plan,
       expiresAt,
       createdBy: superAdmin.id,
     })
@@ -83,6 +86,7 @@ export async function POST(request: NextRequest) {
     targetId: row!.id,
     after: {
       proDays: body.proDays || null,
+      plan: body.proDays > 0 ? body.plan : null,
       credits: body.credits || null,
       validDays: body.validDays,
     },
@@ -93,6 +97,7 @@ export async function POST(request: NextRequest) {
     code,
     grants: {
       proDays: body.proDays || null,
+      plan: body.proDays > 0 ? body.plan : null,
       credits: body.credits || null,
     },
     expiresAt: expiresAt.toISOString(),

@@ -104,7 +104,8 @@ function Header({
     <header className="flex h-16 shrink-0 items-center justify-end gap-3 px-6">
       {user ? (
         <>
-          {paidPlan === "max" ? (
+          {/* Admins always run at Max tier, whatever their paid plan says. */}
+          {paidPlan === "max" || isAdminRole(user.role) ? (
             <span className="rounded-full border border-line-strong bg-hover px-2.5 py-1 text-xs font-semibold">
               <span className="titanium">Max</span>
             </span>
@@ -112,14 +113,14 @@ function Header({
             <span className="rounded-full border border-ember/50 bg-ember-soft px-2.5 py-1 text-xs font-semibold text-ember">
               Pro
             </span>
-          ) : !isAdminRole(user.role) ? (
+          ) : (
             <Link
               href="/store"
               className="glass-chip rounded-full border border-line px-3 py-1 text-xs text-muted transition hover:border-ember/50 hover:text-ember"
             >
               Upgrade
             </Link>
-          ) : null}
+          )}
           <DailyReward />
           <Link
             href="/usage"
