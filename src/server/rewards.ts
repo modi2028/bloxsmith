@@ -161,11 +161,16 @@ export async function claimDailyReward(
   const yesterday = utcDayString(new Date(now.getTime() - DAY_MS));
 
   return db.transaction(async (tx) => {
-    // Lock the row so double-clicking (or two tabs) can't claim twice.
+    // Lock the row so double-clicking (or two tabs) can't claim twice. Plan
+    // fields are read fresh here too — a stale session must not claim
+    // paid-tier rewards after a subscription lapsed.
     const [row] = await tx
       .select({
         rewardStreak: schema.users.rewardStreak,
         rewardLastClaimDay: schema.users.rewardLastClaimDay,
+        role: schema.users.role,
+        plan: schema.users.plan,
+        proExpiresAt: schema.users.proExpiresAt,
       })
       .from(schema.users)
       .where(eq(schema.users.id, user.id))
@@ -176,7 +181,7 @@ export async function claimDailyReward(
 
     const streak = row.rewardLastClaimDay === yesterday ? row.rewardStreak + 1 : 1;
     const day = cycleDayOf(streak);
-    const pro = isProUser(user, now);
+    const pro = isProUser(row, now);
     const amount = rewardAmount(day, pro);
 
     await tx

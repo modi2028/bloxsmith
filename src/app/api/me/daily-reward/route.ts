@@ -11,6 +11,13 @@ export async function GET() {
   const user = await getSessionUser();
   if (!user) return new Response(null, { status: 204 });
 
+  // Status can trigger a Roblox account-age lookup (until cached) — keep
+  // hammering in check.
+  const rl = rateLimit(`daily-reward-status:${user.id}`, 30, 60_000);
+  if (!rl.ok) {
+    return Response.json({ error: "Slow down" }, { status: 429 });
+  }
+
   const status = await getRewardStatus(user, new Date());
   return Response.json(status);
 }

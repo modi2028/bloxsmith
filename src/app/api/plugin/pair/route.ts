@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { generateToken, hashToken } from "@/server/crypto";
 import { db, schema } from "@/server/db";
+import { clientIp, rateLimit } from "@/server/security/ratelimit";
 
 const bodySchema = z.object({
   code: z
@@ -16,6 +17,13 @@ const bodySchema = z.object({
  * by the user) for a long-lived, revocable plugin token.
  */
 export async function POST(request: NextRequest) {
+  // Pairing codes are short-lived and single-use, but still throttle
+  // brute-force guessing hard.
+  const rl = rateLimit(`pair:${clientIp(request)}`, 10, 5 * 60_000);
+  if (!rl.ok) {
+    return Response.json({ error: "Too many attempts." }, { status: 429 });
+  }
+
   let code: string;
   try {
     code = bodySchema.parse(await request.json()).code;
