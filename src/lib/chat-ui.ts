@@ -34,6 +34,8 @@ export type UiMessage =
       creditsCharged?: number;
       /** Total tokens (input + output) the finished run used. */
       tokensUsed?: number;
+      /** 5-hour-window percentage AT THE TIME this run finished. */
+      windowPct?: number;
       /** Live model reasoning (viewable via the Thinking… toggle). */
       thinking?: string;
     };

@@ -728,8 +728,19 @@ export async function runAgentTurn(params: {
             inArray(schema.toolCallQueue.status, ["pending", "claimed"]),
           ),
         );
+      // Stopped runs report their tokens + window state too — otherwise the
+      // UI shows stale numbers from the previous finished run.
+      const windowUsedPct = await tokenWindowUsage(user.id, plan, new Date())
+        .then((w) => w.pct)
+        .catch(() => undefined);
       try {
-        await onEvent({ type: "stopped", creditsCharged: charged });
+        await onEvent({
+          type: "stopped",
+          creditsCharged: charged,
+          inputTokens,
+          outputTokens,
+          windowUsedPct,
+        });
       } catch {
         // Client is gone — nothing to notify.
       }

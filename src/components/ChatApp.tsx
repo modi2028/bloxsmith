@@ -269,6 +269,9 @@ export function ChatApp({
         setWindowPct(event.windowUsedPct ?? null);
         notifyDone("Your build is finished — come take a look!");
       }
+      if (event.type === "stopped" && event.windowUsedPct != null) {
+        setWindowPct(event.windowUsedPct);
+      }
       if (event.type === "error") {
         notifyDone("Your build hit an error — come check it.");
       }
@@ -349,20 +352,26 @@ export function ChatApp({
           case "error":
             parts.push({ t: "error", text: event.message });
             break;
-          case "stopped":
+          case "stopped": {
             parts.push({ t: "info", text: "Stopped." });
+            const stoppedTokens =
+              (event.inputTokens ?? 0) + (event.outputTokens ?? 0);
             next[next.length - 1] = {
               ...last,
               parts,
               creditsCharged: event.creditsCharged,
+              ...(stoppedTokens > 0 ? { tokensUsed: stoppedTokens } : {}),
+              windowPct: event.windowUsedPct,
             };
             return next;
+          }
           case "done":
             next[next.length - 1] = {
               ...last,
               parts,
               creditsCharged: event.creditsCharged,
               tokensUsed: event.inputTokens + event.outputTokens,
+              windowPct: event.windowUsedPct,
             };
             return next;
         }
@@ -880,8 +889,8 @@ export function ChatApp({
                   msg.tokensUsed != null && (
                     <div className="text-xs text-faint">
                       {formatTokens(msg.tokensUsed)} tokens used
-                      {windowPct != null &&
-                        ` · ${windowPct}% of your 5-hour limit`}
+                      {msg.windowPct != null &&
+                        ` · ${msg.windowPct}% of your 5-hour limit`}
                     </div>
                   )}
               </div>

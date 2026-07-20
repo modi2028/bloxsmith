@@ -24,7 +24,14 @@ export type AgentEvent =
       /** Percent (0-100) of the rolling 5-hour token allowance now used. */
       windowUsedPct?: number;
     }
-  | { type: "stopped"; creditsCharged: number }
+  | {
+      type: "stopped";
+      creditsCharged: number;
+      inputTokens?: number;
+      outputTokens?: number;
+      /** Percent (0-100) of the rolling 5-hour token allowance now used. */
+      windowUsedPct?: number;
+    }
   | { type: "needs_plugin" }
   // The AI wants to insert a Creator Store asset it hasn't used before in
   // this project — the user approves once per asset id.
