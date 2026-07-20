@@ -15,12 +15,13 @@ import {
 } from "@/server/bridge/queue-core";
 import { validateToolArgs } from "@/lib/tool-contract";
 import type { AgentEvent } from "@/lib/agent-events";
-import { isProUser } from "@/lib/plan";
+import { effectivePlan, hasPlan, type PlanId } from "@/lib/plan";
 import {
   DEFAULT_EFFORT,
   effortTier,
   type EffortId,
 } from "@/lib/model-catalog";
+import { tokenWindowUsage } from "@/server/token-usage";
 import { formatCredits } from "@/lib/credits-format";
 import { isPluginConnected } from "@/server/auth/plugin";
 import { buildSystemPrompt } from "./context";
@@ -69,6 +70,8 @@ export async function runAgentTurn(params: {
   modelId?: string;
   /** How hard (and how expensive) this session may run — see EFFORT_TIERS. */
   effort?: EffortId;
+  /** Extended-thinking spend toggle (default on). Max effort forces it on. */
+  thinking?: boolean;
   title?: string;
   /** Reference images attached to this message (base64, no data: prefix). */
   images?: { mediaType: string; data: string }[];
@@ -98,16 +101,25 @@ export async function runAgentTurn(params: {
     return;
   }
 
-  const proAccess = isProUser(user, new Date());
+  const plan = effectivePlan(user, new Date());
+  const minPlan = (pricing.minPlan ?? "free") as PlanId;
 
-  // Pro gating — enforced server-side regardless of what the client sends.
-  if (pricing.proOnly && !proAccess) {
+  // Plan gating — enforced server-side regardless of what the client sends.
+  if (!hasPlan(user, minPlan, new Date())) {
     await onEvent({
       type: "error",
-      message: `${pricing.displayName} is a Pro model. Upgrade to Pro (or use a free model like Blox Mini) to build with it.`,
+      message:
+        minPlan === "max"
+          ? `${pricing.displayName} is a Max-plan model. Upgrade to Max in the store to build with it.`
+          : `${pricing.displayName} is a Pro model. Upgrade to Pro (or use a free model like Luna) to build with it.`,
     });
     return;
   }
+
+  // Tool tiers: Creator Store models on Sol + Titan; web search on Titan
+  // only (its prompt tells it to use search as a fallback, not per task).
+  const assetTools = ["glm-5", "glm-5.2"].includes(modelId);
+  const webSearch = modelId === "glm-5.2";
 
   // Per-user model bans (admin-managed).
   const userRow = await db.query.users.findFirst({
@@ -205,14 +217,18 @@ export async function runAgentTurn(params: {
   try {
     // --- Assemble context ---------------------------------------------------
     const apiKey = await getProviderApiKey(pricing.provider as ProviderId);
-    const tools = getStudioTools({ assetTools: proAccess });
+    const tools = getStudioTools({ assetTools });
     const system = buildSystemPrompt({
       projectMemory: chatSession.projectMemory,
       userNickname: user.nickname ?? user.displayName ?? user.username,
       provider: pricing.provider,
-      assetTools: proAccess,
+      assetTools,
+      webSearch,
       effort,
     });
+    // Thinking spend follows the user's toggle, but Max effort always thinks
+    // deeply — that's what the tier is for.
+    const thinkingEnabled = effort === "max" ? true : params.thinking !== false;
 
     const history = await db.query.chatMessages.findMany({
       where: eq(schema.chatMessages.sessionId, chatSession.id),
@@ -361,6 +377,8 @@ export async function runAgentTurn(params: {
           system,
           messages,
           tools,
+          thinkingEnabled,
+          webSearch,
           signal: callController.signal,
           onTextDelta: (text) => void onEvent({ type: "text_delta", text }),
           onThinkingDelta: (text) =>
@@ -373,6 +391,8 @@ export async function runAgentTurn(params: {
 
       inputTokens += response.usage.inputTokens;
       outputTokens += response.usage.outputTokens;
+      // Live token counter (Claude-Code style) under the thinking line.
+      await onEvent({ type: "usage", inputTokens, outputTokens });
 
       await db.insert(schema.chatMessages).values({
         sessionId: chatSession.id,
@@ -500,13 +520,13 @@ export async function runAgentTurn(params: {
           }
           continue;
         }
-        // Belt-and-braces: asset insertion is a Pro feature even if a model
+        // Belt-and-braces: asset insertion is Sol/Titan-only even if a model
         // hallucinates the tool without it being offered.
-        if (toolUse.name === "insert_asset" && !proAccess) {
+        if (toolUse.name === "insert_asset" && !assetTools) {
           resultBlocks.push(
             toolResultBlock(
               toolUse.id,
-              "forbidden: insert_asset requires a Pro plan",
+              "forbidden: insert_asset is only available on Sol and Titan",
               true,
             ),
           );
@@ -664,11 +684,18 @@ export async function runAgentTurn(params: {
       .set({ updatedAt: new Date(), lastModelId: modelId })
       .where(eq(schema.chatSessions.id, chatSession.id));
 
+    // "% of your rolling 5-hour allowance" — informational until the token
+    // backend ships; never let a stats query kill a finished run.
+    const windowUsedPct = await tokenWindowUsage(user.id, plan, new Date())
+      .then((w) => w.pct)
+      .catch(() => undefined);
+
     await onEvent({
       type: "done",
       creditsCharged: charged,
       inputTokens,
       outputTokens,
+      windowUsedPct,
     });
   } catch (err) {
     // User pressed Stop (or disconnected): charge actual usage so far,

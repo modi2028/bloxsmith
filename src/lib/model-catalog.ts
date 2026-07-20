@@ -12,6 +12,8 @@
  *   admin-editable at runtime.
  */
 
+export type PlanTier = "free" | "pro" | "max";
+
 export type CatalogModel = {
   modelId: string;
   provider: "anthropic" | "openai" | "google" | "zai";
@@ -23,6 +25,8 @@ export type CatalogModel = {
   baseCost: number;
   maxCreditsPerRequest: number;
   proOnly: boolean;
+  /** Minimum plan tier required: free | pro | max. */
+  minPlan: PlanTier;
   enabled: boolean;
   isDefault: boolean;
   sort: number;
@@ -47,29 +51,37 @@ export const DEFAULT_EFFORT: EffortId = "medium";
 
 export type EffortTier = { maxCredits: number; minToStart?: number };
 
+/**
+ * Not every model offers every effort (Titan is Low or Max, nothing between).
+ */
 export const EFFORT_TIERS: Record<
   string,
-  Record<EffortId, EffortTier>
+  Partial<Record<EffortId, EffortTier>>
 > = {
-  // Blox Mini
-  "claude-haiku-4-5": {
+  // Luna
+  "glm-4.7-flash": {
     low: { maxCredits: 0.1 },
     medium: { maxCredits: 0.3 },
     high: { maxCredits: 0.5 },
     max: { maxCredits: 1 },
   },
-  // Blox Lite
-  "glm-5": {
+  // Vega
+  "glm-5-turbo": {
     low: { maxCredits: 0.5 },
     medium: { maxCredits: 1 },
     high: { maxCredits: 1.5, minToStart: 1 },
     max: { maxCredits: 2.5, minToStart: 2 },
   },
-  // Blox Pro
-  "glm-5.2": {
+  // Sol
+  "glm-5": {
     low: { maxCredits: 1 },
     medium: { maxCredits: 2 },
     high: { maxCredits: 3, minToStart: 3 },
+    max: { maxCredits: 5, minToStart: 3 },
+  },
+  // Titan — Low for quick work, Max for the full flagship experience.
+  "glm-5.2": {
+    low: { maxCredits: 2 },
     max: { maxCredits: 25, minToStart: 20 },
   },
 };
@@ -82,23 +94,100 @@ export function effortTier(
   return EFFORT_TIERS[modelId]?.[effort] ?? null;
 }
 
+/** Efforts a model actually offers, in display order. */
+export function effortIdsFor(modelId: string): EffortId[] {
+  const tiers = EFFORT_TIERS[modelId];
+  if (!tiers) return [];
+  return EFFORT_IDS.filter((id) => tiers[id] != null);
+}
+
+/**
+ * Rough tokens a session can consume at a given effort (blended input/output
+ * rate against the tier's credit cap) — the picker's "updating with effort"
+ * limit readout.
+ */
+export function effortTokenEstimate(
+  modelId: string,
+  effort: EffortId,
+): number | null {
+  const tier = effortTier(modelId, effort);
+  const m = MODEL_CATALOG.find((x) => x.modelId === modelId);
+  if (!tier || !m) return null;
+  const blendedPer1k =
+    0.75 * m.inputCreditsPer1k + 0.25 * m.outputCreditsPer1k;
+  if (blendedPer1k <= 0) return null;
+  return Math.round((tier.maxCredits / blendedPer1k) * 1000);
+}
+
+/** Context windows (thousands of tokens) for the picker's model info. */
+export const MODEL_LIMITS: Record<string, { contextK: number }> = {
+  "glm-4.7-flash": { contextK: 128 },
+  "glm-5-turbo": { contextK: 128 },
+  "glm-5": { contextK: 200 },
+  "glm-5.2": { contextK: 200 },
+};
+
+/**
+ * Token allowances (informational today, enforced when the token backend
+ * ships): rolling 5-hour window per plan; weekly cap = 5-hour limit x 4.
+ */
+export const TOKEN_LIMITS_5H: Record<PlanTier, number> = {
+  free: 250_000,
+  pro: 1_000_000,
+  max: 2_500_000,
+};
+export const WEEKLY_MULTIPLIER = 4;
+
 export const MODEL_CATALOG: CatalogModel[] = [
-  // ---- Live lineup -----------------------------------------------------------
+  // ---- Live lineup: Luna -> Vega -> Sol -> Titan -----------------------------
   {
-    // GLM-5: $1.0/$3.2 per 1M tokens -> x3 markup. Free-tier coding pick.
+    modelId: "glm-4.7-flash",
+    provider: "zai",
+    displayName: "Luna",
+    description: "Fast and free — quick tweaks and small builds",
+    tier: "fast",
+    inputCreditsPer1k: 0.0003,
+    outputCreditsPer1k: 0.0012,
+    baseCost: 0.001,
+    maxCreditsPerRequest: 0.25,
+    proOnly: false,
+    minPlan: "free",
+    enabled: true,
+    isDefault: true,
+    sort: 10,
+  },
+  {
+    modelId: "glm-5-turbo",
+    provider: "zai",
+    displayName: "Vega",
+    description: "Balanced everyday building, free for everyone",
+    tier: "balanced",
+    inputCreditsPer1k: 0.002,
+    outputCreditsPer1k: 0.006,
+    baseCost: 0.002,
+    maxCreditsPerRequest: 0.4,
+    proOnly: false,
+    minPlan: "free",
+    enabled: true,
+    isDefault: false,
+    sort: 20,
+  },
+  {
+    // GLM-5: $1.0/$3.2 per 1M tokens.
     modelId: "glm-5",
     provider: "zai",
-    displayName: "Blox Lite",
-    description: "Strong everyday building for free",
+    displayName: "Sol",
+    description: "Strong builds with Creator Store models",
     tier: "balanced",
     inputCreditsPer1k: 0.003,
     outputCreditsPer1k: 0.0096,
     baseCost: 0.003,
-    maxCreditsPerRequest: 0.4,
-    proOnly: false,
+    maxCreditsPerRequest: 0.5,
+    proOnly: true,
+    minPlan: "pro",
     enabled: true,
     isDefault: false,
-    sort: 10,
+    sort: 30,
   },
   {
     modelId: "claude-sonnet-5",
@@ -111,11 +200,14 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.006,
     maxCreditsPerRequest: 0.7,
     proOnly: true,
+    minPlan: "pro",
     enabled: false,
     isDefault: false,
     sort: 95,
   },
   {
+    // Retired from the picker — still used internally as the vision bridge
+    // (image understanding) for every tier.
     modelId: "claude-haiku-4-5",
     provider: "anthropic",
     displayName: "Blox Mini",
@@ -126,9 +218,10 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.002,
     maxCreditsPerRequest: 0.25,
     proOnly: false,
-    enabled: true,
-    isDefault: true,
-    sort: 20,
+    minPlan: "free",
+    enabled: false,
+    isDefault: false,
+    sort: 98,
   },
   {
     // Free-tier Gemini. Note: Google is renaming this to "gemini-3.5-flash";
@@ -143,26 +236,29 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.002,
     maxCreditsPerRequest: 0.25,
     proOnly: false,
+    minPlan: "free",
     enabled: false,
     isDefault: false,
     sort: 96,
   },
   {
-    // $1.4/$4.4 per 1M tokens -> x3 markup.
+    // $1.4/$4.4 per 1M tokens. The flagship: web search + Creator Store +
+    // deep thinking; clearly above everything else in the lineup.
     modelId: "glm-5.2",
     provider: "zai",
-    displayName: "Blox Pro",
+    displayName: "Titan",
     description:
-      "Our most capable model — thinks deeply, so builds take longer",
+      "The flagship — deep thinking, web search, Creator Store models",
     tier: "flagship",
     inputCreditsPer1k: 0.0045,
     outputCreditsPer1k: 0.0135,
     baseCost: 0.004,
     maxCreditsPerRequest: 0.5,
     proOnly: true,
+    minPlan: "max",
     enabled: true,
     isDefault: false,
-    sort: 15,
+    sort: 40,
   },
   // ---- Retired from the picker (kept so apply:catalog disables their DB rows)
   {
@@ -176,6 +272,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.004,
     maxCreditsPerRequest: 0.5,
     proOnly: false,
+    minPlan: "free",
     enabled: false,
     isDefault: false,
     sort: 97,
@@ -191,6 +288,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.012,
     maxCreditsPerRequest: 1.2,
     proOnly: true,
+    minPlan: "pro",
     enabled: false,
     isDefault: false,
     sort: 90,
@@ -206,6 +304,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.012,
     maxCreditsPerRequest: 1.2,
     proOnly: true,
+    minPlan: "pro",
     enabled: false,
     isDefault: false,
     sort: 91,
@@ -221,6 +320,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.006,
     maxCreditsPerRequest: 0.7,
     proOnly: false,
+    minPlan: "free",
     enabled: false,
     isDefault: false,
     sort: 92,
@@ -236,6 +336,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.012,
     maxCreditsPerRequest: 1.2,
     proOnly: true,
+    minPlan: "pro",
     enabled: false,
     isDefault: false,
     sort: 93,
@@ -251,6 +352,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     baseCost: 0.001,
     maxCreditsPerRequest: 0.15,
     proOnly: false,
+    minPlan: "free",
     enabled: false,
     isDefault: false,
     sort: 94,
@@ -301,10 +403,24 @@ export const PRO_PLAN = {
   priceUsd: 19.99,
   monthlyCredits: 20,
   perks: [
-    "Unlocks Blox Pro — our most capable model",
-    "Insert real Creator Store models (trees, props, vehicles)",
-    "20 credits every month",
+    "Unlocks Sol — strong builds with real Creator Store models",
+    "Insert Creator Store models (trees, props, vehicles)",
+    "4x the build allowance of Free",
     "Priority on new models",
+  ],
+} as const;
+
+/** The Max subscription — the top tier, unlocks Titan. */
+export const MAX_PLAN = {
+  lookupKey: "max_monthly",
+  name: "Max",
+  priceUsd: 49.99,
+  monthlyCredits: 60,
+  perks: [
+    "Unlocks Titan — the flagship with deep thinking and web search",
+    "Everything in Pro, including Creator Store models",
+    "10x the build allowance of Free",
+    "First access to every new model and tool",
   ],
 } as const;
 
@@ -313,9 +429,11 @@ export const APP_SETTINGS_DEFAULTS: { key: string; value: unknown }[] = [
   { key: "fulfillment_mode", value: "stripe" }, // "stripe" | "manual"
   { key: "run_luau_enabled", value: false },
   { key: "signup_grant_credits", value: 1 },
-  { key: "default_model_id", value: "claude-haiku-4-5" },
+  { key: "default_model_id", value: "glm-4.7-flash" },
   { key: "max_attachment_bytes", value: 5 * 1024 * 1024 },
   { key: "pro_monthly_credits", value: PRO_PLAN.monthlyCredits },
+  { key: "max_monthly_credits", value: MAX_PLAN.monthlyCredits },
   // Stripe price ids are filled in by scripts/stripe-setup.ts:
   { key: "stripe_pro_price_id", value: "" },
+  { key: "stripe_max_price_id", value: "" },
 ];

@@ -137,6 +137,8 @@ export type OpenAICompatOptions = {
   supportsImages?: boolean;
   /** Provider-specific request fields (e.g. GLM's thinking switch). */
   extraBody?: Record<string, unknown>;
+  /** Provider-native tools appended verbatim (e.g. z.ai web_search). */
+  rawExtraTools?: unknown[];
 };
 
 /**
@@ -163,14 +165,18 @@ export async function streamOpenAICompatibleResponse(
         params.messages,
         opts.supportsImages !== false,
       ),
-      tools: params.tools.map((t) => ({
-        type: "function" as const,
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.input_schema,
-        },
-      })),
+      tools: [
+        ...params.tools.map((t) => ({
+          type: "function" as const,
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.input_schema,
+          },
+        })),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...((opts.rawExtraTools ?? []) as any[]),
+      ],
       ...tokenLimit,
       stream: true,
       stream_options: { include_usage: true },

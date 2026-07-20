@@ -31,8 +31,10 @@ export function buildSystemPrompt(opts: {
   userNickname?: string | null;
   /** AI provider id — lets us add per-model discipline (e.g. GLM). */
   provider?: string;
-  /** Pro runs get the Creator Store tools — and a mandate to prefer them. */
+  /** Sol/Titan runs get the Creator Store tools — and a mandate to prefer them. */
   assetTools?: boolean;
+  /** Titan only: provider-native web search available as a fallback. */
+  webSearch?: boolean;
   /** User-picked effort tier — scope expectations + budget behavior. */
   effort?: EffortId;
 }): string {
@@ -76,6 +78,13 @@ export function buildSystemPrompt(opts: {
 - Build from parts only when: it's simple geometry (floors, walls, platforms, kill bricks, zones), the user explicitly wants a custom shape, or a search found nothing suitable (say so in one short line, then build it).
 - Pick assets with many upVotes — zero-vote uploads are often refused by Roblox at insert time. If an insert fails as not-authorized, never retry that assetId; after two failed inserts, stop searching and build from parts.
 - Scripts, remotes, and game logic are ALWAYS yours to write — models are for visuals; wire your own logic onto them (find their parts with list_children).`,
+        ]
+      : []),
+
+    ...(opts.webSearch
+      ? [
+          `# Web search (fallback tool)
+You have live web search. Use it ONLY when you hit a wall — an unfamiliar API, a Roblox error you cannot resolve, or a fact you genuinely don't know. Never search for routine tasks you can already do; searching on every task wastes the user's tokens.`,
         ]
       : []),
 

@@ -35,6 +35,11 @@ export type StreamModelParams = {
   system: string;
   messages: ProviderMessage[];
   tools: ModelToolDef[];
+  /** Extended-thinking spend switch (user toggle). Default on; adapters that
+   * can't turn thinking off ignore it. */
+  thinkingEnabled?: boolean;
+  /** Titan only: let the provider's native web search run as a fallback. */
+  webSearch?: boolean;
   onTextDelta?: (text: string) => void;
   /** Reasoning stream (models that expose it) — for the live thinking view. */
   onThinkingDelta?: (text: string) => void;

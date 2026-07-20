@@ -18,7 +18,7 @@ import {
 
 export const userRole = pgEnum("user_role", ["user", "admin", "super_admin"]);
 
-export const userPlan = pgEnum("user_plan", ["free", "pro"]);
+export const userPlan = pgEnum("user_plan", ["free", "pro", "max"]);
 
 export const creditTxKind = pgEnum("credit_tx_kind", [
   "signup_grant", // automatic grant on first login
@@ -311,7 +311,10 @@ export const modelPricing = pgTable(
       .notNull()
       .default(1),
     // Requires an active Pro subscription (or admin) to use.
+    // Superseded by minPlan (kept for back-compat display).
     proOnly: boolean("pro_only").notNull().default(false),
+    // Minimum plan tier required to use this model: free | pro | max.
+    minPlan: userPlan("min_plan").notNull().default("free"),
     enabled: boolean("enabled").notNull().default(true),
     isDefault: boolean("is_default").notNull().default(false),
     sort: integer("sort").notNull().default(0),

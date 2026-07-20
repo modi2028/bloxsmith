@@ -23,10 +23,20 @@ export const streamZaiResponse: ProviderAdapter = (params) =>
     // GLM text models can't see images (vision is the separate GLM-V line);
     // attachments become a text note instead of a hard provider error.
     supportsImages: false,
-    // Thinking stays ENABLED for all GLM models: disabling it made the
-    // deliberation leak into visible chat as dithering ("hmm… let me…
-    // nevermind") and loops — worse than the latency it saved. Reasoning
-    // streams into the private thinking channel (viewable via the Thinking…
-    // toggle). Lower temperature keeps GLM decisive.
-    extraBody: { temperature: 0.7 },
+    // Thinking follows the user's "Thinking" spend toggle (default ON).
+    // History note: disabling it once leaked deliberation into visible chat
+    // ("hmm… nevermind"); the Execution-discipline prompt now guards that,
+    // and the loop force-enables thinking on Max effort regardless.
+    // Lower temperature keeps GLM decisive.
+    extraBody: {
+      temperature: 0.7,
+      thinking: {
+        type: params.thinkingEnabled === false ? "disabled" : "enabled",
+      },
+    },
+    // Titan's native web search — z.ai runs it server-side and feeds results
+    // straight into the model's context (verified accepted on glm-5.2).
+    rawExtraTools: params.webSearch
+      ? [{ type: "web_search", web_search: { enable: true } }]
+      : [],
   });

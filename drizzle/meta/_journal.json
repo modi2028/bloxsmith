@@ -71,6 +71,13 @@
       "when": 1783623826285,
       "tag": "0009_cheerful_wild_child",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784541267661,
+      "tag": "0010_public_wallflower",
+      "breakpoints": true
     }
   ]
 }
