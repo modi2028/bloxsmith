@@ -18,6 +18,7 @@ type Status = {
  */
 export function ReferralCard() {
   const [status, setStatus] = useState<Status | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -30,15 +31,31 @@ export function ReferralCard() {
     fetch("/api/me/referral")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!cancelled && d) setStatus(d);
+        if (cancelled) return;
+        if (d) setStatus(d);
+        else setLoadFailed(true);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setLoadFailed(true);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (!status) return null;
+  // Never disappear silently — an invisible feature reads as a broken one.
+  if (!status) {
+    return (
+      <div className="rounded-2xl border border-line bg-surface-raised p-5">
+        <h2 className="text-sm font-medium">Invite friends</h2>
+        <p className="mt-1 text-xs text-muted">
+          {loadFailed
+            ? "Couldn't load your referral code — reload the page to try again."
+            : "Loading your referral code…"}
+        </p>
+      </div>
+    );
+  }
 
   const maxed = status.bonusPct >= status.cap;
 
