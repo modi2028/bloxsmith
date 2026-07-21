@@ -47,9 +47,14 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
-  if (site.imagePaused && !isAdminRole(user.role)) {
+  // Paused means paused for everyone, staff included (see /api/chat).
+  if (site.imagePaused) {
     return Response.json(
-      { error: "Blox Image is temporarily paused — check back soon." },
+      {
+        error:
+          "Blox Image is paused right now while we sort something out. Please try again soon.",
+        paused: true,
+      },
       { status: 503 },
     );
   }

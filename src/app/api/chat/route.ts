@@ -64,9 +64,16 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
-  if (site.chatPaused && !isAdminRole(user.role)) {
+  // A paused feature is paused for EVERYONE, staff included — otherwise an
+  // admin can't tell whether the switch actually took effect. Admins unpause
+  // from /admin, which stays reachable.
+  if (site.chatPaused) {
     return Response.json(
-      { error: "Building is temporarily paused — check back soon." },
+      {
+        error:
+          "Building is paused right now while we sort something out. Please try again soon.",
+        paused: true,
+      },
       { status: 503 },
     );
   }

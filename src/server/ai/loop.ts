@@ -489,7 +489,14 @@ export async function runAgentTurn(params: {
         // Ended after inspecting without building anything: nudge once. The
         // "(auto) " prefix hides this from the chat UI; models see it as a
         // normal user instruction.
-        if (!nudged && mutatingCalls === 0 && readCalls > 0) {
+        // Never nudge a refusal into compliance: if the model just declined
+        // something, "you haven't built anything yet, do it NOW" is exactly
+        // the push that would talk it out of the guardrail.
+        const refused =
+          /\b(won'?t|will not|can'?t|cannot|not going to|not able to)\b[^.]{0,60}\b(build|make|create|recreate|do)\b/i.test(
+            response.text,
+          ) || /\bI'?m not (going to|able to)\b/i.test(response.text);
+        if (!nudged && !refused && mutatingCalls === 0 && readCalls > 0) {
           nudged = true;
           const nudgeContent = [
             {

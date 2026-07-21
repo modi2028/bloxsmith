@@ -17,6 +17,7 @@ import { Markdown } from "./Markdown";
 import { Modal } from "./Modal";
 import type { ChatModel } from "./ModelPicker";
 import { PENDING_TITLE_KEY } from "./NewProjectButton";
+import { ChatNotice } from "./ChatNotice";
 import { CheckpointMenu } from "./CheckpointMenu";
 import { ImageLoader } from "./ImageLoader";
 import { ShowcaseButton } from "./ShowcaseButton";
@@ -224,6 +225,15 @@ export function ChatApp({
     localStorage.setItem(THINKING_STORAGE_KEY, v ? "1" : "0");
   };
 
+  /**
+   * A send the server refused outright (paused feature, maintenance, spent
+   * allowance). Shown above the composer rather than in the transcript.
+   */
+  const [notice, setNotice] = useState<{
+    message: string;
+    action?: { label: string; href: string };
+  } | null>(null);
+
   // "Revert this build" — id of the run currently being undone in Studio.
   const [reverting, setReverting] = useState<string | null>(null);
 
@@ -303,6 +313,15 @@ export function ChatApp({
           chatSessionId?: string;
         };
         if (!res.ok || !data.url) {
+          // A paused feature isn't this picture's problem — surface it above
+          // the composer and drop the placeholder entirely.
+          if (res.status === 503) {
+            setMessages((prev) => prev.slice(0, -2));
+            setNotice({
+              message: data.error ?? "Image generation is paused right now.",
+            });
+            return;
+          }
           finish({
             status: "error",
             error: data.error ?? "Couldn't generate that image.",
@@ -620,6 +639,7 @@ export function ChatApp({
       setBusy(true);
       setCanContinue(false);
       setBgRunBlocking(false);
+      setNotice(null);
       setShowThinking(false);
       setLiveUsage(null);
       setWindowPct(null);
@@ -666,6 +686,7 @@ export function ChatApp({
           // running") over a generic line.
           const data = (await res.json().catch(() => ({}))) as {
             error?: string;
+            paused?: boolean;
           };
           const detail =
             data.error ??
@@ -674,6 +695,19 @@ export function ChatApp({
               : res.status === 503
                 ? "Bloxsmith is under maintenance — try again soon."
                 : "The request failed to start. Try again.");
+          // Nothing ran: drop the optimistic bubbles and say so above the
+          // composer, where they're about to type again.
+          if (res.status === 503 || res.status === 402) {
+            setMessages((prev) => prev.slice(0, -2));
+            setQueue([]);
+            setNotice({
+              message: detail,
+              ...(res.status === 402
+                ? { action: { label: "Upgrade your plan", href: "/store" } }
+                : {}),
+            });
+            return;
+          }
           // A leftover background run is holding the slot — offer a way out.
           if (res.status === 429 && detail.includes("build running")) {
             setBgRunBlocking(true);
@@ -807,6 +841,13 @@ export function ChatApp({
           className="fade-up w-full max-w-2xl"
           style={{ animationDelay: "180ms" }}
         >
+          {notice && (
+            <ChatNotice
+              message={notice.message}
+              action={notice.action}
+              onClose={() => setNotice(null)}
+            />
+          )}
           <ChatComposer
             key={seedText ?? "blank"}
             onSend={send}
@@ -1265,6 +1306,13 @@ export function ChatApp({
 
       <div className="glass-surface border-t border-line px-4 py-3">
         <div className="mx-auto max-w-3xl">
+          {notice && (
+            <ChatNotice
+              message={notice.message}
+              action={notice.action}
+              onClose={() => setNotice(null)}
+            />
+          )}
           {chatSessionId && (
             <div className="mb-2.5 flex items-center justify-end gap-2">
               <ShowcaseButton sessionId={chatSessionId} />
