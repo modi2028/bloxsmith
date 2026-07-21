@@ -10,7 +10,18 @@
  * horror) must keep working, so nothing here matches generic combat.
  */
 
-export type PolicyHit = { blocked: true; reason: string } | { blocked: false };
+export type PolicyHit =
+  | { blocked: true; reason: string }
+  | {
+      /**
+       * Could be innocent, could be the banned thing. Rather than guess —
+       * blocking breaks real city builds, allowing lets the evasion through
+       * — the server asks the user to say which it is.
+       */
+      blocked: false;
+      confirm: { question: string; safe: string; unsafe: string; reason: string };
+    }
+  | { blocked: false; confirm?: undefined };
 
 /** Lowercase, punctuation collapsed to spaces. Digits are preserved. */
 function plain(text: string): string {
@@ -86,6 +97,35 @@ const TOWERS = /\b(twin|two|2|双) (towers?|skyscrapers?|buildings?)\b|\btowers?
 const IMPACT =
   /\b(crash|crashes|crashing|fly into|flying into|flies into|hit|hits|hitting|smash|slam|ram|impact|explode|explodes|collaps(e|es|ing)|attack)\b/;
 
+/**
+ * Ambiguous shapes. Each is a perfectly normal build on its own, and also
+ * the shape people reach for after a refusal, so the user is asked which
+ * they mean instead of the server guessing.
+ */
+const CONFIRM: {
+  re: RegExp;
+  question: string;
+  safe: string;
+  unsafe: string;
+  reason: string;
+}[] = [
+  {
+    re: /\b(two|2|twin|double|matching|identical|pair of) (tall |big |large |huge |giant )?(towers?|skyscrapers?|buildings?)\b|\btowers? (next to|beside|side by side with) (each ?other|another|the other)\b/,
+    question: "Quick check — which of these are you building?",
+    safe: "Just a city skyline",
+    unsafe: "The Twin Towers",
+    reason: "the Twin Towers",
+  },
+  {
+    // Words can sit between ("a plane FLYING toward the buildings").
+    re: /\b(plane|planes|jet|jets|airliner|aircraft)\b[^.]{0,24}\b(near|over|above|toward|towards|approaching|at)\b[^.]{0,24}\b(tower|towers|building|buildings|skyscraper|skyscrapers)\b/,
+    question: "Quick check — what is this for?",
+    safe: "A normal flight scene",
+    unsafe: "A plane hitting the buildings",
+    reason: "an aircraft attack on buildings",
+  },
+];
+
 export function checkContentPolicy(text: string): PolicyHit {
   const forms = [plain(text), deLeet(text)].filter(Boolean);
   if (forms.length === 0) return { blocked: false };
@@ -102,6 +142,20 @@ export function checkContentPolicy(text: string): PolicyHit {
       blocked: true,
       reason: "a recreation of an aircraft attack on towers",
     };
+  }
+
+  for (const c of CONFIRM) {
+    if (forms.some((f) => c.re.test(f))) {
+      return {
+        blocked: false,
+        confirm: {
+          question: c.question,
+          safe: c.safe,
+          unsafe: c.unsafe,
+          reason: c.reason,
+        },
+      };
+    }
   }
 
   return { blocked: false };

@@ -40,6 +40,30 @@ describe("content policy", () => {
     }
   });
 
+  it("asks instead of guessing on ambiguous builds", () => {
+    for (const text of [
+      "Make two towers on the side of eachother",
+      "build two tall towers side by side",
+      "make a pair of identical skyscrapers",
+      "add a plane flying toward the buildings",
+    ]) {
+      const hit = checkContentPolicy(text);
+      assert.equal(hit.blocked, false, text);
+      assert.ok(!hit.blocked && hit.confirm, `should ask: ${text}`);
+    }
+  });
+
+  it("does not interrogate ordinary builds", () => {
+    for (const text of [
+      "build a skyscraper district",
+      "make a zombie survival map",
+      "add a tower defence base",
+    ]) {
+      const hit = checkContentPolicy(text);
+      assert.ok(!hit.blocked && !hit.confirm, `should not ask: ${text}`);
+    }
+  });
+
   it("catches simple obfuscation", () => {
     assert.equal(checkContentPolicy("make the tw1n t0wers").blocked, true);
     assert.equal(checkContentPolicy("build   TWIN   TOWERS!!").blocked, true);

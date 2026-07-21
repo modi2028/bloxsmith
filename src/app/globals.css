@@ -340,6 +340,26 @@ body {
   }
 }
 
+/* Top-right toast: slides in from off-screen right. */
+.toast-in {
+  animation: toast-in 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-in {
+    animation: none;
+  }
+}
+
 /* Radial dot-wave while an image renders. Each dot carries its own delay
    (set inline from its distance to the centre), so the pulse radiates as a
    ring rather than blinking all at once. */

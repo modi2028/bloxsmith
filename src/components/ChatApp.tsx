@@ -23,6 +23,7 @@ import { ImageLoader } from "./ImageLoader";
 import { ShowcaseButton } from "./ShowcaseButton";
 import { TemplatePicker } from "./TemplatePicker";
 import { Thinking } from "./Thinking";
+import { Toast } from "./Toast";
 
 const SUGGESTIONS = [
   "Make a combat system",
@@ -233,6 +234,11 @@ export function ChatApp({
     message: string;
     action?: { label: string; href: string };
   } | null>(null);
+  /** Same event, corner toast — the notice can be scrolled past. */
+  const [toast, setToast] = useState<{
+    message: string;
+    autoHideMs?: number;
+  } | null>(null);
 
   // "Revert this build" — id of the run currently being undone in Studio.
   const [reverting, setReverting] = useState<string | null>(null);
@@ -417,6 +423,8 @@ export function ChatApp({
         // the transcript — it's about what they can do next.
         if (event.restricted) {
           setNotice({ message: event.message });
+          // A pause is easy to miss at the bottom of a long thread.
+          setToast({ message: event.message });
           setMessages((prev) => prev.slice(0, -2));
           setQueue([]);
           return;
@@ -714,6 +722,7 @@ export function ChatApp({
                 ? { action: { label: "Upgrade your plan", href: "/store" } }
                 : {}),
             });
+            setToast({ message: detail, autoHideMs: 9000 });
             return;
           }
           // A leftover background run is holding the slot — offer a way out.
@@ -794,6 +803,14 @@ export function ChatApp({
     <CreditIsland amount={island.amount} leaving={island.leaving} />
   );
 
+  const toastNode = toast && (
+    <Toast
+      message={toast.message}
+      autoHideMs={toast.autoHideMs}
+      onClose={() => setToast(null)}
+    />
+  );
+
   const pluginModalNode = (
     <Modal open={showPluginModal} onClose={() => setShowPluginModal(false)}>
       <div className="flex flex-col items-center text-center">
@@ -828,6 +845,7 @@ export function ChatApp({
     return (
       <section className="relative flex flex-1 flex-col items-center justify-center px-4 pb-24">
         {islandNode}
+        {toastNode}
         {pluginModalNode}
         {pendingTitle && (
           <span className="fade-up mb-3 rounded-full border border-ember/40 bg-ember-soft px-3 py-1 text-xs text-ember">

@@ -181,8 +181,47 @@ export async function runAgentTurn(params: {
 
   const staffUnrestricted =
     isAdminRole(user.role) && params.effort === "unrestricted";
+  /** Set when the user confirms an ambiguous build is the innocent one. */
+  let confirmedIntent: string | null = null;
   if (!staffUnrestricted) {
     const hit = checkContentPolicy(params.message);
+
+    // Ambiguous: ask rather than guess. Blocking would break ordinary city
+    // builds; allowing would let the reworded request through.
+    if (!hit.blocked && hit.confirm) {
+      const { clarificationId, promise } = waitForClarification({
+        userId: user.id,
+        signal,
+      });
+      await onEvent({
+        type: "clarify",
+        id: clarificationId,
+        question: hit.confirm.question,
+        options: [hit.confirm.safe, hit.confirm.unsafe],
+      });
+      const answer = await promise;
+      throwIfStopped();
+      // No answer is not consent — treat silence as a stop, not a yes.
+      if (!answer || answer === hit.confirm.unsafe) {
+        if (answer === hit.confirm.unsafe) {
+          await recordPolicyStrike({
+            userId: user.id,
+            sessionId: params.chatSessionId,
+            excerpt: params.message,
+            now: policyNow,
+          }).catch(() => ({ restrictedUntil: null }));
+        }
+        await onEvent({
+          type: "error",
+          message: answer
+            ? policyRefusalMessage(hit.confirm.reason)
+            : "I'll leave that one — pick an option next time and I'll get started.",
+        });
+        return;
+      }
+      confirmedIntent = answer;
+    }
+
     if (hit.blocked) {
       const { restrictedUntil } = await recordPolicyStrike({
         userId: user.id,
@@ -292,6 +331,7 @@ export async function runAgentTurn(params: {
       auditMode: params.audit === true && hasPlan(user, "pro", new Date()),
       explainMode: params.explain === true,
       unrestricted,
+      confirmedIntent,
     });
     // Thinking spend follows the user's toggle — OFF means off, on every
     // effort tier. (Max used to force it on; users read that as a bug.)
