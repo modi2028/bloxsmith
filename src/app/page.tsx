@@ -449,6 +449,7 @@ export default async function Home({
             tagline={BRAND.tagline}
             models={models}
             usagePct={user ? usagePct : null}
+            canAudit={PLAN_RANK[planTier] >= PLAN_RANK.pro}
             pluginConnected={pluginConnected}
             initialSessionId={initialSessionId}
             initialMessages={initialMessages}

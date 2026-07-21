@@ -1,13 +1,23 @@
 import { eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ReferralCard } from "@/components/ReferralCard";
 import { BRAND } from "@/lib/brand";
-import { TOKEN_LIMITS_5H, WEEKLY_MULTIPLIER } from "@/lib/model-catalog";
+import {
+  MODEL_CATALOG,
+  TOKEN_LIMITS_5H,
+  WEEKLY_MULTIPLIER,
+} from "@/lib/model-catalog";
 import { getSessionUser } from "@/server/auth/session";
 import { db, schema } from "@/server/db";
-import { tokenWindowUsage } from "@/server/token-usage";
+import { tokenWindowUsage, usageInsights } from "@/server/token-usage";
 
 export const metadata = { title: "Usage" };
+
+/** modelId -> display name, so charts show "Sol" not "glm-5". */
+const MODEL_NAMES: Record<string, string> = Object.fromEntries(
+  MODEL_CATALOG.map((m) => [m.modelId, m.displayName]),
+);
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -77,8 +87,13 @@ export default async function UsagePage() {
     | "pro"
     | "max";
 
-  const usage = await tokenWindowUsage(user.id, plan, new Date());
+  const now = new Date();
+  const [usage, insights] = await Promise.all([
+    tokenWindowUsage(user.id, plan, now),
+    usageInsights(user.id, now),
+  ]);
   const planName = plan === "max" ? "Max" : plan === "pro" ? "Pro" : "Free";
+  const peak = Math.max(0, ...insights.daily.map((d) => d.tokens));
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-6 py-10">
@@ -120,13 +135,111 @@ export default async function UsagePage() {
         />
       </div>
 
-      <div className="mt-6 rounded-2xl border border-line bg-surface-raised p-5 text-xs leading-relaxed text-muted">
+      {/* Last 14 days */}
+      <section className="mt-8">
+        <h2 className="text-sm font-medium">Last 14 days</h2>
+        {peak === 0 ? (
+          <p className="mt-2 text-xs text-muted">
+            No builds yet — your usage will show up here.
+          </p>
+        ) : (
+          <div className="mt-3 rounded-2xl border border-line bg-surface-raised p-5">
+            <div className="flex h-28 items-end gap-1.5">
+              {insights.daily.map((d) => (
+                <div
+                  key={d.day}
+                  className="group relative flex flex-1 flex-col justify-end"
+                  title={`${d.day}: ${fmt(d.tokens)} tokens`}
+                >
+                  <div
+                    className={`w-full rounded-t ${d.tokens > 0 ? "bg-ember" : "bg-line-strong"}`}
+                    style={{
+                      height: `${Math.max(d.tokens > 0 ? 6 : 2, (d.tokens / peak) * 100)}%`,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 flex justify-between text-[10px] text-faint">
+              <span>{insights.daily[0]?.day.slice(5)}</span>
+              <span>Today</span>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Where the tokens went */}
+      {insights.byModel.length > 0 && (
+        <section className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-line bg-surface-raised p-5">
+            <h2 className="text-sm font-medium">By model, last 7 days</h2>
+            <div className="mt-3 flex flex-col gap-2.5">
+              {insights.byModel.map((m) => {
+                const top = insights.byModel[0]!.tokens || 1;
+                return (
+                  <div key={m.modelId}>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-foreground">
+                        {MODEL_NAMES[m.modelId] ?? m.modelId}
+                      </span>
+                      <span className="text-faint">
+                        {fmt(m.tokens)} · {m.runs} build
+                        {m.runs === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-line-strong">
+                      <div
+                        className="h-full rounded-full bg-ember"
+                        style={{ width: `${(m.tokens / top) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-line bg-surface-raised p-5">
+            <h2 className="text-sm font-medium">Heaviest builds</h2>
+            {insights.topRuns.length === 0 ? (
+              <p className="mt-2 text-xs text-muted">Nothing yet.</p>
+            ) : (
+              <ul className="mt-3 flex flex-col gap-2">
+                {insights.topRuns.map((r) => (
+                  <li key={r.id}>
+                    <Link
+                      href={`/?project=${r.sessionId}`}
+                      className="flex items-center justify-between gap-3 text-xs transition hover:text-foreground"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-muted">
+                        {r.title ?? "Untitled project"}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-ember">
+                        {fmt(r.tokens)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Referrals */}
+      <section className="mt-8">
+        <ReferralCard />
+      </section>
+
+      <div className="mt-8 rounded-2xl border border-line bg-surface-raised p-5 text-xs leading-relaxed text-muted">
         <p>
           Per plan: Free {fmt(TOKEN_LIMITS_5H.free)}, Pro{" "}
           {fmt(TOKEN_LIMITS_5H.pro)}, Max {fmt(TOKEN_LIMITS_5H.max)} tokens per
           5-hour window. Higher effort and bigger tasks use tokens faster.
           When a limit is full, new builds pause until usage rolls out of the
           window; a build already running always finishes.
+          {usage.referralPct > 0 &&
+            ` Your referral bonus adds +${usage.referralPct}% to both limits.`}
         </p>
         {plan !== "max" && (
           <Link

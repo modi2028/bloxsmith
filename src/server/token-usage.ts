@@ -50,6 +50,8 @@ export async function tokenWindowUsage(
   pct: number;
   /** Daily-reward allowance boost in effect (+5%, +10% on day 7; 0 = none). */
   bonusPct: number;
+  /** Permanent boost earned from referrals. */
+  referralPct: number;
   weeklyUsed: number;
   weeklyLimit: number;
   weeklyPct: number;
@@ -62,12 +64,19 @@ export async function tokenWindowUsage(
   // that UTC day (+5%, +10% on streak day 7). The weekly cap is unaffected.
   const rewardRow = await db.query.users.findFirst({
     where: eq(schema.users.id, userId),
-    columns: { rewardStreak: true, rewardLastClaimDay: true },
+    columns: {
+      rewardStreak: true,
+      rewardLastClaimDay: true,
+      referralBonusPct: true,
+    },
   });
   const bonusPct = rewardRow ? activeRewardBoostPct(rewardRow, now) : 0;
+  // Referral boost is permanent and applies to BOTH windows.
+  const referralPct = rewardRow?.referralBonusPct ?? 0;
 
-  const limit = Math.round(TOKEN_LIMITS_5H[plan] * (1 + bonusPct / 100));
-  const weeklyLimit = TOKEN_LIMITS_5H[plan] * WEEKLY_MULTIPLIER;
+  const base = TOKEN_LIMITS_5H[plan] * (1 + referralPct / 100);
+  const limit = Math.round(base * (1 + bonusPct / 100));
+  const weeklyLimit = Math.round(base * WEEKLY_MULTIPLIER);
   const [win, week] = await Promise.all([
     windowStats(userId, new Date(now.getTime() - FIVE_HOURS_MS)),
     windowStats(userId, new Date(now.getTime() - WEEK_MS)),
@@ -77,6 +86,7 @@ export async function tokenWindowUsage(
     limit,
     pct: Math.min(100, Math.round((win.total / limit) * 100)),
     bonusPct,
+    referralPct,
     weeklyUsed: week.total,
     weeklyLimit,
     weeklyPct: Math.min(100, Math.round((week.total / weeklyLimit) * 100)),
@@ -86,6 +96,113 @@ export async function tokenWindowUsage(
     weeklyResetsAt: week.oldest
       ? new Date(week.oldest.getTime() + WEEK_MS)
       : null,
+  };
+}
+
+export type UsageInsights = {
+  /** Last 14 days of token totals, oldest first (gaps filled with 0). */
+  daily: { day: string; tokens: number }[];
+  /** Token totals per model over the last 7 days, biggest first. */
+  byModel: { modelId: string; tokens: number; runs: number }[];
+  /** The heaviest individual builds in the last 7 days. */
+  topRuns: {
+    id: string;
+    sessionId: string;
+    title: string | null;
+    modelId: string;
+    tokens: number;
+    createdAt: string;
+  }[];
+};
+
+/** Charts for the Usage page — makes the meter legible instead of magic. */
+export async function usageInsights(
+  userId: string,
+  now: Date,
+): Promise<UsageInsights> {
+  const since14 = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const since7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const tokenSum = sql<number>`coalesce(sum(${schema.aiRequests.inputTokens} + ${schema.aiRequests.outputTokens}), 0)::float8`;
+
+  const [dailyRows, modelRows, topRows] = await Promise.all([
+    db
+      .select({
+        day: sql<string>`to_char(date_trunc('day', ${schema.aiRequests.createdAt}), 'YYYY-MM-DD')`,
+        tokens: tokenSum,
+      })
+      .from(schema.aiRequests)
+      .where(
+        and(
+          eq(schema.aiRequests.userId, userId),
+          gte(schema.aiRequests.createdAt, since14),
+        ),
+      )
+      .groupBy(sql`date_trunc('day', ${schema.aiRequests.createdAt})`),
+    db
+      .select({
+        modelId: schema.aiRequests.modelId,
+        tokens: tokenSum,
+        runs: sql<number>`count(*)::int`,
+      })
+      .from(schema.aiRequests)
+      .where(
+        and(
+          eq(schema.aiRequests.userId, userId),
+          gte(schema.aiRequests.createdAt, since7),
+        ),
+      )
+      .groupBy(schema.aiRequests.modelId),
+    db
+      .select({
+        id: schema.aiRequests.id,
+        sessionId: schema.aiRequests.sessionId,
+        title: schema.chatSessions.title,
+        modelId: schema.aiRequests.modelId,
+        tokens: sql<number>`(${schema.aiRequests.inputTokens} + ${schema.aiRequests.outputTokens})::float8`,
+        createdAt: schema.aiRequests.createdAt,
+      })
+      .from(schema.aiRequests)
+      .leftJoin(
+        schema.chatSessions,
+        eq(schema.chatSessions.id, schema.aiRequests.sessionId),
+      )
+      .where(
+        and(
+          eq(schema.aiRequests.userId, userId),
+          gte(schema.aiRequests.createdAt, since7),
+        ),
+      )
+      .orderBy(
+        sql`(${schema.aiRequests.inputTokens} + ${schema.aiRequests.outputTokens}) desc`,
+      )
+      .limit(5),
+  ]);
+
+  // Fill the 14-day series so the chart has no holes.
+  const byDay = new Map(dailyRows.map((r) => [r.day, r.tokens]));
+  const daily: { day: string; tokens: number }[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    daily.push({ day: d, tokens: byDay.get(d) ?? 0 });
+  }
+
+  return {
+    daily,
+    byModel: modelRows
+      .filter((m) => m.tokens > 0)
+      .sort((a, b) => b.tokens - a.tokens),
+    topRuns: topRows
+      .filter((r) => r.tokens > 0)
+      .map((r) => ({
+        id: r.id,
+        sessionId: r.sessionId,
+        title: r.title,
+        modelId: r.modelId,
+        tokens: r.tokens,
+        createdAt: r.createdAt.toISOString(),
+      })),
   };
 }
 

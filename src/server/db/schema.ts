@@ -103,6 +103,11 @@ export const users = pgTable(
     // of the last claim. Missing a day resets the streak.
     rewardStreak: integer("reward_streak").notNull().default(0),
     rewardLastClaimDay: text("reward_last_claim_day"),
+    // Referrals: this user's shareable code, who referred them (set once),
+    // and the PERMANENT allowance boost earned from referrals (capped).
+    referralCode: text("referral_code").unique(),
+    referredBy: uuid("referred_by"),
+    referralBonusPct: integer("referral_bonus_pct").notNull().default(0),
     disabled: boolean("disabled").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -519,6 +524,10 @@ export const aiRequests = pgTable(
       .notNull()
       .default(0),
     toolCallCount: integer("tool_call_count").notNull().default(0),
+    // Studio undo waypoints this run produced — powers one-click "revert
+    // this whole build" (the plugin calls ChangeHistoryService:Undo() N x).
+    undoSteps: integer("undo_steps").notNull().default(0),
+    revertedAt: timestamp("reverted_at", { withTimezone: true }),
     error: text("error"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

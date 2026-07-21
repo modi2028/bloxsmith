@@ -141,6 +141,11 @@ export const toolArgSchemas = {
       timeoutMs: z.number().int().min(100).max(10_000).optional(),
     })
     .strict(),
+  // User-initiated only (the "Revert this build" button) — never offered to
+  // the model. Undoes `steps` Studio history waypoints.
+  revert_build: z
+    .object({ steps: z.number().int().min(1).max(200) })
+    .strict(),
 } as const;
 
 export type ToolName = keyof typeof toolArgSchemas;

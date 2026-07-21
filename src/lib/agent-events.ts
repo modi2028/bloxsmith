@@ -23,6 +23,9 @@ export type AgentEvent =
       outputTokens: number;
       /** Percent (0-100) of the rolling 5-hour token allowance now used. */
       windowUsedPct?: number;
+      /** This run's id + undo waypoints — powers "Revert this build". */
+      aiRequestId?: string;
+      undoSteps?: number;
     }
   | {
       type: "stopped";

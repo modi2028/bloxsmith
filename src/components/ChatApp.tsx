@@ -16,6 +16,7 @@ import { Markdown } from "./Markdown";
 import { Modal } from "./Modal";
 import type { ChatModel } from "./ModelPicker";
 import { PENDING_TITLE_KEY } from "./NewProjectButton";
+import { TemplatePicker } from "./TemplatePicker";
 
 const SUGGESTIONS = [
   "Make a combat system",
@@ -30,6 +31,10 @@ const THINKING_STORAGE_KEY = "bloxsmith-show-thinking";
 /** Sent when the user presses "Continue building" after an interrupted run. */
 const CONTINUE_PROMPT =
   "Continue from where you left off and finish the remaining work.";
+
+/** Sent by the "Fix my game" button — the server adds the audit rules. */
+const AUDIT_PROMPT =
+  "Audit my place: find broken scripts, exploitable remotes, missing debounces and nil-guards, loops that never yield, deprecated APIs, and unanchored static geometry. Fix what is safe to fix and report the rest.";
 
 /** 1234 -> "1.2k", 2500000 -> "2.5M" — for the live token counter. */
 function formatTokens(n: number): string {
@@ -110,6 +115,7 @@ export function ChatApp({
   tagline,
   models,
   usagePct: initialUsagePct,
+  canAudit = false,
   pluginConnected = null,
   initialSessionId,
   initialMessages,
@@ -121,6 +127,8 @@ export function ChatApp({
   models: ChatModel[];
   /** Percent of the rolling 5-hour allowance used (null = signed out). */
   usagePct?: number | null;
+  /** Pro and above unlock the "Fix my game" audit run. */
+  canAudit?: boolean;
   /** Studio plugin connection at render time (null = unknown/signed out). */
   pluginConnected?: boolean | null;
   initialSessionId?: string;
@@ -202,6 +210,43 @@ export function ChatApp({
     setThinkingPref(v);
     localStorage.setItem(THINKING_STORAGE_KEY, v ? "1" : "0");
   };
+
+  // "Revert this build" — id of the run currently being undone in Studio.
+  const [reverting, setReverting] = useState<string | null>(null);
+
+  const revertBuild = useCallback(async (aiRequestId: string, index: number) => {
+    if (
+      !window.confirm(
+        "Undo everything this build changed in Studio? Anything you edited yourself since then may be undone too.",
+      )
+    )
+      return;
+    setReverting(aiRequestId);
+    try {
+      const res = await fetch("/api/chat/revert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiRequestId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        window.alert(data.error ?? "Could not revert that build.");
+        return;
+      }
+      setMessages((prev) => {
+        const next = [...prev];
+        const target = next[index];
+        if (target?.kind === "assistant") {
+          next[index] = { ...target, reverted: true };
+        }
+        return next;
+      });
+    } catch {
+      window.alert("Could not reach the server — try again.");
+    } finally {
+      setReverting(null);
+    }
+  }, []);
 
   // Live token usage for the current run + the 5-hour-window readout.
   const [liveUsage, setLiveUsage] = useState<{
@@ -372,6 +417,8 @@ export function ChatApp({
               creditsCharged: event.creditsCharged,
               tokensUsed: event.inputTokens + event.outputTokens,
               windowPct: event.windowUsedPct,
+              aiRequestId: event.aiRequestId,
+              undoSteps: event.undoSteps,
             };
             return next;
         }
@@ -421,7 +468,7 @@ export function ChatApp({
   }, []);
 
   const send = useCallback(
-    async (text: string, files: File[] = []) => {
+    async (text: string, files: File[] = [], opts?: { audit?: boolean }) => {
       if (!signedIn) {
         window.location.href = "/api/auth/roblox/login";
         return;
@@ -477,6 +524,7 @@ export function ChatApp({
             modelId,
             effort,
             thinking: thinkingPref,
+            ...(opts?.audit ? { audit: true } : {}),
             title: titleForNew,
             ...(images.length ? { images } : {}),
           }),
@@ -648,6 +696,43 @@ export function ChatApp({
             Drag &amp; drop, paste, or attach reference images
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            <TemplatePicker onPick={(p) => setSeedText(p)} />
+            {canAudit ? (
+              <button
+                type="button"
+                onClick={() => void send(AUDIT_PROMPT, [], { audit: true })}
+                title="Scan your place for broken scripts, exploitable remotes and other issues"
+                className="glass-chip flex items-center gap-1.5 rounded-full border border-emerald-500/40 px-3 py-1.5 text-xs text-emerald-300 transition hover:border-emerald-400/70"
+              >
+                <svg viewBox="0 0 20 20" fill="none" className="size-3.5">
+                  <path
+                    d="M10 2.5 16.5 5v5c0 3.4-2.6 6.5-6.5 7.5C6.1 16.5 3.5 13.4 3.5 10V5L10 2.5Z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="m7.5 9.8 1.8 1.8 3.4-3.6"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Fix my game
+              </button>
+            ) : (
+              <a
+                href="/store"
+                title="Pro and Max can scan your place for bugs and exploits"
+                className="glass-chip flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs text-faint transition hover:border-ember/50 hover:text-ember"
+              >
+                Fix my game
+                <span className="rounded-full border border-ember/50 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide text-ember">
+                  Pro
+                </span>
+              </a>
+            )}
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
@@ -890,10 +975,31 @@ export function ChatApp({
                 {!busy &&
                   i === messages.length - 1 &&
                   msg.tokensUsed != null && (
-                    <div className="text-xs text-faint">
-                      {formatTokens(msg.tokensUsed)} tokens used
-                      {msg.windowPct != null &&
-                        ` · ${msg.windowPct}% of your 5-hour limit`}
+                    <div className="flex flex-wrap items-center gap-2.5 text-xs text-faint">
+                      <span>
+                        {formatTokens(msg.tokensUsed)} tokens used
+                        {msg.windowPct != null &&
+                          ` · ${msg.windowPct}% of your 5-hour limit`}
+                      </span>
+                      {msg.aiRequestId &&
+                        (msg.undoSteps ?? 0) > 0 &&
+                        (msg.reverted ? (
+                          <span className="text-emerald-400">
+                            ✓ Build reverted
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={reverting === msg.aiRequestId}
+                            onClick={() => void revertBuild(msg.aiRequestId!, i)}
+                            title={`Undo all ${msg.undoSteps} changes this build made in Studio`}
+                            className="rounded border border-line px-2 py-0.5 transition hover:border-red-500/60 hover:text-red-300 disabled:opacity-40"
+                          >
+                            {reverting === msg.aiRequestId
+                              ? "Reverting…"
+                              : "Revert this build"}
+                          </button>
+                        ))}
                     </div>
                   )}
               </div>

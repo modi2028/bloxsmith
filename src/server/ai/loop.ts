@@ -66,6 +66,8 @@ export async function runAgentTurn(params: {
   effort?: EffortId;
   /** Extended-thinking spend toggle (default on). Max effort forces it on. */
   thinking?: boolean;
+  /** "Fix my game" audit run (Pro and above). */
+  audit?: boolean;
   title?: string;
   /** Reference images attached to this message (base64, no data: prefix). */
   images?: { mediaType: string; data: string }[];
@@ -212,6 +214,8 @@ export async function runAgentTurn(params: {
   let inputTokens = 0;
   let outputTokens = 0;
   let toolCallCount = 0;
+  /** Studio undo waypoints this run created — powers one-click revert. */
+  let undoSteps = 0;
 
   try {
     // --- Assemble context ---------------------------------------------------
@@ -224,6 +228,8 @@ export async function runAgentTurn(params: {
       assetTools,
       webSearch,
       effort,
+      // Audit is a paid feature; a free plan silently gets a normal run.
+      auditMode: params.audit === true && hasPlan(user, "pro", new Date()),
     });
     // Thinking spend follows the user's toggle — OFF means off, on every
     // effort tier. (Max used to force it on; users read that as a bug.)
@@ -612,6 +618,9 @@ export async function runAgentTurn(params: {
         });
 
         const result = await awaitToolResult(db, toolCallId, { signal });
+        // Each SUCCESSFUL mutating call commits one Studio undo waypoint —
+        // that count is what "Revert this build" rewinds.
+        if (result.ok && MUTATING_TOOLS.has(toolUse.name)) undoSteps++;
         if (result.ok) {
           resultBlocks.push(
             toolResultBlock(toolUse.id, JSON.stringify(result.value ?? {}), false),
@@ -688,6 +697,7 @@ export async function runAgentTurn(params: {
         outputTokens,
         creditsCharged: charged,
         toolCallCount,
+        undoSteps,
         completedAt: new Date(),
       })
       .where(eq(schema.aiRequests.id, aiRequest.id));
@@ -708,6 +718,8 @@ export async function runAgentTurn(params: {
       inputTokens,
       outputTokens,
       windowUsedPct,
+      aiRequestId: aiRequest.id,
+      undoSteps,
     });
   } catch (err) {
     // User pressed Stop (or disconnected): record usage so far and cancel

@@ -36,6 +36,10 @@ export type UiMessage =
       tokensUsed?: number;
       /** 5-hour-window percentage AT THE TIME this run finished. */
       windowPct?: number;
+      /** This run's id + undo waypoints — powers "Revert this build". */
+      aiRequestId?: string;
+      undoSteps?: number;
+      reverted?: boolean;
       /** Live model reasoning (viewable via the Thinking… toggle). */
       thinking?: string;
     };

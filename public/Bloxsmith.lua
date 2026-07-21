@@ -553,6 +553,36 @@ handlers.insert_asset = function(args)
 	}
 end
 
+-- Revert a whole build: every mutating tool above commits exactly one undo
+-- waypoint, so undoing N of them rolls the session back in one click. This is
+-- never offered to the model — only the user's "Revert this build" button
+-- enqueues it. Undo is Studio's own history, so anything it cannot undo it
+-- simply skips.
+handlers.revert_build = function(args)
+	local want = tonumber(args.steps) or 0
+	if want <= 0 then
+		toolError("invalid_args", "steps must be a positive number")
+	end
+	-- Hard ceiling: never chew through more history than one big session.
+	want = math.min(want, 200)
+
+	local undone = 0
+	for _ = 1, want do
+		if not ChangeHistoryService:IsUndoDisabled() then
+			local ok = pcall(function()
+				ChangeHistoryService:Undo()
+			end)
+			if not ok then
+				break
+			end
+			undone += 1
+		else
+			break
+		end
+	end
+	return { undone = undone, requested = want }
+end
+
 -- NOTE: an arbitrary-Luau execution tool (loadstring) was intentionally
 -- removed. Executing remotely-fetched code is a plugin-policy violation
 -- ("Misusing Roblox Systems") and indistinguishable from a backdoor. All
