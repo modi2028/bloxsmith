@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { BRAND } from "@/lib/brand";
-import { MAX_PLAN, PRO_PLAN, TOKEN_LIMITS_5H } from "@/lib/model-catalog";
+import {
+  MAX_PLAN,
+  PRO_PLAN,
+  TOKEN_LIMITS_5H,
+  TOKEN_LIMITS_WEEK,
+  formatTokenLimit,
+} from "@/lib/model-catalog";
 import {
   AnthropicWordmark,
   GeminiMark,
@@ -165,7 +171,7 @@ const FAQS = [
   },
   {
     q: "What does it cost?",
-    a: "Free to start, with a build allowance that refills every 5 hours. Pro is $19.99/month with 20x the allowance plus Sol, and Max is $49.99/month with 50x the allowance plus Titan.",
+    a: "Free to start, with a small build allowance that refills every 5 hours, enough to try it out. Pro is $19.99/month with 40x that allowance plus Sol, and Max is $49.99/month with 200x it plus Titan.",
   },
   {
     q: "How does it connect to Roblox Studio?",
@@ -523,9 +529,9 @@ export function Landing({
                 <ul className="mt-5 flex flex-col gap-2.5 text-sm text-muted">
                   {[
                     "Luna and Vega models",
-                    `${TOKEN_LIMITS_5H.free / 1000}k tokens every 5 hours`,
+                    `${formatTokenLimit(TOKEN_LIMITS_5H.free)} tokens every 5 hours`,
+                    `${formatTokenLimit(TOKEN_LIMITS_WEEK.free)} tokens per week`,
                     "Full Studio plugin and live building",
-                    "Daily login rewards",
                   ].map((t) => (
                     <li key={t} className="flex items-start gap-2.5">
                       <IconCheck className="mt-0.5 size-4 shrink-0 text-ember" />
@@ -554,8 +560,8 @@ export function Landing({
                   {[
                     "Everything in Free, plus Sol",
                     "Insert real Creator Store models",
-                    `${TOKEN_LIMITS_5H.pro / 1_000_000}M tokens every 5 hours`,
-                    "Priority on new models",
+                    `${formatTokenLimit(TOKEN_LIMITS_5H.pro)} tokens every 5 hours`,
+                    `${formatTokenLimit(TOKEN_LIMITS_WEEK.pro)} tokens per week`,
                   ].map((t) => (
                     <li key={t} className="flex items-start gap-2.5">
                       <IconCheck className="mt-0.5 size-4 shrink-0 text-ember" />
@@ -584,8 +590,8 @@ export function Landing({
                   {[
                     "Everything in Pro, plus Titan the flagship",
                     "Deep thinking and web search",
-                    `${TOKEN_LIMITS_5H.max / 1_000_000}M tokens every 5 hours`,
-                    "First access to every new model and tool",
+                    `${formatTokenLimit(TOKEN_LIMITS_5H.max)} tokens every 5 hours`,
+                    `${formatTokenLimit(TOKEN_LIMITS_WEEK.max)} tokens per week`,
                   ].map((t) => (
                     <li key={t} className="flex items-start gap-2.5">
                       <IconCheck className="mt-0.5 size-4 shrink-0 text-ember" />

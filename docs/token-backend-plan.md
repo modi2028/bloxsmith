@@ -23,14 +23,16 @@ over a **rolling 5-hour window**, plus a **weekly cap**. Usage is metered on
 real tokens (input + output, which includes thinking — exactly what
 `ai_requests.input_tokens/output_tokens` already record per run).
 
-| Plan | Per 5 rolling hours | Per week (5h x 4) |
-| ---- | ------------------- | ----------------- |
-| Free | 250k tokens         | 1M tokens         |
-| Pro  | 1M tokens           | 4M tokens         |
-| Max  | 2.5M tokens         | 10M tokens        |
+| Plan | Per 5 rolling hours | Per week |
+| ---- | ------------------- | -------- |
+| Free | 5k tokens           | 25k tokens   |
+| Pro  | 200k tokens         | 750k tokens  |
+| Max  | 1M tokens           | 5M tokens    |
 
-These constants already exist in code: `TOKEN_LIMITS_5H` and
-`WEEKLY_MULTIPLIER` in `src/lib/model-catalog.ts`.
+The two windows are set INDEPENDENTLY (weekly is not a fixed multiple), so
+both live in code as `TOKEN_LIMITS_5H` and `TOKEN_LIMITS_WEEK` in
+`src/lib/model-catalog.ts`, and every display reads them through
+`formatTokenLimit`.
 
 Token spend naturally scales with model, effort, and task size — a Titan Max
 session burns the allowance far faster than a Luna Low tweak, which replaces

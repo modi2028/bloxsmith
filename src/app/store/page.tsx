@@ -3,15 +3,25 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PlanCards, RedeemBox, type StorePlan } from "@/components/StoreClient";
 import { BRAND } from "@/lib/brand";
-import { MAX_PLAN, PRO_PLAN, TOKEN_LIMITS_5H } from "@/lib/model-catalog";
+import {
+  MAX_PLAN,
+  PRO_PLAN,
+  TOKEN_LIMITS_5H,
+  TOKEN_LIMITS_WEEK,
+  formatTokenLimit,
+} from "@/lib/model-catalog";
 import { getSessionUser } from "@/server/auth/session";
 import { db, schema } from "@/server/db";
 import { isStripeConfigured } from "@/server/stripe/client";
 
 export const metadata = { title: "Store" };
 
-function fmtAllowance(n: number): string {
-  return n >= 1_000_000 ? `${n / 1_000_000}M` : `${Math.round(n / 1000)}k`;
+/** "5k per 5 hours · 25k per week" — both windows, from the constants. */
+function allowanceLines(tier: "free" | "pro" | "max"): string[] {
+  return [
+    `${formatTokenLimit(TOKEN_LIMITS_5H[tier])} tokens per 5 hours`,
+    `${formatTokenLimit(TOKEN_LIMITS_WEEK[tier])} tokens per week`,
+  ];
 }
 
 export default async function StorePage({
@@ -59,7 +69,7 @@ export default async function StorePage({
       tagline: "Everything you need to start building",
       perks: [
         "Luna and Vega models",
-        `${fmtAllowance(TOKEN_LIMITS_5H.free)} tokens per 5 hours`,
+        ...allowanceLines("free"),
         "Live building in your Studio",
         "Daily login rewards",
       ],
@@ -73,7 +83,7 @@ export default async function StorePage({
       perks: [
         "Everything in Free, plus Sol",
         "Insert real Creator Store models",
-        `${fmtAllowance(TOKEN_LIMITS_5H.pro)} tokens per 5 hours`,
+        ...allowanceLines("pro"),
         "Priority on new models",
       ],
       purchasable: proConfigured,
@@ -86,7 +96,7 @@ export default async function StorePage({
       perks: [
         "Everything in Pro, plus Titan — the flagship",
         "Deep thinking and web search",
-        `${fmtAllowance(TOKEN_LIMITS_5H.max)} tokens per 5 hours`,
+        ...allowanceLines("max"),
         "First access to every new model and tool",
       ],
       purchasable: maxConfigured,

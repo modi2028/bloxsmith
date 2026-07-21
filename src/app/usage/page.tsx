@@ -6,7 +6,8 @@ import { BRAND } from "@/lib/brand";
 import {
   MODEL_CATALOG,
   TOKEN_LIMITS_5H,
-  WEEKLY_MULTIPLIER,
+  TOKEN_LIMITS_WEEK,
+  formatTokenLimit,
 } from "@/lib/model-catalog";
 import { getSessionUser } from "@/server/auth/session";
 import { db, schema } from "@/server/db";
@@ -128,7 +129,7 @@ export default async function UsagePage() {
         />
         <UsageBar
           label="Weekly limit"
-          sub={`${WEEKLY_MULTIPLIER}x your 5-hour allowance, over the last 7 days`}
+          sub="Your total across the last 7 days"
           used={usage.weeklyUsed}
           limit={usage.weeklyLimit}
           pct={usage.weeklyPct}
@@ -233,11 +234,16 @@ export default async function UsagePage() {
 
       <div className="mt-8 rounded-2xl border border-line bg-surface-raised p-5 text-xs leading-relaxed text-muted">
         <p>
-          Per plan: Free {fmt(TOKEN_LIMITS_5H.free)}, Pro{" "}
-          {fmt(TOKEN_LIMITS_5H.pro)}, Max {fmt(TOKEN_LIMITS_5H.max)} tokens per
-          5-hour window. Higher effort and bigger tasks use tokens faster.
-          When a limit is full, new builds pause until usage rolls out of the
-          window; a build already running always finishes.
+          Per plan, tokens per 5 hours and per week: Free{" "}
+          {formatTokenLimit(TOKEN_LIMITS_5H.free)} /{" "}
+          {formatTokenLimit(TOKEN_LIMITS_WEEK.free)}, Pro{" "}
+          {formatTokenLimit(TOKEN_LIMITS_5H.pro)} /{" "}
+          {formatTokenLimit(TOKEN_LIMITS_WEEK.pro)}, Max{" "}
+          {formatTokenLimit(TOKEN_LIMITS_5H.max)} /{" "}
+          {formatTokenLimit(TOKEN_LIMITS_WEEK.max)}. Higher effort and bigger
+          tasks use tokens faster. When a limit is full, new builds pause
+          until usage rolls out of the window; a build already running always
+          finishes.
           {usage.referralPct > 0 &&
             ` Your referral bonus adds +${usage.referralPct}% to both limits.`}
         </p>

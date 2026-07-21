@@ -3,7 +3,7 @@ import { and, eq, gte, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import {
   TOKEN_LIMITS_5H,
-  WEEKLY_MULTIPLIER,
+  TOKEN_LIMITS_WEEK,
   type PlanTier,
 } from "@/lib/model-catalog";
 import { activeRewardBoostPct } from "@/server/rewards";
@@ -74,9 +74,13 @@ export async function tokenWindowUsage(
   // Referral boost is permanent and applies to BOTH windows.
   const referralPct = rewardRow?.referralBonusPct ?? 0;
 
+  // The referral boost lifts both windows; the daily reward lifts only the
+  // 5-hour one.
   const base = TOKEN_LIMITS_5H[plan] * (1 + referralPct / 100);
   const limit = Math.round(base * (1 + bonusPct / 100));
-  const weeklyLimit = Math.round(base * WEEKLY_MULTIPLIER);
+  const weeklyLimit = Math.round(
+    TOKEN_LIMITS_WEEK[plan] * (1 + referralPct / 100),
+  );
   const [win, week] = await Promise.all([
     windowStats(userId, new Date(now.getTime() - FIVE_HOURS_MS)),
     windowStats(userId, new Date(now.getTime() - WEEK_MS)),

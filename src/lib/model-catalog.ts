@@ -57,12 +57,12 @@ export type EffortTier = { maxTokens: number };
 /**
  * Effort tiers are denominated in TOKENS — the same unit as the plan
  * allowances below — so the two systems are directly comparable. Each tier is
- * sized as a fraction of the window allowance of the plan that unlocks the
- * model, so a single session can never eat more than its share:
+ * sized against the window of the plan that unlocks the model, so a single
+ * session can never promise more than the window can actually deliver:
  *
- *   Luna/Vega  (Free, 50k per 5h)  -> max session 35k / 40k  (~70-80%)
- *   Sol        (Pro,  1M per 5h)   -> max session 500k       (~50%, 2 per window)
- *   Titan      (Max,  2.5M per 5h) -> max session 1.5M       (~60%)
+ *   Luna/Vega  (Free, 5k per 5h)    -> max session 5k    (one full window)
+ *   Sol        (Pro,  200k per 5h)  -> max session 160k  (~80%)
+ *   Titan      (Max,  1M per 5h)    -> max session 800k  (~80%)
  *
  * Not every model offers every effort (Titan is Low or Max, nothing between).
  */
@@ -72,29 +72,29 @@ export const EFFORT_TIERS: Record<
 > = {
   // Luna
   "glm-4.7-flash": {
-    low: { maxTokens: 6_000 },
-    medium: { maxTokens: 12_000 },
-    high: { maxTokens: 20_000 },
-    max: { maxTokens: 35_000 },
+    low: { maxTokens: 2_000 },
+    medium: { maxTokens: 3_000 },
+    high: { maxTokens: 4_000 },
+    max: { maxTokens: 5_000 },
   },
   // Vega
   "glm-5-turbo": {
-    low: { maxTokens: 8_000 },
-    medium: { maxTokens: 16_000 },
-    high: { maxTokens: 26_000 },
-    max: { maxTokens: 40_000 },
+    low: { maxTokens: 2_500 },
+    medium: { maxTokens: 3_500 },
+    high: { maxTokens: 4_500 },
+    max: { maxTokens: 5_000 },
   },
   // Sol
   "glm-5": {
-    low: { maxTokens: 60_000 },
-    medium: { maxTokens: 150_000 },
-    high: { maxTokens: 300_000 },
-    max: { maxTokens: 500_000 },
+    low: { maxTokens: 25_000 },
+    medium: { maxTokens: 60_000 },
+    high: { maxTokens: 110_000 },
+    max: { maxTokens: 160_000 },
   },
   // Titan — Low for quick work, Max for the full flagship experience.
   "glm-5.2": {
-    low: { maxTokens: 200_000 },
-    max: { maxTokens: 1_500_000 },
+    low: { maxTokens: 120_000 },
+    max: { maxTokens: 800_000 },
   },
 };
 
@@ -133,15 +133,30 @@ export const MODEL_LIMITS: Record<string, { contextK: number }> = {
 };
 
 /**
- * Token allowances (informational today, enforced when the token backend
- * ships): rolling 5-hour window per plan; weekly cap = 5-hour limit x 4.
+ * Enforced token allowances per plan. The two windows are set independently
+ * (weekly is NOT a fixed multiple of the 5-hour figure), so both are listed
+ * explicitly and every display reads these constants.
  */
 export const TOKEN_LIMITS_5H: Record<PlanTier, number> = {
-  free: 50_000,
-  pro: 1_000_000,
-  max: 2_500_000,
+  free: 5_000,
+  pro: 200_000,
+  max: 1_000_000,
 };
-export const WEEKLY_MULTIPLIER = 4;
+
+export const TOKEN_LIMITS_WEEK: Record<PlanTier, number> = {
+  free: 25_000,
+  pro: 750_000,
+  max: 5_000_000,
+};
+
+/** 5000 -> "5k", 200000 -> "200k", 1000000 -> "1M". */
+export function formatTokenLimit(n: number): string {
+  if (n >= 1_000_000) {
+    const m = n / 1_000_000;
+    return `${Number.isInteger(m) ? m : m.toFixed(1)}M`;
+  }
+  return `${Math.round(n / 1000)}k`;
+}
 
 export const MODEL_CATALOG: CatalogModel[] = [
   // ---- Live lineup: Luna -> Vega -> Sol -> Titan -----------------------------
@@ -410,7 +425,7 @@ export const PRO_PLAN = {
   perks: [
     "Unlocks Sol — strong builds with real Creator Store models",
     "Insert Creator Store models (trees, props, vehicles)",
-    "20x the build allowance of Free",
+    "40x the build allowance of Free",
     "Priority on new models",
   ],
 } as const;
@@ -424,7 +439,7 @@ export const MAX_PLAN = {
   perks: [
     "Unlocks Titan — the flagship with deep thinking and web search",
     "Everything in Pro, including Creator Store models",
-    "50x the build allowance of Free",
+    "200x the build allowance of Free",
     "First access to every new model and tool",
   ],
 } as const;
