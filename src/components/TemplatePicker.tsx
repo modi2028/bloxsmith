@@ -72,7 +72,7 @@ export function TemplatePicker({
           ))}
         </div>
 
-        <div className="mt-4 grid max-h-[55vh] gap-2 overflow-y-auto sm:grid-cols-2">
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {shown.map((t) => (
             <button
               key={t.slug}

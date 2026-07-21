@@ -428,6 +428,16 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+/* Dialogs are content-heavy, so legibility beats translucency: build on the
+   theme's own opaque surface (no per-theme override needed) and lean on a
+   deep shadow for separation instead of see-through frost. */
+.glass-modal {
+  background: var(--surface-raised);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 32px 90px -20px rgba(0, 0, 0, 0.8);
+}
+
 /* Full-height surfaces (sidebar, bottom bars) — softer, no drop shadow. */
 .glass-surface {
   background:

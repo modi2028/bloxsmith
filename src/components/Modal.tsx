@@ -34,10 +34,10 @@ export function Modal({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-md"
       />
       <div
-        className={`glass fade-up relative w-full ${maxWidth} rounded-2xl border border-line p-6`}
+        className={`glass-modal fade-up relative max-h-[88vh] w-full ${maxWidth} overflow-y-auto rounded-2xl border border-line-strong p-6`}
       >
         {children}
       </div>
