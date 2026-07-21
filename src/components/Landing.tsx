@@ -171,7 +171,7 @@ const FAQS = [
   },
   {
     q: "What does it cost?",
-    a: "Free to start, with a small build allowance that refills every 5 hours, enough to try it out. Pro is $19.99/month with 40x that allowance plus Sol, and Max is $49.99/month with 200x it plus Titan.",
+    a: `Free to start: ${formatTokenLimit(TOKEN_LIMITS_5H.free)} tokens every 5 hours, enough to build something real. Pro is $${PRO_PLAN.priceUsd.toFixed(2)}/month for ${formatTokenLimit(TOKEN_LIMITS_5H.pro)} per 5 hours plus Sol and Creator Store models, and Max is $${MAX_PLAN.priceUsd.toFixed(2)}/month for ${formatTokenLimit(TOKEN_LIMITS_5H.max)} plus Titan.`,
   },
   {
     q: "How does it connect to Roblox Studio?",

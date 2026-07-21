@@ -60,7 +60,7 @@ export type EffortTier = { maxTokens: number };
  * sized against the window of the plan that unlocks the model, so a single
  * session can never promise more than the window can actually deliver:
  *
- *   Luna/Vega  (Free, 5k per 5h)    -> max session 5k    (one full window)
+ *   Luna/Vega  (Free, 30k per 5h)   -> max session 26k   (~85%, one real build)
  *   Sol        (Pro,  200k per 5h)  -> max session 160k  (~80%)
  *   Titan      (Max,  1M per 5h)    -> max session 800k  (~80%)
  *
@@ -72,17 +72,17 @@ export const EFFORT_TIERS: Record<
 > = {
   // Luna
   "glm-4.7-flash": {
-    low: { maxTokens: 2_000 },
-    medium: { maxTokens: 3_000 },
-    high: { maxTokens: 4_000 },
-    max: { maxTokens: 5_000 },
+    low: { maxTokens: 8_000 },
+    medium: { maxTokens: 14_000 },
+    high: { maxTokens: 20_000 },
+    max: { maxTokens: 26_000 },
   },
   // Vega
   "glm-5-turbo": {
-    low: { maxTokens: 2_500 },
-    medium: { maxTokens: 3_500 },
-    high: { maxTokens: 4_500 },
-    max: { maxTokens: 5_000 },
+    low: { maxTokens: 9_000 },
+    medium: { maxTokens: 15_000 },
+    high: { maxTokens: 21_000 },
+    max: { maxTokens: 26_000 },
   },
   // Sol
   "glm-5": {
@@ -137,14 +137,21 @@ export const MODEL_LIMITS: Record<string, { contextK: number }> = {
  * (weekly is NOT a fixed multiple of the 5-hour figure), so both are listed
  * explicitly and every display reads these constants.
  */
+/**
+ * Free is sized so one small build actually COMPLETES. The floor is set by
+ * the agent loop, not by generosity: system prompt + tool schemas cost
+ * ~3-4k tokens per model call before any work, and the loop re-sends the
+ * growing context each round, so even a trivial build runs ~20k tokens.
+ * Below that a free user only ever sees a half-finished build.
+ */
 export const TOKEN_LIMITS_5H: Record<PlanTier, number> = {
-  free: 5_000,
+  free: 30_000,
   pro: 200_000,
   max: 1_000_000,
 };
 
 export const TOKEN_LIMITS_WEEK: Record<PlanTier, number> = {
-  free: 25_000,
+  free: 120_000,
   pro: 750_000,
   max: 5_000_000,
 };
@@ -425,7 +432,7 @@ export const PRO_PLAN = {
   perks: [
     "Unlocks Sol — strong builds with real Creator Store models",
     "Insert Creator Store models (trees, props, vehicles)",
-    "40x the build allowance of Free",
+    "A far bigger build allowance",
     "Priority on new models",
   ],
 } as const;
@@ -439,7 +446,7 @@ export const MAX_PLAN = {
   perks: [
     "Unlocks Titan — the flagship with deep thinking and web search",
     "Everything in Pro, including Creator Store models",
-    "200x the build allowance of Free",
+    "The largest build allowance we offer",
     "First access to every new model and tool",
   ],
 } as const;

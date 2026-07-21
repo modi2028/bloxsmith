@@ -25,7 +25,7 @@ real tokens (input + output, which includes thinking — exactly what
 
 | Plan | Per 5 rolling hours | Per week |
 | ---- | ------------------- | -------- |
-| Free | 5k tokens           | 25k tokens   |
+| Free | 30k tokens          | 120k tokens  |
 | Pro  | 200k tokens         | 750k tokens  |
 | Max  | 1M tokens           | 5M tokens    |
 
