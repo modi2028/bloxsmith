@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-const GRID = 15; // dots per side
+const GRID = 15; // cells per side
 const CENTER = (GRID - 1) / 2;
-const MAX_DIST = Math.hypot(CENTER, CENTER);
+/** Normalise by the RADIUS, not the corner — that's what makes it a disc. */
+const RADIUS = CENTER;
 
 /** Rotating reassurance — a slow render shouldn't feel like a stall. */
 const LINES = [
@@ -33,15 +34,19 @@ export function ImageLoader({ className = "" }: { className?: string }) {
   const dots = [];
   for (let y = 0; y < GRID; y++) {
     for (let x = 0; x < GRID; x++) {
-      const dist = Math.hypot(x - CENTER, y - CENTER) / MAX_DIST;
-      if (dist > 1) continue; // clip the square corners into a disc
+      const dist = Math.hypot(x - CENTER, y - CENTER) / RADIUS;
+      // Outside the disc: keep an empty cell so the grid stays aligned.
+      if (dist > 1) {
+        dots.push(<span key={`${x}-${y}`} />);
+        continue;
+      }
       dots.push(
         <span
           key={`${x}-${y}`}
           className="img-dot"
           style={{
-            // Falls off toward the edge, so the middle reads as the bloom.
-            ["--d" as string]: `${Math.max(0.08, 1 - dist * 1.05)}`,
+            // Falls off toward the rim, so the middle reads as the bloom.
+            ["--d" as string]: `${Math.max(0.12, 1 - dist * 0.85)}`,
             animationDelay: `${dist * 1.1}s`,
           }}
         />,
@@ -55,7 +60,12 @@ export function ImageLoader({ className = "" }: { className?: string }) {
     >
       <div
         className="grid gap-[6px]"
-        style={{ gridTemplateColumns: `repeat(${GRID}, 6px)` }}
+        style={{
+          gridTemplateColumns: `repeat(${GRID}, 6px)`,
+          // Empty (clipped) cells have no content, so rows need a size or
+          // they collapse and the disc turns into a squashed blob.
+          gridAutoRows: "6px",
+        }}
         aria-hidden
       >
         {dots}

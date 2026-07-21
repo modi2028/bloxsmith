@@ -348,19 +348,19 @@ body {
   height: 6px;
   border-radius: 9999px;
   background: var(--foreground);
-  opacity: calc(var(--d) * 0.45);
-  transform: scale(calc(0.35 + var(--d) * 0.65));
+  opacity: calc(var(--d) * 0.7);
+  transform: scale(calc(0.4 + var(--d) * 0.6));
   animation: img-dot-wave 2.4s ease-in-out infinite;
 }
 @keyframes img-dot-wave {
   0%,
   100% {
-    opacity: calc(var(--d) * 0.16);
-    transform: scale(calc(0.3 + var(--d) * 0.45));
+    opacity: calc(var(--d) * 0.3);
+    transform: scale(calc(0.35 + var(--d) * 0.4));
   }
   45% {
-    opacity: calc(var(--d) * 0.55);
-    transform: scale(calc(0.5 + var(--d) * 0.75));
+    opacity: calc(var(--d) * 0.95);
+    transform: scale(calc(0.55 + var(--d) * 0.8));
   }
 }
 .img-loader-label {
