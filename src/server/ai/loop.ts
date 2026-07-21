@@ -10,6 +10,7 @@ import { validateToolArgs } from "@/lib/tool-contract";
 import type { AgentEvent } from "@/lib/agent-events";
 import { effectivePlan, hasPlan, type PlanId } from "@/lib/plan";
 import {
+  ADMIN_ONLY_EFFORTS,
   DEFAULT_EFFORT,
   DEFAULT_SESSION_TOKENS,
   effortTokenBudget,
@@ -45,6 +46,7 @@ const ITERATIONS_BY_EFFORT: Record<EffortId, number> = {
   medium: 24,
   high: 40,
   max: 96,
+  unrestricted: 96, // same depth as Max; only content rules differ
 };
 
 const PROVIDER_ADAPTERS: Partial<Record<ProviderId, ProviderAdapter>> = {
@@ -200,7 +202,14 @@ export async function runAgentTurn(params: {
   // --- Create the request row ----------------------------------------------
   // The effort tier picked by the user sizes this session's TOKEN ceiling —
   // the same unit as the plan allowance, so the two are directly comparable.
-  const effort = params.effort ?? DEFAULT_EFFORT;
+  // Staff-only efforts are enforced HERE, not in the picker: the UI lock is
+  // a courtesy, this is the control. Anyone else silently gets Max.
+  const requested = params.effort ?? DEFAULT_EFFORT;
+  const isStaff = isAdminRole(user.role);
+  const effort: EffortId =
+    ADMIN_ONLY_EFFORTS.has(requested) && !isStaff ? "max" : requested;
+  const unrestricted = effort === "unrestricted" && isStaff;
+
   const sessionTokenBudget =
     effortTokenBudget(modelId, effort) ?? DEFAULT_SESSION_TOKENS;
 
@@ -234,6 +243,7 @@ export async function runAgentTurn(params: {
       // Audit is a paid feature; a free plan silently gets a normal run.
       auditMode: params.audit === true && hasPlan(user, "pro", new Date()),
       explainMode: params.explain === true,
+      unrestricted,
     });
     // Thinking spend follows the user's toggle — OFF means off, on every
     // effort tier. (Max used to force it on; users read that as a bug.)

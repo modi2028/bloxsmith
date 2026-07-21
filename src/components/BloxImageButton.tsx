@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ImageLoader } from "./ImageLoader";
 import { Modal } from "./Modal";
 
 
@@ -79,14 +80,6 @@ export function BloxImageButton() {
           Describe your game and get a thumbnail. Each image uses a small part
           of your build allowance.
         </p>
-        <p className="mt-2 text-[11px] text-faint">
-          Tip: type{" "}
-          <code className="rounded bg-hover px-1 py-0.5 font-mono">
-            /image
-          </code>{" "}
-          followed by a description in the main chat to generate one without
-          leaving your build.
-        </p>
 
         <textarea
           value={prompt}
@@ -99,7 +92,13 @@ export function BloxImageButton() {
 
         {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
 
-        {url && (
+        {busy && (
+          <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-xl border border-line bg-surface">
+            <ImageLoader />
+          </div>
+        )}
+
+        {!busy && url && (
           <div className="mt-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

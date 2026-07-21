@@ -36,6 +36,7 @@ export function ChatComposer({
   onEffortChange,
   thinkingVisible,
   onThinkingVisibleChange,
+  isStaff = false,
   compact = false,
   autoFocus = false,
   initialText,
@@ -55,6 +56,8 @@ export function ChatComposer({
   /** "Show thinking" preference — surfaced as a toggle in the effort menu. */
   thinkingVisible?: boolean;
   onThinkingVisibleChange?: (v: boolean) => void;
+  /** Admins can pick the staff-only effort. */
+  isStaff?: boolean;
   compact?: boolean;
   autoFocus?: boolean;
   /** Initial text (suggestion chips) — pair with a `key` to re-seed. */
@@ -260,6 +263,7 @@ export function ChatComposer({
               onEffortChange={onEffortChange}
               thinkingVisible={thinkingVisible}
               onThinkingVisibleChange={onThinkingVisibleChange}
+              isStaff={isStaff}
               disabled={busy}
             />
             {effort && <CostPreview modelId={modelId} effort={effort} />}

@@ -340,6 +340,49 @@ body {
   }
 }
 
+/* Radial dot-wave while an image renders. Each dot carries its own delay
+   (set inline from its distance to the centre), so the pulse radiates as a
+   ring rather than blinking all at once. */
+.img-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--foreground);
+  opacity: calc(var(--d) * 0.45);
+  transform: scale(calc(0.35 + var(--d) * 0.65));
+  animation: img-dot-wave 2.4s ease-in-out infinite;
+}
+@keyframes img-dot-wave {
+  0%,
+  100% {
+    opacity: calc(var(--d) * 0.16);
+    transform: scale(calc(0.3 + var(--d) * 0.45));
+  }
+  45% {
+    opacity: calc(var(--d) * 0.55);
+    transform: scale(calc(0.5 + var(--d) * 0.75));
+  }
+}
+.img-loader-label {
+  animation: img-label-in 0.5s ease-out;
+}
+@keyframes img-label-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .img-dot,
+  .img-loader-label {
+    animation: none;
+  }
+}
+
 /* "Generating your picture" placeholder: a drifting colour wash under a
    sweeping highlight, so a slow image feels alive instead of stuck. */
 .img-generating {

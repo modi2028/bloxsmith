@@ -45,9 +45,22 @@ export const RECOMMENDED_MODEL_IDS = new Set(["glm-5", "glm-5.2"]);
 // then capped at the current balance so the session can never overdraw.
 // ---------------------------------------------------------------------------
 
-export type EffortId = "low" | "medium" | "high" | "max";
+export type EffortId = "low" | "medium" | "high" | "max" | "unrestricted";
 
-export const EFFORT_IDS: EffortId[] = ["low", "medium", "high", "max"];
+export const EFFORT_IDS: EffortId[] = [
+  "low",
+  "medium",
+  "high",
+  "max",
+  "unrestricted",
+];
+
+/**
+ * Efforts only staff may run. Everyone SEES these in the picker (they are
+ * part of the product story) but the server refuses them for anyone else —
+ * the UI lock is a courtesy, not the control.
+ */
+export const ADMIN_ONLY_EFFORTS = new Set<EffortId>(["unrestricted"]);
 
 export const DEFAULT_EFFORT: EffortId = "medium";
 
@@ -91,10 +104,12 @@ export const EFFORT_TIERS: Record<
     high: { maxTokens: 110_000 },
     max: { maxTokens: 160_000 },
   },
-  // Titan — Low for quick work, Max for the full flagship experience.
+  // Titan — Low for quick work, Max for the full flagship experience, plus
+  // the staff-only unrestricted mode.
   "glm-5.2": {
     low: { maxTokens: 120_000 },
     max: { maxTokens: 800_000 },
+    unrestricted: { maxTokens: 800_000 },
   },
 };
 

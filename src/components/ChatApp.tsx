@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { AgentEvent } from "@/lib/agent-events";
 import type { UiMessage, UiPart, UiToolPart } from "@/lib/chat-ui";
+import { looksLikeImageRequest, parseImageCommand } from "@/lib/image-intent";
 import {
   DEFAULT_EFFORT,
   EFFORT_IDS,
@@ -17,6 +18,7 @@ import { Modal } from "./Modal";
 import type { ChatModel } from "./ModelPicker";
 import { PENDING_TITLE_KEY } from "./NewProjectButton";
 import { CheckpointMenu } from "./CheckpointMenu";
+import { ImageLoader } from "./ImageLoader";
 import { ShowcaseButton } from "./ShowcaseButton";
 import { TemplatePicker } from "./TemplatePicker";
 import { Thinking } from "./Thinking";
@@ -39,19 +41,6 @@ const CONTINUE_PROMPT =
 const AUDIT_PROMPT =
   "Audit my place: find broken scripts, exploitable remotes, missing debounces and nil-guards, loops that never yield, deprecated APIs, and unanchored static geometry. Fix what is safe to fix and report the rest.";
 
-/**
- * Hidden command: "/image a neon obby tower" generates a picture right in
- * the chat instead of running a build. Undocumented on purpose — people
- * find it, and it's hinted at inside the Blox Image dialog.
- */
-const IMAGE_COMMAND = /^\/(?:image|img|pic)\s+([\s\S]+)$/i;
-
-const IMAGE_WAIT_LINES = [
-  "Generating your picture — this takes a minute, the good ones are worth it.",
-  "Painting it now… hang tight for the amazing result.",
-  "Mixing colours and composing the shot…",
-  "Rendering the final frame — almost there.",
-];
 
 /** Sent by "Explain selection" — the server adds the read-only rules. */
 const EXPLAIN_PROMPT =
@@ -137,6 +126,7 @@ export function ChatApp({
   models,
   usagePct: initialUsagePct,
   canAudit = false,
+  isStaff = false,
   pluginConnected = null,
   initialSessionId,
   initialMessages,
@@ -150,6 +140,8 @@ export function ChatApp({
   usagePct?: number | null;
   /** Pro and above unlock the "Fix my game" audit run. */
   canAudit?: boolean;
+  /** Admins can select the staff-only effort. */
+  isStaff?: boolean;
   /** Studio plugin connection at render time (null = unknown/signed out). */
   pluginConnected?: boolean | null;
   initialSessionId?: string;
@@ -271,10 +263,10 @@ export function ChatApp({
 
   /** Run the hidden /image command: generate a picture inside the chat. */
   const generateImage = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, shownAs?: string) => {
       setMessages((prev) => [
         ...prev,
-        { kind: "user", text: `/image ${prompt}` },
+        { kind: "user", text: shownAs ?? `/image ${prompt}` },
         {
           kind: "assistant",
           parts: [{ t: "image", prompt, status: "generating" }],
@@ -590,11 +582,17 @@ export function ChatApp({
         window.location.href = "/api/auth/roblox/login";
         return;
       }
-      // Hidden /image command — generate a picture instead of building.
-      const imageCmd = text.match(IMAGE_COMMAND);
-      if (imageCmd && !busy) {
-        void generateImage(imageCmd[1]!.trim());
-        return;
+      // Image request: the /image command, or just asking out loud.
+      if (!busy) {
+        const cmd = parseImageCommand(text);
+        if (cmd) {
+          void generateImage(cmd, text);
+          return;
+        }
+        if (looksLikeImageRequest(text)) {
+          void generateImage(text, text);
+          return;
+        }
       }
       // Mid-build sends join the queue (max 3) and fire when the run is done.
       if (busy) {
@@ -812,6 +810,7 @@ export function ChatApp({
             onEffortChange={changeEffort}
             thinkingVisible={thinkingPref}
             onThinkingVisibleChange={changeThinkingPref}
+            isStaff={isStaff}
             usagePct={windowPct ?? initialUsagePct}
             studioConnected={pluginConnected}
             initialText={seedText}
@@ -1025,8 +1024,8 @@ export function ChatApp({
                     return (
                       <div key={j} className="max-w-md">
                         {part.status === "generating" && (
-                          <div className="img-generating flex aspect-[16/9] w-full flex-col items-center justify-center gap-3 rounded-xl border border-line">
-                            <Thinking label={IMAGE_WAIT_LINES[0]} />
+                          <div className="flex aspect-[16/9] w-full items-center justify-center rounded-xl border border-line bg-surface-raised">
+                            <ImageLoader />
                           </div>
                         )}
                         {part.status === "done" && part.url && (
@@ -1049,11 +1048,10 @@ export function ChatApp({
                             {part.error}
                           </p>
                         )}
-                        {part.status !== "error" && (
+                        {part.status === "done" && (
                           <p className="mt-1.5 text-[11px] text-faint">
-                            {part.status === "done"
-                              ? "Click to open full size · right-click to save"
-                              : "Blox Image"}
+                            Click to open full size. Wanted this built in
+                            Studio instead? Ask again and say build.
                           </p>
                         )}
                       </div>
@@ -1384,6 +1382,7 @@ export function ChatApp({
             onEffortChange={changeEffort}
             thinkingVisible={thinkingPref}
             onThinkingVisibleChange={changeThinkingPref}
+            isStaff={isStaff}
             usagePct={windowPct ?? initialUsagePct}
             studioConnected={pluginConnected}
             canQueue={queue.length < 3}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  ADMIN_ONLY_EFFORTS,
   EFFORT_TIERS,
   MODEL_LIMITS,
   effortIdsFor,
@@ -38,6 +39,7 @@ const EFFORT_LABELS: Record<EffortId, string> = {
   medium: "Medium",
   high: "High",
   max: "Max",
+  unrestricted: "No Guardrails",
 };
 
 function Check() {
@@ -68,6 +70,7 @@ export function ModelPicker({
   onEffortChange,
   thinkingVisible,
   onThinkingVisibleChange,
+  isStaff = false,
   disabled,
 }: {
   models: ChatModel[];
@@ -77,6 +80,8 @@ export function ModelPicker({
   onEffortChange?: (id: EffortId) => void;
   thinkingVisible?: boolean;
   onThinkingVisibleChange?: (v: boolean) => void;
+  /** Staff-only efforts are visible to all, selectable only by admins. */
+  isStaff?: boolean;
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -267,32 +272,53 @@ export function ModelPicker({
                     longer and uses your limits faster.
                   </p>
                   {effortIdsFor(current.id).map((id) => {
-                    const est = effortTokenBudget(current.id,id);
+                    const est = effortTokenBudget(current.id, id);
                     const isTitanMax = current.id === "glm-5.2" && id === "max";
+                    const staffOnly = ADMIN_ONLY_EFFORTS.has(id);
+                    const locked = staffOnly && !isStaff;
                     return (
                       <button
                         key={id}
                         type="button"
+                        disabled={locked}
+                        title={
+                          locked
+                            ? "Staff only — builds without the usual content limits"
+                            : undefined
+                        }
                         onClick={() => {
+                          if (locked) return;
                           onEffortChange?.(id);
                           setEffortOpen(false);
                         }}
-                        className="flex w-full items-center gap-2 px-3.5 py-2 text-left transition hover:bg-hover"
+                        className={`flex w-full items-center gap-2 px-3.5 py-2 text-left transition ${
+                          locked ? "cursor-not-allowed" : "hover:bg-hover"
+                        }`}
                       >
                         <span className="min-w-0 flex-1">
                           <span
                             className={`text-sm ${
-                              isTitanMax
-                                ? "titanium font-semibold"
-                                : "text-foreground"
+                              locked
+                                ? "text-faint"
+                                : staffOnly
+                                  ? "font-semibold text-red-300"
+                                  : isTitanMax
+                                    ? "titanium font-semibold"
+                                    : "text-foreground"
                             }`}
                           >
                             {EFFORT_LABELS[id]}
                           </span>
-                          {est != null && (
+                          {staffOnly ? (
                             <span className="block text-[10px] text-faint">
-                              up to {fmtTokens(est)} tokens
+                              No content limits · staff only
                             </span>
+                          ) : (
+                            est != null && (
+                              <span className="block text-[10px] text-faint">
+                                up to {fmtTokens(est)} tokens
+                              </span>
+                            )
                           )}
                         </span>
                         {id === "medium" && (
@@ -300,7 +326,30 @@ export function ModelPicker({
                             Default
                           </span>
                         )}
-                        {id === effort && <Check />}
+                        {locked ? (
+                          <svg
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            className="size-3.5 shrink-0 text-faint"
+                          >
+                            <rect
+                              x="3.5"
+                              y="7"
+                              width="9"
+                              height="6.5"
+                              rx="1"
+                              stroke="currentColor"
+                              strokeWidth="1.3"
+                            />
+                            <path
+                              d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"
+                              stroke="currentColor"
+                              strokeWidth="1.3"
+                            />
+                          </svg>
+                        ) : (
+                          id === effort && <Check />
+                        )}
                       </button>
                     );
                   })}

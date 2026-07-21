@@ -22,7 +22,9 @@ const bodySchema = z.object({
   message: z.string().min(1).max(8000),
   chatSessionId: z.string().uuid().optional(),
   modelId: z.string().max(100).optional(),
-  effort: z.enum(["low", "medium", "high", "max"]).optional(),
+  effort: z
+    .enum(["low", "medium", "high", "max", "unrestricted"])
+    .optional(),
   thinking: z.boolean().optional(),
   audit: z.boolean().optional(),
   explain: z.boolean().optional(),

@@ -451,6 +451,7 @@ export default async function Home({
             models={models}
             usagePct={user ? usagePct : null}
             canAudit={PLAN_RANK[planTier] >= PLAN_RANK.pro}
+            isStaff={isAdminRole(user.role)}
             pluginConnected={pluginConnected}
             initialSessionId={initialSessionId}
             initialMessages={initialMessages}
