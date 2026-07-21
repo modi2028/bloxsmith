@@ -18,6 +18,16 @@ import {
 } from "@/lib/model-catalog";
 import { checkTokenAllowance, tokenWindowUsage } from "@/server/token-usage";
 import { isAdminRole } from "@/lib/roles";
+import {
+  checkContentPolicy,
+  policyRefusalMessage,
+} from "@/lib/content-policy";
+import {
+  getPolicyState,
+  looksLikePolicyRefusal,
+  recordPolicyStrike,
+  restrictionRemaining,
+} from "./policy";
 import { isPluginConnected } from "@/server/auth/plugin";
 import { buildSystemPrompt } from "./context";
 import {
@@ -152,6 +162,44 @@ export async function runAgentTurn(params: {
       message: `You don't have access to ${pricing.displayName}. Pick a different model.`,
     });
     return;
+  }
+
+  // --- Content policy + abuse limiter --------------------------------------
+  // Checked BEFORE the model runs: prompt rules alone let requests through,
+  // and a block the model never sees cannot be argued with. Staff in the
+  // unrestricted effort are exempt (checked further down, after gating).
+  const policyNow = new Date();
+  const policy = await getPolicyState(user.id, policyNow);
+  if (policy.restrictedUntil && !isAdminRole(user.role)) {
+    await onEvent({
+      type: "error",
+      message: `Chat is paused on your account after repeated requests for content we don't build. It unlocks ${restrictionRemaining(policy.restrictedUntil, policyNow)}.`,
+      restricted: true,
+    });
+    return;
+  }
+
+  const staffUnrestricted =
+    isAdminRole(user.role) && params.effort === "unrestricted";
+  if (!staffUnrestricted) {
+    const hit = checkContentPolicy(params.message);
+    if (hit.blocked) {
+      const { restrictedUntil } = await recordPolicyStrike({
+        userId: user.id,
+        sessionId: params.chatSessionId,
+        excerpt: params.message,
+        now: policyNow,
+      });
+      const message = restrictedUntil
+        ? `${policyRefusalMessage(hit.reason)}\n\nThis is the third time, so chat is paused on your account for 24 hours.`
+        : policyRefusalMessage(hit.reason);
+      await onEvent({
+        type: "error",
+        message,
+        ...(restrictedUntil ? { restricted: true } : {}),
+      });
+      return;
+    }
   }
 
   // --- Token allowance gate -------------------------------------------------
@@ -513,6 +561,20 @@ export async function runAgentTurn(params: {
           messages.push({ role: "user", content: nudgeContent });
           continue;
         }
+        // Model-side refusal (something the pre-check didn't catch): count
+        // it, so repeatedly working the guardrail trips the limiter too.
+        if (
+          !staffUnrestricted &&
+          looksLikePolicyRefusal(response.text, mutatingCalls)
+        ) {
+          await recordPolicyStrike({
+            userId: user.id,
+            sessionId: chatSession.id,
+            excerpt: params.message,
+            now: new Date(),
+          }).catch(() => ({ restrictedUntil: null }));
+        }
+
         // A turn that produced nothing at all must never look like success.
         if (response.toolUses.length === 0 && !response.text.trim()) {
           const why = response.truncated

@@ -413,6 +413,14 @@ export function ChatApp({
         setWindowPct(event.windowUsedPct);
       }
       if (event.type === "error") {
+        // An account-level pause belongs above the composer, not buried in
+        // the transcript — it's about what they can do next.
+        if (event.restricted) {
+          setNotice({ message: event.message });
+          setMessages((prev) => prev.slice(0, -2));
+          setQueue([]);
+          return;
+        }
         notifyDone("Your build hit an error — come check it.");
       }
       // An interrupted or failed run can be resumed with one click.

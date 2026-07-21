@@ -51,4 +51,9 @@ export type AgentEvent =
       question: string;
       options: string[];
     }
-  | { type: "error"; message: string };
+  | {
+      type: "error";
+      message: string;
+      /** Account-level pause — the UI shows it above the composer. */
+      restricted?: boolean;
+    };

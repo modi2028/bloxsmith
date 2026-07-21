@@ -7,6 +7,7 @@ import {
   auditAdmin,
 } from "@/server/auth/admin";
 import { adminAdjustCredits } from "@/server/credits/ledger";
+import { clearPolicyRestriction } from "@/server/ai/policy";
 import { db, schema } from "@/server/db";
 import { clientIp } from "@/server/security/ratelimit";
 
@@ -36,6 +37,11 @@ const actionSchema = z.discriminatedUnion("action", [
     action: z.literal("role"),
     userId: z.string().uuid(),
     role: z.enum(["user", "admin"]),
+  }),
+  z.object({
+    // Lift a 24h policy restriction and clear the strikes behind it.
+    action: z.literal("clearRestriction"),
+    userId: z.string().uuid(),
   }),
   z.object({
     // Ban/unban a user from specific models.
@@ -152,6 +158,19 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  if (body.action === "clearRestriction") {
+    await clearPolicyRestriction(target.id);
+    await auditAdmin({
+      actorUserId: admin.id,
+      action: "policy.clear_restriction",
+      targetType: "user",
+      targetId: target.id,
+      before: { restrictedUntil: target.restrictedUntil },
+      ip,
+    });
+    return Response.json({ ok: true });
+  }
+
   if (body.action === "modelBans") {
     await db
       .update(schema.users)
@@ -222,6 +241,7 @@ export async function GET(request: NextRequest) {
       plan: schema.users.plan,
       proExpiresAt: schema.users.proExpiresAt,
       disabled: schema.users.disabled,
+      restrictedUntil: schema.users.restrictedUntil,
       bannedModels: schema.users.bannedModels,
       createdAt: schema.users.createdAt,
     })

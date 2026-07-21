@@ -108,6 +108,9 @@ export const users = pgTable(
     referralCode: text("referral_code").unique(),
     referredBy: uuid("referred_by"),
     referralBonusPct: integer("referral_bonus_pct").notNull().default(0),
+    // Set when repeated attempts to get banned content through trip the
+    // policy limiter. Chat is blocked until this passes; admins can clear it.
+    restrictedUntil: timestamp("restricted_until", { withTimezone: true }),
     disabled: boolean("disabled").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -574,6 +577,30 @@ export const toolCallQueue = pgTable(
     // The plugin's poll query: pending calls for this user, oldest first.
     index("tool_queue_poll_idx").on(t.userId, t.status, t.createdAt),
   ],
+);
+
+/**
+ * One row each time the AI declines a request on policy grounds. Kept as
+ * rows rather than a counter so the limiter can work on a rolling window and
+ * an admin reviewing an account can see WHAT was attempted.
+ */
+export const policyStrikes = pgTable(
+  "policy_strikes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").references(() => chatSessions.id, {
+      onDelete: "set null",
+    }),
+    /** What the user asked for (truncated) — for admin review. */
+    excerpt: text("excerpt"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("policy_strikes_user_idx").on(t.userId, t.createdAt)],
 );
 
 /**

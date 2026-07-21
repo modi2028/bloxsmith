@@ -10,6 +10,8 @@ type AdminUser = {
   robloxUserId: number;
   role: "user" | "admin" | "super_admin";
   plan: "free" | "pro" | "max";
+  /** Set while a content-policy pause is in effect. */
+  restrictedUntil?: string | null;
   proExpiresAt: string | null;
   disabled: boolean;
   bannedModels: string[];
@@ -288,6 +290,23 @@ export function AdminUsers({
                           Remove plan
                         </button>
                       )}
+                      {u.restrictedUntil &&
+                        new Date(u.restrictedUntil) > new Date() && (
+                          <button
+                            type="button"
+                            disabled={busyId === u.id}
+                            onClick={() =>
+                              void run(u.id, {
+                                action: "clearRestriction",
+                                userId: u.id,
+                              })
+                            }
+                            title="Lift the 24h content-policy pause"
+                            className="rounded border border-red-500/50 px-2 py-1 text-xs text-red-300 transition hover:border-red-400 disabled:opacity-40"
+                          >
+                            Unpause
+                          </button>
+                        )}
                       <button
                         type="button"
                         disabled={busyId === u.id}
