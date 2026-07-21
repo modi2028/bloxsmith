@@ -293,6 +293,54 @@ body {
   animation: shimmer-slide 4.5s linear infinite;
 }
 
+/* Braille spinner + shimmering label (the "Thinking…" indicator).
+   Colours come from theme vars, not fixed greys, so the sweep stays visible
+   in the light theme too. */
+.oc-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-geist-mono), ui-monospace, Menlo, Consolas, monospace;
+  font-size: 14px;
+}
+.oc-spinner {
+  display: inline-block;
+  width: 1ch; /* fixed box: the label can't jitter as the glyph changes */
+  text-align: center;
+  color: var(--foreground);
+}
+.oc-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--faint) 0%,
+    var(--faint) 35%,
+    var(--foreground) 50%,
+    var(--faint) 65%,
+    var(--faint) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: oc-shimmer 2s linear infinite;
+}
+@keyframes oc-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .oc-shimmer {
+    animation: none;
+    -webkit-text-fill-color: var(--foreground);
+    color: var(--foreground);
+  }
+}
+
 /* Titanium-grey metallic sweep — Titan's Max effort. */
 .titanium {
   background-image: linear-gradient(

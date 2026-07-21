@@ -19,6 +19,7 @@ import { PENDING_TITLE_KEY } from "./NewProjectButton";
 import { CheckpointMenu } from "./CheckpointMenu";
 import { ShowcaseButton } from "./ShowcaseButton";
 import { TemplatePicker } from "./TemplatePicker";
+import { Thinking } from "./Thinking";
 
 const SUGGESTIONS = [
   "Make a combat system",
@@ -1048,34 +1049,25 @@ export function ChatApp({
                         works; click to watch the thoughts live. The Thinking
                         toggle controls SPEND (how deeply it reasons), not
                         visibility. */}
+                    {/* The spinner IS the affordance — click the line itself
+                        to open the reasoning, no chevron needed. */}
                     <button
                       type="button"
                       onClick={() => setShowThinking((v) => !v)}
                       title={
-                        msg.thinking
-                          ? "Show what the AI is thinking"
-                          : "Thoughts appear here once the model starts reasoning"
+                        showThinking
+                          ? "Hide the reasoning"
+                          : msg.thinking
+                            ? "Click to see what the AI is thinking"
+                            : "Thoughts appear here once the model starts reasoning"
                       }
-                      className="flex items-center gap-1.5"
+                      className="flex items-center transition hover:brightness-125"
                     >
-                      <span className="shimmer-text text-sm font-medium">
-                        {runningTool ? "Building in Studio…" : "Thinking…"}
-                      </span>
-                      <svg
-                        viewBox="0 0 12 12"
-                        fill="none"
-                        className={`size-2.5 text-faint transition-transform ${
-                          showThinking ? "rotate-180" : ""
-                        }`}
-                      >
-                        <path
-                          d="M2.5 4.5 6 8l3.5-3.5"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
+                      <Thinking
+                        label={
+                          runningTool ? "Building in Studio…" : "Thinking…"
+                        }
+                      />
                     </button>
                     {liveUsage && (
                       <p className="mt-0.5 text-[11px] tabular-nums text-faint">
