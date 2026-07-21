@@ -8,11 +8,14 @@ import {
   RobloxMark,
   ZaiMark,
 } from "./BrandMarks";
+import { TEMPLATES } from "@/lib/templates";
+import type { PublicStats } from "@/server/public-stats";
 import { IntroVideo } from "./IntroVideo";
 import { LandingChat } from "./LandingChat";
 import { LogoMark } from "./Logo";
 import type { ChatModel } from "./ModelPicker";
 import { Reveal } from "./Reveal";
+import { StudioPreview } from "./StudioPreview";
 
 const LOGIN = "/api/auth/roblox/login";
 
@@ -179,7 +182,19 @@ const PLAN_LABEL: Record<string, { text: string; cls: string }> = {
   max: { text: "Max", cls: "border-line-strong" },
 };
 
-export function Landing({ models }: { models: ChatModel[] }) {
+function fmtCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1000) return `${Math.floor(n / 1000)}k`;
+  return String(n);
+}
+
+export function Landing({
+  models,
+  stats,
+}: {
+  models: ChatModel[];
+  stats?: PublicStats;
+}) {
   return (
     <div className="flex min-h-dvh flex-col">
       {/* Nav */}
@@ -200,6 +215,9 @@ export function Landing({ models }: { models: ChatModel[] }) {
           <a href="#models" className="transition hover:text-foreground">
             Models
           </a>
+          <Link href="/templates" className="transition hover:text-foreground">
+            Templates
+          </Link>
           <a href="#pricing" className="transition hover:text-foreground">
             Pricing
           </a>
@@ -257,6 +275,45 @@ export function Landing({ models }: { models: ChatModel[] }) {
       </section>
 
       <PoweredByBanner />
+
+      {/* Live counters — only once they're worth showing. */}
+      {stats?.worthShowing && (
+        <section className="border-y border-line bg-surface/30 px-6 py-10">
+          <div className="mx-auto grid max-w-3xl grid-cols-3 gap-6 text-center">
+            {[
+              { n: stats.builds, label: "builds run" },
+              { n: stats.instances, label: "objects placed" },
+              { n: stats.scripts, label: "scripts written" },
+            ].map((s) => (
+              <div key={s.label}>
+                <div className="text-3xl font-bold tracking-tight text-ember">
+                  {fmtCount(s.n)}
+                </div>
+                <div className="mt-1 text-xs text-muted">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* What actually lands in Studio */}
+      <section className="px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <Reveal>
+            <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
+              Real objects. Real Luau.
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-center text-sm text-muted">
+              Not a chat window that hands you code to paste. Organized
+              instances and complete scripts appear in your Explorer, ready to
+              press Play.
+            </p>
+          </Reveal>
+          <Reveal delay={120} className="mt-10">
+            <StudioPreview />
+          </Reveal>
+        </div>
+      </section>
 
       {/* Demo video */}
       <section id="demo" className="px-6 py-24">
@@ -326,6 +383,46 @@ export function Landing({ models }: { models: ChatModel[] }) {
                   {t}
                 </span>
               ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Template gallery — also feeds the /templates landing pages */}
+      <section className="px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <Reveal>
+            <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
+              Start from something proven
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-center text-sm text-muted">
+              Ready-made prompts for the things people build most. Open one and
+              send it as is, or edit it first.
+            </p>
+          </Reveal>
+          <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {TEMPLATES.slice(0, 8).map((t, i) => (
+              <Reveal key={t.slug} delay={i * 60}>
+                <Link
+                  href={`/templates/${t.slug}`}
+                  className="flex h-full flex-col rounded-xl border border-line bg-surface-raised p-4 transition hover:-translate-y-0.5 hover:border-ember/40"
+                >
+                  <span className="text-sm font-semibold">{t.title}</span>
+                  <span className="mt-1 text-xs leading-relaxed text-muted">
+                    {t.blurb}
+                  </span>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={200}>
+            <div className="mt-8 text-center">
+              <Link
+                href="/templates"
+                className="text-sm text-ember transition hover:underline"
+              >
+                Browse all templates →
+              </Link>
             </div>
           </Reveal>
         </div>

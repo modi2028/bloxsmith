@@ -7,6 +7,7 @@ import { HistoryMenu } from "@/components/HistoryMenu";
 import { Landing } from "@/components/Landing";
 import { Sidebar } from "@/components/Sidebar";
 import { BRAND } from "@/lib/brand";
+import { getPublicStats } from "@/server/public-stats";
 import { tokenWindowUsage } from "@/server/token-usage";
 import { RECOMMENDED_MODEL_IDS } from "@/lib/model-catalog";
 import { isAdminRole } from "@/lib/roles";
@@ -265,7 +266,7 @@ export default async function Home({
       locked: m.minPlan !== "free",
       recommended: RECOMMENDED_MODEL_IDS.has(m.modelId),
     }));
-    return <Landing models={landingModels} />;
+    return <Landing models={landingModels} stats={await getPublicStats()} />;
   }
 
   if (site.maintenance && !isAdminRole(user.role)) {
