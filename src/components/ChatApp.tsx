@@ -39,6 +39,20 @@ const CONTINUE_PROMPT =
 const AUDIT_PROMPT =
   "Audit my place: find broken scripts, exploitable remotes, missing debounces and nil-guards, loops that never yield, deprecated APIs, and unanchored static geometry. Fix what is safe to fix and report the rest.";
 
+/**
+ * Hidden command: "/image a neon obby tower" generates a picture right in
+ * the chat instead of running a build. Undocumented on purpose — people
+ * find it, and it's hinted at inside the Blox Image dialog.
+ */
+const IMAGE_COMMAND = /^\/(?:image|img|pic)\s+([\s\S]+)$/i;
+
+const IMAGE_WAIT_LINES = [
+  "Generating your picture — this takes a minute, the good ones are worth it.",
+  "Painting it now… hang tight for the amazing result.",
+  "Mixing colours and composing the shot…",
+  "Rendering the final frame — almost there.",
+];
+
 /** Sent by "Explain selection" — the server adds the read-only rules. */
 const EXPLAIN_PROMPT =
   "Explain what I have selected in Studio: what it is, what it does, and how it works. Don't change anything.";
@@ -254,6 +268,60 @@ export function ChatApp({
       setReverting(null);
     }
   }, []);
+
+  /** Run the hidden /image command: generate a picture inside the chat. */
+  const generateImage = useCallback(
+    async (prompt: string) => {
+      setMessages((prev) => [
+        ...prev,
+        { kind: "user", text: `/image ${prompt}` },
+        {
+          kind: "assistant",
+          parts: [{ t: "image", prompt, status: "generating" }],
+        },
+      ]);
+      setBusy(true);
+      const finish = (patch: Partial<Extract<UiPart, { t: "image" }>>) => {
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last?.kind !== "assistant") return prev;
+          next[next.length - 1] = {
+            ...last,
+            parts: last.parts.map((p) =>
+              p.t === "image" ? { ...p, ...patch } : p,
+            ),
+          };
+          return next;
+        });
+      };
+      try {
+        const res = await fetch("/api/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          url?: string;
+          error?: string;
+        };
+        if (!res.ok || !data.url) {
+          finish({
+            status: "error",
+            error: data.error ?? "Couldn't generate that image.",
+          });
+        } else {
+          finish({ status: "done", url: data.url });
+          notifyDone("Your picture is ready!");
+        }
+      } catch {
+        finish({ status: "error", error: "Couldn't reach the server." });
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
 
   // Live token usage for the current run + the 5-hour-window readout.
   const [liveUsage, setLiveUsage] = useState<{
@@ -522,6 +590,12 @@ export function ChatApp({
         window.location.href = "/api/auth/roblox/login";
         return;
       }
+      // Hidden /image command — generate a picture instead of building.
+      const imageCmd = text.match(IMAGE_COMMAND);
+      if (imageCmd && !busy) {
+        void generateImage(imageCmd[1]!.trim());
+        return;
+      }
       // Mid-build sends join the queue (max 3) and fire when the run is done.
       if (busy) {
         setQueue((q) =>
@@ -645,6 +719,7 @@ export function ChatApp({
       thinkingPref,
       pendingTitle,
       applyEvent,
+      generateImage,
       router,
     ],
   );
@@ -941,6 +1016,44 @@ export function ChatApp({
                             {part.status === "approved"
                               ? "Allowed ✓"
                               : "Denied ✕"}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (part.t === "image") {
+                    return (
+                      <div key={j} className="max-w-md">
+                        {part.status === "generating" && (
+                          <div className="img-generating flex aspect-[16/9] w-full flex-col items-center justify-center gap-3 rounded-xl border border-line">
+                            <Thinking label={IMAGE_WAIT_LINES[0]} />
+                          </div>
+                        )}
+                        {part.status === "done" && part.url && (
+                          <a
+                            href={part.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block overflow-hidden rounded-xl border border-line transition hover:brightness-110"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={part.url}
+                              alt={part.prompt}
+                              className="fade-up w-full"
+                            />
+                          </a>
+                        )}
+                        {part.status === "error" && (
+                          <p className="rounded-lg border border-red-900/60 bg-red-950/30 px-3.5 py-2 text-sm text-red-300">
+                            {part.error}
+                          </p>
+                        )}
+                        {part.status !== "error" && (
+                          <p className="mt-1.5 text-[11px] text-faint">
+                            {part.status === "done"
+                              ? "Click to open full size · right-click to save"
+                              : "Blox Image"}
                           </p>
                         )}
                       </div>

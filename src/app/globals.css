@@ -296,26 +296,20 @@ body {
 /* Braille spinner + shimmering label (the "Thinking…" indicator).
    Colours come from theme vars, not fixed greys, so the sweep stays visible
    in the light theme too. */
+/* The gradient lives on the CONTAINER so one highlight sweeps across the
+   spinner dots and the label as a single motion — the dots shine too. */
 .oc-thinking {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font-family: var(--font-geist-mono), ui-monospace, Menlo, Consolas, monospace;
   font-size: 14px;
-}
-.oc-spinner {
-  display: inline-block;
-  width: 1ch; /* fixed box: the label can't jitter as the glyph changes */
-  text-align: center;
-  color: var(--foreground);
-}
-.oc-shimmer {
   background: linear-gradient(
     90deg,
     var(--faint) 0%,
-    var(--faint) 35%,
+    var(--faint) 30%,
     var(--foreground) 50%,
-    var(--faint) 65%,
+    var(--faint) 70%,
     var(--faint) 100%
   );
   background-size: 200% 100%;
@@ -324,6 +318,11 @@ body {
   -webkit-text-fill-color: transparent;
   color: transparent;
   animation: oc-shimmer 2s linear infinite;
+}
+.oc-spinner {
+  display: inline-block;
+  width: 1ch; /* fixed box: the label can't jitter as the glyph changes */
+  text-align: center;
 }
 @keyframes oc-shimmer {
   0% {
@@ -334,10 +333,72 @@ body {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .oc-shimmer {
+  .oc-thinking {
     animation: none;
     -webkit-text-fill-color: var(--foreground);
     color: var(--foreground);
+  }
+}
+
+/* "Generating your picture" placeholder: a drifting colour wash under a
+   sweeping highlight, so a slow image feels alive instead of stuck. */
+.img-generating {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      60% 80% at 20% 30%,
+      color-mix(in oklab, var(--ember) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      55% 75% at 80% 70%,
+      color-mix(in oklab, var(--ember-strong) 18%, transparent),
+      transparent 70%
+    ),
+    var(--surface);
+  background-size: 180% 180%, 170% 170%, 100% 100%;
+  animation: img-drift 9s ease-in-out infinite alternate;
+}
+.img-generating::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 25%,
+    color-mix(in oklab, var(--foreground) 12%, transparent) 45%,
+    transparent 65%
+  );
+  background-size: 250% 100%;
+  animation: img-sweep 2.2s linear infinite;
+}
+@keyframes img-drift {
+  0% {
+    background-position:
+      0% 0%,
+      100% 100%,
+      0 0;
+  }
+  100% {
+    background-position:
+      100% 60%,
+      0% 20%,
+      0 0;
+  }
+}
+@keyframes img-sweep {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .img-generating,
+  .img-generating::after {
+    animation: none;
   }
 }
 

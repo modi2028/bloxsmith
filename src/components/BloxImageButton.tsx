@@ -79,6 +79,14 @@ export function BloxImageButton() {
           Describe your game and get a thumbnail. Each image uses a small part
           of your build allowance.
         </p>
+        <p className="mt-2 text-[11px] text-faint">
+          Tip: type{" "}
+          <code className="rounded bg-hover px-1 py-0.5 font-mono">
+            /image
+          </code>{" "}
+          followed by a description in the main chat to generate one without
+          leaving your build.
+        </p>
 
         <textarea
           value={prompt}

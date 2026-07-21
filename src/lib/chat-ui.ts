@@ -25,6 +25,14 @@ export type UiPart =
       status: "pending" | "approved" | "denied";
     }
   | {
+      // In-chat image generation (the /image command).
+      t: "image";
+      prompt: string;
+      status: "generating" | "done" | "error";
+      url?: string;
+      error?: string;
+    }
+  | {
       // Multiple-choice question asked before building (live turns only).
       t: "clarify";
       id: string;
