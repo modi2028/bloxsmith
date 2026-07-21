@@ -93,12 +93,14 @@ export async function getPolicyState(
 /**
  * Record a refusal. Returns the restriction if this strike triggered one.
  */
+export const STRIKE_LIMIT_PUBLIC = STRIKE_LIMIT;
+
 export async function recordPolicyStrike(params: {
   userId: string;
   sessionId?: string;
   excerpt: string;
   now: Date;
-}): Promise<{ restrictedUntil: Date | null }> {
+}): Promise<{ restrictedUntil: Date | null; count: number; limit: number }> {
   await db.insert(schema.policyStrikes).values({
     userId: params.userId,
     sessionId: params.sessionId,
@@ -118,14 +120,17 @@ export async function recordPolicyStrike(params: {
       ),
     );
 
-  if ((counted?.n ?? 0) < STRIKE_LIMIT) return { restrictedUntil: null };
+  const count = counted?.n ?? 0;
+  if (count < STRIKE_LIMIT) {
+    return { restrictedUntil: null, count, limit: STRIKE_LIMIT };
+  }
 
   const until = new Date(params.now.getTime() + RESTRICTION_MS);
   await db
     .update(schema.users)
     .set({ restrictedUntil: until, updatedAt: new Date() })
     .where(eq(schema.users.id, params.userId));
-  return { restrictedUntil: until };
+  return { restrictedUntil: until, count, limit: STRIKE_LIMIT };
 }
 
 /**

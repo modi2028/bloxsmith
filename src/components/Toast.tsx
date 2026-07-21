@@ -14,7 +14,7 @@ export function Toast({
   autoHideMs,
 }: {
   message: string;
-  tone?: "warning" | "info";
+  tone?: "warning" | "info" | "danger";
   onClose: () => void;
   /** Omit to keep it up until dismissed (used for restrictions). */
   autoHideMs?: number;
@@ -33,17 +33,21 @@ export function Toast({
     >
       <div
         className={`rounded-2xl p-px shadow-[0_20px_60px_-20px_rgba(0,0,0,0.7)] ${
-          tone === "warning"
-            ? "bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500"
-            : "bg-gradient-to-r from-line-strong to-line"
+          tone === "danger"
+            ? "bg-gradient-to-r from-red-600 via-red-500 to-red-600 shadow-[0_20px_60px_-20px_rgba(239,68,68,0.75)]"
+            : tone === "warning"
+              ? "bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500"
+              : "bg-gradient-to-r from-line-strong to-line"
         }`}
       >
         <div className="flex items-start gap-3 rounded-[15px] bg-surface-raised px-4 py-3.5">
           <span
             className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border ${
-              tone === "warning"
-                ? "border-rose-400/60 text-rose-300"
-                : "border-line-strong text-muted"
+              tone === "danger"
+                ? "border-red-400/70 bg-red-500/15 text-red-300"
+                : tone === "warning"
+                  ? "border-rose-400/60 text-rose-300"
+                  : "border-line-strong text-muted"
             }`}
           >
             <svg viewBox="0 0 16 16" fill="none" className="size-3.5">
@@ -58,7 +62,11 @@ export function Toast({
           </span>
           <p
             className={`min-w-0 flex-1 text-[13px] leading-relaxed ${
-              tone === "warning" ? "text-rose-100" : "text-muted"
+              tone === "danger"
+                ? "text-red-100"
+                : tone === "warning"
+                  ? "text-rose-100"
+                  : "text-muted"
             }`}
           >
             {message}

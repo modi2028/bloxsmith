@@ -233,10 +233,12 @@ export function ChatApp({
   const [notice, setNotice] = useState<{
     message: string;
     action?: { label: string; href: string };
+    tone?: "warning" | "danger";
   } | null>(null);
   /** Same event, corner toast — the notice can be scrolled past. */
   const [toast, setToast] = useState<{
     message: string;
+    tone?: "warning" | "danger";
     autoHideMs?: number;
   } | null>(null);
 
@@ -419,12 +421,26 @@ export function ChatApp({
         setWindowPct(event.windowUsedPct);
       }
       if (event.type === "error") {
+        // A flagged message: red warning with the running count, so the
+        // consequence of continuing is unmistakable.
+        if (event.flagged) {
+          const { count, limit } = event.flagged;
+          setToast({
+            message: `Message flagged — warning ${count}/${limit}. At ${limit}, chat is paused for 24 hours.`,
+            tone: "danger",
+            ...(event.restricted ? {} : { autoHideMs: 12000 }),
+          });
+          setNotice({ message: event.message, tone: "danger" });
+          setMessages((prev) => prev.slice(0, -2));
+          setQueue([]);
+          return;
+        }
         // An account-level pause belongs above the composer, not buried in
         // the transcript — it's about what they can do next.
         if (event.restricted) {
-          setNotice({ message: event.message });
+          setNotice({ message: event.message, tone: "danger" });
           // A pause is easy to miss at the bottom of a long thread.
-          setToast({ message: event.message });
+          setToast({ message: event.message, tone: "danger" });
           setMessages((prev) => prev.slice(0, -2));
           setQueue([]);
           return;
@@ -806,6 +822,7 @@ export function ChatApp({
   const toastNode = toast && (
     <Toast
       message={toast.message}
+      tone={toast.tone}
       autoHideMs={toast.autoHideMs}
       onClose={() => setToast(null)}
     />
@@ -871,6 +888,7 @@ export function ChatApp({
             <ChatNotice
               message={notice.message}
               action={notice.action}
+              tone={notice.tone}
               onClose={() => setNotice(null)}
             />
           )}
@@ -1336,6 +1354,7 @@ export function ChatApp({
             <ChatNotice
               message={notice.message}
               action={notice.action}
+              tone={notice.tone}
               onClose={() => setNotice(null)}
             />
           )}

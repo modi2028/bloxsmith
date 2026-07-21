@@ -56,4 +56,6 @@ export type AgentEvent =
       message: string;
       /** Account-level pause — the UI shows it above the composer. */
       restricted?: boolean;
+      /** Content-policy strike: shows the red "flagged N/3" warning. */
+      flagged?: { count: number; limit: number };
     };

@@ -215,19 +215,22 @@ export async function runAgentTurn(params: {
       throwIfStopped();
       // No answer is not consent — treat silence as a stop, not a yes.
       if (!answer || answer === hit.confirm.unsafe) {
+        let flagged: { count: number; limit: number } | undefined;
         if (answer === hit.confirm.unsafe) {
-          await recordPolicyStrike({
+          const s = await recordPolicyStrike({
             userId: user.id,
             sessionId: params.chatSessionId,
             excerpt: params.message,
             now: policyNow,
-          }).catch(() => ({ restrictedUntil: null }));
+          }).catch(() => null);
+          if (s) flagged = { count: s.count, limit: s.limit };
         }
         await onEvent({
           type: "error",
           message: answer
             ? policyRefusalMessage(hit.confirm.reason)
             : "I'll leave that one — pick an option next time and I'll get started.",
+          ...(flagged ? { flagged } : {}),
         });
         return;
       }
@@ -235,18 +238,19 @@ export async function runAgentTurn(params: {
     }
 
     if (hit.blocked) {
-      const { restrictedUntil } = await recordPolicyStrike({
+      const { restrictedUntil, count, limit } = await recordPolicyStrike({
         userId: user.id,
         sessionId: params.chatSessionId,
         excerpt: params.message,
         now: policyNow,
       });
       const message = restrictedUntil
-        ? `${policyRefusalMessage(hit.reason)}\n\nThis is the third time, so chat is paused on your account for 24 hours.`
+        ? `${policyRefusalMessage(hit.reason)}\n\nThat's ${limit} flagged messages, so chat is paused on your account for 24 hours.`
         : policyRefusalMessage(hit.reason);
       await onEvent({
         type: "error",
         message,
+        flagged: { count, limit },
         ...(restrictedUntil ? { restricted: true } : {}),
       });
       return;
