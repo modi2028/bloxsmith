@@ -9,9 +9,15 @@ export const metadata = {
   description: `Real Roblox games and mechanics built with ${BRAND.name}, with the exact prompts that made them.`,
 };
 
-export const revalidate = 300;
+/**
+ * Rendered per request: this page reads the database, and the build
+ * container has no env vars/database, so prerendering it at build time
+ * fails the whole deploy.
+ */
+export const dynamic = "force-dynamic";
 
 export default async function ShowcasePage() {
+  // A public page must never 500 because the database blipped.
   const rows = await db
     .select({
       id: schema.showcaseEntries.id,
@@ -25,7 +31,8 @@ export default async function ShowcasePage() {
     .innerJoin(schema.users, eq(schema.users.id, schema.showcaseEntries.userId))
     .where(eq(schema.showcaseEntries.approved, true))
     .orderBy(desc(schema.showcaseEntries.createdAt))
-    .limit(60);
+    .limit(60)
+    .catch(() => []);
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-6 py-10">
