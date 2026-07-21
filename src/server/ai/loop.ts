@@ -68,6 +68,8 @@ export async function runAgentTurn(params: {
   thinking?: boolean;
   /** "Fix my game" audit run (Pro and above). */
   audit?: boolean;
+  /** "Explain this" read-only run (all plans). */
+  explain?: boolean;
   title?: string;
   /** Reference images attached to this message (base64, no data: prefix). */
   images?: { mediaType: string; data: string }[];
@@ -230,6 +232,7 @@ export async function runAgentTurn(params: {
       effort,
       // Audit is a paid feature; a free plan silently gets a normal run.
       auditMode: params.audit === true && hasPlan(user, "pro", new Date()),
+      explainMode: params.explain === true,
     });
     // Thinking spend follows the user's toggle — OFF means off, on every
     // effort tier. (Max used to force it on; users read that as a bug.)

@@ -576,6 +576,57 @@ export const toolCallQueue = pgTable(
   ],
 );
 
+/**
+ * Named restore points inside a project. Studio's undo history is a linear
+ * stack, so a checkpoint is simply a marker in time: restoring it means
+ * undoing every waypoint produced after it (see /api/checkpoints/restore).
+ */
+export const checkpoints = pgTable(
+  "checkpoints",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => chatSessions.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    restoredAt: timestamp("restored_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("checkpoints_session_idx").on(t.sessionId, t.createdAt)],
+);
+
+/**
+ * Public showcase. User-generated and therefore moderated: entries are
+ * hidden until an admin approves them, so the public page can never be used
+ * to publish something abusive under the brand.
+ */
+export const showcaseEntries = pgTable(
+  "showcase_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionId: uuid("session_id").references(() => chatSessions.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull(),
+    prompt: text("prompt").notNull(),
+    summary: text("summary"),
+    approved: boolean("approved").notNull().default(false),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("showcase_approved_idx").on(t.approved, t.createdAt)],
+);
+
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------

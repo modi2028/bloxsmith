@@ -25,6 +25,7 @@ const bodySchema = z.object({
   effort: z.enum(["low", "medium", "high", "max"]).optional(),
   thinking: z.boolean().optional(),
   audit: z.boolean().optional(),
+  explain: z.boolean().optional(),
   title: z.string().trim().max(80).optional(),
   // Reference images: base64 (no data: prefix). ~5MB decoded ≈ 7M base64.
   images: z
@@ -159,6 +160,7 @@ export async function POST(request: NextRequest) {
         effort: body.effort,
         thinking: body.thinking,
         audit: body.audit,
+        explain: body.explain,
         title: body.title,
         images: body.images,
         signal: controller.signal,

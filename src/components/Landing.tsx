@@ -218,6 +218,9 @@ export function Landing({
           <Link href="/templates" className="transition hover:text-foreground">
             Templates
           </Link>
+          <Link href="/showcase" className="transition hover:text-foreground">
+            Showcase
+          </Link>
           <a href="#pricing" className="transition hover:text-foreground">
             Pricing
           </a>

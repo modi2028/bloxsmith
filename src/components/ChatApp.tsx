@@ -16,6 +16,8 @@ import { Markdown } from "./Markdown";
 import { Modal } from "./Modal";
 import type { ChatModel } from "./ModelPicker";
 import { PENDING_TITLE_KEY } from "./NewProjectButton";
+import { CheckpointMenu } from "./CheckpointMenu";
+import { ShowcaseButton } from "./ShowcaseButton";
 import { TemplatePicker } from "./TemplatePicker";
 
 const SUGGESTIONS = [
@@ -35,6 +37,10 @@ const CONTINUE_PROMPT =
 /** Sent by the "Fix my game" button — the server adds the audit rules. */
 const AUDIT_PROMPT =
   "Audit my place: find broken scripts, exploitable remotes, missing debounces and nil-guards, loops that never yield, deprecated APIs, and unanchored static geometry. Fix what is safe to fix and report the rest.";
+
+/** Sent by "Explain selection" — the server adds the read-only rules. */
+const EXPLAIN_PROMPT =
+  "Explain what I have selected in Studio: what it is, what it does, and how it works. Don't change anything.";
 
 /** 1234 -> "1.2k", 2500000 -> "2.5M" — for the live token counter. */
 function formatTokens(n: number): string {
@@ -468,7 +474,11 @@ export function ChatApp({
   }, []);
 
   const send = useCallback(
-    async (text: string, files: File[] = [], opts?: { audit?: boolean }) => {
+    async (
+      text: string,
+      files: File[] = [],
+      opts?: { audit?: boolean; explain?: boolean },
+    ) => {
       if (!signedIn) {
         window.location.href = "/api/auth/roblox/login";
         return;
@@ -525,6 +535,7 @@ export function ChatApp({
             effort,
             thinking: thinkingPref,
             ...(opts?.audit ? { audit: true } : {}),
+            ...(opts?.explain ? { explain: true } : {}),
             title: titleForNew,
             ...(images.length ? { images } : {}),
           }),
@@ -733,6 +744,30 @@ export function ChatApp({
                 </span>
               </a>
             )}
+            <button
+              type="button"
+              onClick={() => void send(EXPLAIN_PROMPT, [], { explain: true })}
+              title="Select something in Studio, then ask what it does — nothing gets changed"
+              className="glass-chip flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs text-muted transition hover:border-ember/50 hover:text-foreground"
+            >
+              <svg viewBox="0 0 20 20" fill="none" className="size-3.5">
+                <circle
+                  cx="10"
+                  cy="10"
+                  r="7.25"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M8 7.8a2 2 0 1 1 2.6 1.9c-.4.15-.6.5-.6.9v.4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+                <circle cx="10" cy="13.6" r="0.85" fill="currentColor" />
+              </svg>
+              Explain selection
+            </button>
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
@@ -1011,6 +1046,12 @@ export function ChatApp({
 
       <div className="glass-surface border-t border-line px-4 py-3">
         <div className="mx-auto max-w-3xl">
+          {chatSessionId && (
+            <div className="mb-2.5 flex items-center justify-end gap-2">
+              <ShowcaseButton sessionId={chatSessionId} />
+              <CheckpointMenu sessionId={chatSessionId} />
+            </div>
+          )}
           {queue.length > 0 && (
             <div className="mb-2.5 flex flex-col gap-1.5">
               {queue.map((item, qi) => (

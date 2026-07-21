@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EffortId } from "@/lib/model-catalog";
+import { CostPreview } from "./CostPreview";
 import { ModelPicker, type ChatModel } from "./ModelPicker";
 import { StudioStatus } from "./StudioStatus";
 
@@ -261,6 +262,7 @@ export function ChatComposer({
               onThinkingVisibleChange={onThinkingVisibleChange}
               disabled={busy}
             />
+            {effort && <CostPreview modelId={modelId} effort={effort} />}
             {usagePct != null && (
               <a
                 href="/usage"

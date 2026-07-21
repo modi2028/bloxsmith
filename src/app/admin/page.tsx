@@ -1,6 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { AdminCodeGenerator } from "@/components/AdminCodeGenerator";
+import { AdminShowcase } from "@/components/AdminShowcase";
 import { AdminSiteControls } from "@/components/AdminSiteControls";
 import { AdminUsers } from "@/components/AdminUsers";
 import { BRAND } from "@/lib/brand";
@@ -78,6 +79,13 @@ export default async function AdminPage() {
           <AdminCodeGenerator />
         </section>
       )}
+
+      <section className="mb-10">
+        <h2 className="mb-3 text-sm font-medium text-muted">
+          Showcase submissions
+        </h2>
+        <AdminShowcase />
+      </section>
 
       <section className="mb-10">
         <h2 className="mb-3 text-sm font-medium text-muted">Users</h2>
