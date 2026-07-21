@@ -19,7 +19,9 @@ import {
 import { checkTokenAllowance, tokenWindowUsage } from "@/server/token-usage";
 import { isAdminRole } from "@/lib/roles";
 import {
+  checkBuildArtifact,
   checkContentPolicy,
+  checkContentPolicyStrict,
   policyRefusalMessage,
 } from "@/lib/content-policy";
 import {
@@ -27,6 +29,7 @@ import {
   looksLikePolicyRefusal,
   recordPolicyStrike,
   restrictionRemaining,
+  sessionHasStrike,
 } from "./policy";
 import { isPluginConnected } from "@/server/auth/plugin";
 import { buildSystemPrompt } from "./context";
@@ -184,7 +187,16 @@ export async function runAgentTurn(params: {
   /** Set when the user confirms an ambiguous build is the innocent one. */
   let confirmedIntent: string | null = null;
   if (!staffUnrestricted) {
-    const hit = checkContentPolicy(params.message);
+    // A conversation that already earned a refusal loses the benefit of the
+    // doubt: the shapes we would normally ask about are refused instead.
+    const hardened =
+      policy.harden ||
+      (params.chatSessionId
+        ? await sessionHasStrike(params.chatSessionId).catch(() => false)
+        : false);
+    const hit = hardened
+      ? checkContentPolicyStrict(params.message)
+      : checkContentPolicy(params.message);
 
     // Ambiguous: ask rather than guess. Blocking would break ordinary city
     // builds; allowing would let the reworded request through.
@@ -814,6 +826,39 @@ export async function runAgentTurn(params: {
               });
               continue;
             }
+          }
+        }
+
+        // Last line: inspect what is about to be CREATED. Even if a request
+        // slipped past the message screen and the prompt, an instance named
+        // "Twin Towers" or a script mentioning it never reaches Studio.
+        if (!staffUnrestricted && MUTATING_TOOLS.has(toolUse.name)) {
+          const a = validated.args as Record<string, unknown>;
+          const inspect = [a.name, a.className, a.source, a.value]
+            .filter((v): v is string => typeof v === "string")
+            .join(" ");
+          const artifact = inspect ? checkBuildArtifact(inspect) : null;
+          if (artifact?.blocked) {
+            await recordPolicyStrike({
+              userId: user.id,
+              sessionId: chatSession.id,
+              excerpt: `[built] ${inspect.slice(0, 200)}`,
+              now: new Date(),
+            }).catch(() => ({ restrictedUntil: null }));
+            resultBlocks.push(
+              toolResultBlock(
+                toolUse.id,
+                `blocked_by_policy: this would build ${artifact.reason}, which Bloxsmith does not create. Do NOT retry it or rename it to get around this. Build something unrelated instead, or stop and tell the user.`,
+                true,
+              ),
+            );
+            await onEvent({
+              type: "tool_result",
+              id: toolUse.id,
+              ok: false,
+              error: "Blocked — we don't build that",
+            });
+            continue;
           }
         }
 

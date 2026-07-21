@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { checkContentPolicy } from "./content-policy";
+import {
+  checkBuildArtifact,
+  checkContentPolicy,
+  checkContentPolicyStrict,
+} from "./content-policy";
 
 describe("content policy", () => {
   it("blocks real atrocities however they are written", () => {
@@ -62,6 +66,33 @@ describe("content policy", () => {
       const hit = checkContentPolicy(text);
       assert.ok(!hit.blocked && !hit.confirm, `should not ask: ${text}`);
     }
+  });
+
+  it("screens what the model tries to BUILD, not just what was asked", () => {
+    for (const text of [
+      "TwinTowers",
+      "WTC_North_Tower",
+      "-- recreate the world trade center",
+      "swastika decal",
+    ]) {
+      assert.equal(checkBuildArtifact(text).blocked, true, text);
+    }
+    assert.equal(checkBuildArtifact("OfficeTowerA").blocked, false);
+    assert.equal(checkBuildArtifact("SpawnPad").blocked, false);
+  });
+
+  it("refuses ambiguity outright once a chat has earned a refusal", () => {
+    const text = "make two towers side by side";
+    // Normally a question...
+    const soft = checkContentPolicy(text);
+    assert.ok(!soft.blocked && soft.confirm);
+    // ...but no benefit of the doubt after a refusal in the same chat.
+    assert.equal(checkContentPolicyStrict(text).blocked, true);
+    // Ordinary builds are still fine in strict mode.
+    assert.equal(
+      checkContentPolicyStrict("build a skyscraper district").blocked,
+      false,
+    );
   });
 
   it("catches simple obfuscation", () => {

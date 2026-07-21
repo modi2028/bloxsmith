@@ -23,9 +23,14 @@ export type PolicyHit =
     }
   | { blocked: false; confirm?: undefined };
 
-/** Lowercase, punctuation collapsed to spaces. Digits are preserved. */
+/**
+ * Lowercase, punctuation collapsed to spaces, digits preserved. CamelCase
+ * is split first, because instance names arrive as "TwinTowers" with no
+ * separator at all and the patterns are word-anchored.
+ */
 function plain(text: string): string {
   return text
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
@@ -85,6 +90,30 @@ const BLOCKED: { re: RegExp; reason: string }[] = [
   {
     re: /\b(isis|isil|al qaeda|taliban) (base|camp|attack|flag|recruit)\b/,
     reason: "extremist organisations",
+  },
+  {
+    re: /\b(ground zero|falling man|jumpers? from the tower|the planes hit)\b/,
+    reason: "the 11 September attacks",
+  },
+  {
+    re: /\b(hiroshima|nagasaki|chernobyl|grenfell|titanic sinking) (bomb|attack|disaster|simulator|recreation|map)\b|\b(nuke|nuclear bomb) (on|over) (a )?real\b/,
+    reason: "a real disaster",
+  },
+  {
+    re: /\b(pentagon|white house|buckingham palace|eiffel tower|empire state) (attack|bombing|crash|explosion|destroy|destruction)\b/,
+    reason: "an attack on a real landmark",
+  },
+  {
+    re: /\b(mass|public|mall|church|mosque|synagogue|nightclub|concert) (shooting|shooter|massacre)\b/,
+    reason: "a mass shooting",
+  },
+  {
+    re: /\b(genocide|ethnic cleansing|lynching|slave (auction|whipping))\b/,
+    reason: "real atrocities against a group",
+  },
+  {
+    re: /\b(suicide|self harm|hanging|noose) (simulator|game|roleplay|rp|map|challenge)\b|\bkill (yourself|myself) (simulator|game)\b/,
+    reason: "self-harm content",
   },
 ];
 
@@ -158,6 +187,33 @@ export function checkContentPolicy(text: string): PolicyHit {
     }
   }
 
+  return { blocked: false };
+}
+
+/**
+ * Same screen applied to what the model is about to CREATE — instance names,
+ * script contents, GUI text. This is the last line: even if a request slips
+ * past the message check and the prompt, the artifact itself is inspected
+ * before it reaches Studio.
+ */
+export function checkBuildArtifact(text: string): PolicyHit {
+  const forms = [plain(text), deLeet(text)].filter(Boolean);
+  if (forms.length === 0) return { blocked: false };
+  for (const { re, reason } of BLOCKED) {
+    if (forms.some((f) => re.test(f))) return { blocked: true, reason };
+  }
+  return { blocked: false };
+}
+
+/**
+ * Once a conversation has produced a refusal, ambiguity stops getting the
+ * benefit of the doubt: the same shapes we would normally ask about are
+ * refused outright, because we already know what is being attempted.
+ */
+export function checkContentPolicyStrict(text: string): PolicyHit {
+  const hit = checkContentPolicy(text);
+  if (hit.blocked) return hit;
+  if (hit.confirm) return { blocked: true, reason: hit.confirm.reason };
   return { blocked: false };
 }
 

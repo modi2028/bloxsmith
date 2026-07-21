@@ -128,6 +128,18 @@ export async function recordPolicyStrike(params: {
   return { restrictedUntil: until };
 }
 
+/**
+ * Has this conversation already produced a refusal? If so, ambiguity in it
+ * is no longer innocent and gets refused rather than questioned.
+ */
+export async function sessionHasStrike(sessionId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(schema.policyStrikes)
+    .where(eq(schema.policyStrikes.sessionId, sessionId));
+  return (row?.n ?? 0) > 0;
+}
+
 /** Admin action: lift a restriction and clear the strikes behind it. */
 export async function clearPolicyRestriction(userId: string): Promise<void> {
   await db
