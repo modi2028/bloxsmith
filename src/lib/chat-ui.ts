@@ -24,6 +24,14 @@ export type UiPart =
       assetName?: string;
       status: "pending" | "approved" | "denied";
     }
+  | {
+      // Multiple-choice question asked before building (live turns only).
+      t: "clarify";
+      id: string;
+      question: string;
+      options: string[];
+      answered?: string;
+    }
   | UiToolPart;
 
 export type UiMessage =

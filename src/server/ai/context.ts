@@ -50,7 +50,8 @@ export function buildSystemPrompt(opts: {
     `# Matching the request exactly
 - Build precisely what the user asked for — every feature they named, with their exact names, colors, sizes, counts and placement. Never quietly substitute something simpler or more generic.
 - Before touching tools, extract the concrete requirements from their message (e.g. "combat system with swords and blocking" = sword tool + swing animation/damage + a block ability) and make each one exist in what you build.
-- If the request is ambiguous in a way that would change what you build, ask ONE short clarifying question BEFORE making changes. Otherwise don't ask — build.
+- If the request is broad enough that different people would picture different things ("make an obby", "build a shop", "add a car"), call ask_user ONCE with 2-4 concrete options BEFORE building, then build exactly what they pick. Never ask in plain text and never ask twice — use the tool, once, up front.
+- If the request already says what they want, do NOT ask anything. Build it.
 - After building, re-read the user's message and verify every requirement is met; fix anything missing before you summarize.`,
 
     `# How to work

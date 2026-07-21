@@ -400,6 +400,14 @@ export function ChatApp({
               status: "pending",
             });
             break;
+          case "clarify":
+            parts.push({
+              t: "clarify",
+              id: event.id,
+              question: event.question,
+              options: event.options,
+            });
+            break;
           case "error":
             parts.push({ t: "error", text: event.message });
             break;
@@ -461,6 +469,36 @@ export function ChatApp({
         });
       } catch {
         // The approval times out server-side if this never lands.
+      }
+    },
+    [],
+  );
+
+  /** Answer the AI's multiple-choice question so the build can start. */
+  const answerClarify = useCallback(
+    async (clarificationId: string, answer: string, index: number) => {
+      setMessages((prev) => {
+        const next = [...prev];
+        const msg = next[index];
+        if (msg?.kind !== "assistant") return prev;
+        next[index] = {
+          ...msg,
+          parts: msg.parts.map((p) =>
+            p.t === "clarify" && p.id === clarificationId
+              ? { ...p, answered: answer }
+              : p,
+          ),
+        };
+        return next;
+      });
+      try {
+        await fetch("/api/chat/clarify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clarificationId, answer }),
+        });
+      } catch {
+        // The question times out server-side if this never lands.
       }
     },
     [],
@@ -903,6 +941,61 @@ export function ChatApp({
                               ? "Allowed ✓"
                               : "Denied ✕"}
                           </p>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (part.t === "clarify") {
+                    return (
+                      <div
+                        key={j}
+                        className="rounded-xl border border-ember/40 bg-ember-soft/40 p-4"
+                      >
+                        <p className="flex items-start gap-2 text-sm font-medium">
+                          <svg
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            className="mt-0.5 size-4 shrink-0 text-ember"
+                          >
+                            <circle
+                              cx="10"
+                              cy="10"
+                              r="7.25"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                            />
+                            <path
+                              d="M8 7.8a2 2 0 1 1 2.6 1.9c-.4.15-.6.5-.6.9v.4"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                            />
+                            <circle cx="10" cy="13.6" r="0.85" fill="currentColor" />
+                          </svg>
+                          {part.question}
+                        </p>
+                        {part.answered ? (
+                          <p className="mt-2 text-xs text-emerald-300">
+                            {part.answered} ✓
+                          </p>
+                        ) : (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {part.options.map((opt, oi) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() =>
+                                  void answerClarify(part.id, opt, i)
+                                }
+                                className="flex items-center gap-2 rounded-lg border border-line-strong bg-surface px-3.5 py-2 text-[13px] transition hover:-translate-y-0.5 hover:border-ember/60 hover:text-ember"
+                              >
+                                <span className="flex size-5 items-center justify-center rounded-full border border-line text-[10px] font-semibold text-faint">
+                                  {oi + 1}
+                                </span>
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
                         )}
                       </div>
                     );

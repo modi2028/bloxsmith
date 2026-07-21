@@ -146,6 +146,14 @@ export const toolArgSchemas = {
   revert_build: z
     .object({ steps: z.number().int().min(1).max(200) })
     .strict(),
+  // Server-side: ask the user one multiple-choice question when the request
+  // is too vague to build well. Never reaches the plugin.
+  ask_user: z
+    .object({
+      question: z.string().min(3).max(200),
+      options: z.array(z.string().min(1).max(60)).min(2).max(4),
+    })
+    .strict(),
 } as const;
 
 export type ToolName = keyof typeof toolArgSchemas;

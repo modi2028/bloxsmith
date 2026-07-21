@@ -34,6 +34,7 @@ import {
   waitForAssetApproval,
 } from "./asset-approvals";
 import { searchRobloxAssets } from "./asset-search";
+import { waitForClarification } from "./clarifications";
 import { getStudioTools } from "./tools";
 
 // Tool-loop depth scales with the chosen effort — a big Max budget is
@@ -369,6 +370,14 @@ export async function runAgentTurn(params: {
       // Cap every model call so a wedged provider connection can never hold
       // the user's run slot indefinitely. Combined manually (not
       // AbortSignal.any) so it works on every Node runtime.
+      // Characters streamed in the CURRENT call, and a rough size for the
+      // prompt we are about to send. Both are only used if the call dies
+      // before the provider reports real usage (see the catch below).
+      let streamedChars = 0;
+      const promptTokenEstimate = Math.ceil(
+        (system.length + JSON.stringify(messages).length) / 4,
+      );
+
       const callController = new AbortController();
       const callTimeout = setTimeout(
         () => callController.abort(),
@@ -397,10 +406,19 @@ export async function runAgentTurn(params: {
               thinkingEnabled: thinkForCall,
               webSearch,
               signal: callController.signal,
-              onTextDelta: (text) => void onEvent({ type: "text_delta", text }),
-              onThinkingDelta: (text) =>
-                void onEvent({ type: "thinking_delta", text }),
+              onTextDelta: (text) => {
+                streamedChars += text.length;
+                void onEvent({ type: "text_delta", text });
+              },
+              onThinkingDelta: (text) => {
+                // Thinking is billed output — count it, so stopping a run
+                // that reasoned for minutes still costs what it consumed.
+                streamedChars += text.length;
+                void onEvent({ type: "thinking_delta", text });
+              },
             });
+            // Provider reported real usage; drop the streamed estimate.
+            streamedChars = 0;
             const cameBackEmpty =
               response.toolUses.length === 0 && !response.text.trim();
             if (
@@ -415,6 +433,16 @@ export async function runAgentTurn(params: {
             }
             break;
           } catch (err) {
+            // The call died mid-stream (stop, timeout, dropped socket), so
+            // the provider never sent its usage totals. Bill what actually
+            // streamed — otherwise stopping a long "thinking" run would be
+            // free, and that is the cheapest way to abuse the allowance.
+            if (streamedChars > 0) {
+              outputTokens += Math.ceil(streamedChars / 4);
+              inputTokens += promptTokenEstimate;
+              streamedChars = 0;
+              await onEvent({ type: "usage", inputTokens, outputTokens });
+            }
             const msg = err instanceof Error ? err.message : String(err);
             const transient =
               /\b(429|500|502|503|529)\b|temporarily overloaded|rate.?limit|overloaded|ECONNRESET|socket hang up|fetch failed|terminated/i.test(
@@ -552,6 +580,34 @@ export async function runAgentTurn(params: {
             ok: false,
             error: "Plugin outdated — update the Bloxsmith plugin in Studio",
           });
+          continue;
+        }
+
+        // A clarifying question is answered in the chat, not in Studio.
+        if (toolUse.name === "ask_user") {
+          const a = validated.args as { question: string; options: string[] };
+          const { clarificationId, promise } = waitForClarification({
+            userId: user.id,
+            signal,
+          });
+          await onEvent({
+            type: "clarify",
+            id: clarificationId,
+            question: a.question,
+            options: a.options,
+          });
+          const answer = await promise;
+          throwIfStopped();
+          resultBlocks.push(
+            toolResultBlock(
+              toolUse.id,
+              answer
+                ? `The user chose: ${answer}. Build exactly that now — do not ask anything else.`
+                : "The user did not answer. Pick the most popular, most obvious option yourself and build it now without asking again.",
+              false,
+            ),
+          );
+          await onEvent({ type: "tool_result", id: toolUse.id, ok: true });
           continue;
         }
 

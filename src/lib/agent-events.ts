@@ -44,4 +44,11 @@ export type AgentEvent =
       assetId: number;
       assetName?: string;
     }
+  // The request was too vague to build well — the user picks a direction.
+  | {
+      type: "clarify";
+      id: string;
+      question: string;
+      options: string[];
+    }
   | { type: "error"; message: string };

@@ -155,6 +155,32 @@ export function getStudioTools(
     },
   ];
 
+  // Vague requests get ONE multiple-choice question before any building, so
+  // the user steers the direction instead of receiving a generic guess.
+  tools.push({
+    name: "ask_user",
+    description:
+      "Ask the user ONE multiple-choice question when their request is too vague to build well (e.g. 'make an obby' - lava, classic, or sky themed?). Use this ONLY before you start building, at most once per request, and only when the answer genuinely changes what you would make. Never use it for details you can reasonably decide yourself, and never after you have started building. Give 2-4 short, concrete options that are meaningfully different.",
+    input_schema: {
+      type: "object",
+      properties: {
+        question: {
+          type: "string",
+          description: "One short question, e.g. 'What kind of obby?'",
+        },
+        options: {
+          type: "array",
+          items: { type: "string" },
+          minItems: 2,
+          maxItems: 4,
+          description: "2-4 short, concrete choices (a few words each).",
+        },
+      },
+      required: ["question", "options"],
+      additionalProperties: false,
+    },
+  });
+
   // Pro-only: real Creator Store models for scenery/props — far better than
   // hand-built parts for organic things like trees.
   if (opts.assetTools) {
