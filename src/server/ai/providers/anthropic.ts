@@ -63,6 +63,7 @@ export const streamClaudeResponse: ProviderAdapter = async (params) => {
     text,
     toolUses,
     stopReason: final.stop_reason,
+    truncated: final.stop_reason === "max_tokens",
     usage: {
       inputTokens: final.usage.input_tokens,
       outputTokens: final.usage.output_tokens,

@@ -377,6 +377,11 @@ export async function runAgentTurn(params: {
       const onRunAbort = () => callController.abort();
       signal?.addEventListener("abort", onRunAbort, { once: true });
       let response;
+      // Reasoning spends the same output budget as the answer, so a long
+      // prompt can burn the whole allowance thinking and return NOTHING.
+      // When that happens we retry the call with thinking off rather than
+      // letting the run end silently.
+      let thinkForCall = thinkingEnabled;
       try {
         // Transient provider hiccups (z.ai 429 "temporarily overloaded",
         // stray 5xx, dropped sockets) get two quiet retries with backoff
@@ -389,13 +394,25 @@ export async function runAgentTurn(params: {
               system,
               messages,
               tools,
-              thinkingEnabled,
+              thinkingEnabled: thinkForCall,
               webSearch,
               signal: callController.signal,
               onTextDelta: (text) => void onEvent({ type: "text_delta", text }),
               onThinkingDelta: (text) =>
                 void onEvent({ type: "thinking_delta", text }),
             });
+            const cameBackEmpty =
+              response.toolUses.length === 0 && !response.text.trim();
+            if (
+              cameBackEmpty &&
+              response.truncated &&
+              thinkForCall &&
+              attempt < 2
+            ) {
+              thinkForCall = false; // spend the budget on the answer instead
+              throwIfStopped();
+              continue;
+            }
             break;
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -451,6 +468,20 @@ export async function runAgentTurn(params: {
           messages.push({ role: "user", content: nudgeContent });
           continue;
         }
+        // A turn that produced nothing at all must never look like success.
+        if (response.toolUses.length === 0 && !response.text.trim()) {
+          const why = response.truncated
+            ? "The model used its entire response thinking and never got to the build. Try a shorter, more specific request, turn Thinking off in the model menu, or pick a lower effort."
+            : "The model returned an empty response. Try sending that again.";
+          await onEvent({ type: "text_delta", text: why });
+          await db.insert(schema.chatMessages).values({
+            sessionId: chatSession.id,
+            role: "assistant",
+            content: [{ type: "text", text: why }],
+            textContent: why,
+            modelId,
+          });
+        }
         break;
       }
 
@@ -480,6 +511,15 @@ export async function runAgentTurn(params: {
         if (exactCount >= 3) {
           loopWarning =
             "loop_detected: you've made this exact call multiple times already. Do NOT repeat it — the previous result stands. Move on to the next requirement or finish with a summary.";
+        } else if (
+          // Endless surveying before building is the classic stall: after a
+          // few reads with nothing created, force the first real action.
+          !MUTATING_TOOLS.has(toolUse.name) &&
+          mutatingCalls === 0 &&
+          readCalls >= 4
+        ) {
+          loopWarning =
+            "stop_surveying: you have inspected the place several times and built nothing. You already know enough. Make your first create_instance / write_script call NOW instead of looking again.";
         } else if (toolUse.name === "set_property") {
           const a = validated.args as { target: string; name: string };
           const propKey = `${a.target}|${a.name}`;

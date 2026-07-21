@@ -26,6 +26,12 @@ export type ModelResponse = {
   text: string;
   toolUses: ModelToolUse[];
   stopReason: string | null;
+  /**
+   * The model hit its output cap. On reasoning models the thinking spends
+   * that same budget, so a truncated turn can come back completely empty —
+   * the loop retries such turns with thinking off rather than ending.
+   */
+  truncated?: boolean;
   usage: { inputTokens: number; outputTokens: number };
 };
 

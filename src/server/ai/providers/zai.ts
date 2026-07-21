@@ -20,6 +20,10 @@ export const streamZaiResponse: ProviderAdapter = (params) =>
   streamOpenAICompatibleResponse(params, {
     baseURL: ZAI_BASE_URL,
     maxTokensParam: "max_tokens",
+    // GLM spends this budget on reasoning as well as the answer, so a tight
+    // cap made long prompts burn the whole allowance thinking and return
+    // nothing. Give the answer real room.
+    maxOutputTokens: 32_000,
     // GLM text models can't see images (vision is the separate GLM-V line);
     // attachments become a text note instead of a hard provider error.
     supportsImages: false,

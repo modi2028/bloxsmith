@@ -139,6 +139,11 @@ export type OpenAICompatOptions = {
   extraBody?: Record<string, unknown>;
   /** Provider-native tools appended verbatim (e.g. z.ai web_search). */
   rawExtraTools?: unknown[];
+  /**
+   * Output-token ceiling. Reasoning models spend this on thinking too, so a
+   * cap that is too tight makes them return nothing at all.
+   */
+  maxOutputTokens?: number;
 };
 
 /**
@@ -153,9 +158,9 @@ export async function streamOpenAICompatibleResponse(
   const client = new OpenAI({ apiKey: params.apiKey, baseURL: opts.baseURL });
 
   const maxTokensParam = opts.maxTokensParam ?? "max_completion_tokens";
-  const tokenLimit = { [maxTokensParam]: 16000 } as
-    | { max_tokens: number }
-    | { max_completion_tokens: number };
+  const tokenLimit = {
+    [maxTokensParam]: opts.maxOutputTokens ?? 16000,
+  } as { max_tokens: number } | { max_completion_tokens: number };
 
   const stream = await client.chat.completions.create(
     {
@@ -244,6 +249,7 @@ export async function streamOpenAICompatibleResponse(
       toolUses.length > 0 || finishReason === "tool_calls"
         ? "tool_use"
         : "end_turn",
+    truncated: finishReason === "length",
     usage,
   };
   return response;
