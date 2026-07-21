@@ -125,6 +125,8 @@ export default async function UsagePage() {
           Per plan: Free {fmt(TOKEN_LIMITS_5H.free)}, Pro{" "}
           {fmt(TOKEN_LIMITS_5H.pro)}, Max {fmt(TOKEN_LIMITS_5H.max)} tokens per
           5-hour window. Higher effort and bigger tasks use tokens faster.
+          When a limit is full, new builds pause until usage rolls out of the
+          window; a build already running always finishes.
         </p>
         {plan !== "max" && (
           <Link

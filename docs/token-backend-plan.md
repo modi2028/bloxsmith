@@ -1,8 +1,20 @@
 # Token backend plan — replacing credits with token allowances
 
-Status: **PLAN — not built.** Decided limits and mechanics below; build after
-sign-off. Until then, credits remain the real meter and the token readouts in
-the UI are informational.
+Status: **steps 1-2 SHIPPED — tokens are now the meter.**
+
+- The rolling 5-hour and weekly limits block new runs when spent (soft
+  overshoot: a run that starts under the limit always finishes; admins
+  bypass; kill switch: `app_settings.token_metering_enabled = false`).
+- Effort tiers are denominated in TOKENS (`EFFORT_TIERS[model][effort]
+  .maxTokens`), sized as a fraction of the plan window that unlocks the
+  model, and the loop's budget guard counts real tokens.
+- Credits no longer gate runs: no reserve, no settle, no refund, no
+  "insufficient credits" refusal. Each request still records an approximate
+  provider cost in `ai_requests.creditsCharged` for admin analytics, and the
+  ledger keeps purchase/redeem/admin rows.
+
+Remaining: migrate the side features (below), replace admin credit
+adjustments with token bonuses, and delete the dead ledger spend paths.
 
 ## The model
 

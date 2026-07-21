@@ -5,7 +5,7 @@ import {
   EFFORT_TIERS,
   MODEL_LIMITS,
   effortIdsFor,
-  effortTokenEstimate,
+  effortTokenBudget,
   type EffortId,
 } from "@/lib/model-catalog";
 import { LogoMark } from "./Logo";
@@ -267,7 +267,7 @@ export function ModelPicker({
                     longer and uses your limits faster.
                   </p>
                   {effortIdsFor(current.id).map((id) => {
-                    const est = effortTokenEstimate(current.id, id);
+                    const est = effortTokenBudget(current.id,id);
                     const isTitanMax = current.id === "glm-5.2" && id === "max";
                     return (
                       <button
@@ -291,7 +291,7 @@ export function ModelPicker({
                           </span>
                           {est != null && (
                             <span className="block text-[10px] text-faint">
-                              ≈ {fmtTokens(est)} tokens
+                              up to {fmtTokens(est)} tokens
                             </span>
                           )}
                         </span>
@@ -307,9 +307,9 @@ export function ModelPicker({
                   {MODEL_LIMITS[current.id] && (
                     <p className="border-t border-line px-3.5 py-2 text-[10px] text-faint">
                       {current.name}: {MODEL_LIMITS[current.id].contextK}k
-                      context · ≈{" "}
-                      {fmtTokens(effortTokenEstimate(current.id, effort) ?? 0)}{" "}
-                      tokens at {EFFORT_LABELS[effort]} effort
+                      context · up to{" "}
+                      {fmtTokens(effortTokenBudget(current.id, effort) ?? 0)}{" "}
+                      tokens per build at {EFFORT_LABELS[effort]} effort
                     </p>
                   )}
 

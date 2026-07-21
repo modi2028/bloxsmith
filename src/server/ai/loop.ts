@@ -1,14 +1,7 @@
 import "server-only";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, lt } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import type { SessionUser } from "@/server/auth/session";
-import {
-  InsufficientCreditsError,
-  SpendLimitExceededError,
-  refundCredits,
-  reserveCredits,
-  settleCredits,
-} from "@/server/credits/ledger";
 import {
   awaitToolResult,
   enqueueToolCall,
@@ -18,10 +11,12 @@ import type { AgentEvent } from "@/lib/agent-events";
 import { effectivePlan, hasPlan, type PlanId } from "@/lib/plan";
 import {
   DEFAULT_EFFORT,
-  effortTier,
+  DEFAULT_SESSION_TOKENS,
+  effortTokenBudget,
   type EffortId,
 } from "@/lib/model-catalog";
-import { tokenWindowUsage } from "@/server/token-usage";
+import { checkTokenAllowance, tokenWindowUsage } from "@/server/token-usage";
+import { isAdminRole } from "@/lib/roles";
 import { isPluginConnected } from "@/server/auth/plugin";
 import { buildSystemPrompt } from "./context";
 import {
@@ -82,6 +77,25 @@ export async function runAgentTurn(params: {
     if (signal?.aborted) throw new TurnStoppedError();
   };
 
+  // Housekeeping: runs orphaned by a server restart stay "running" forever,
+  // confusing the Continue banner and status views. Close out anything of
+  // this user's older than an hour (live runs are aborted at 45m max).
+  void db
+    .update(schema.aiRequests)
+    .set({
+      status: "failed",
+      error: "orphaned (server restarted mid-run)",
+      completedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.aiRequests.userId, user.id),
+        eq(schema.aiRequests.status, "running"),
+        lt(schema.aiRequests.createdAt, new Date(Date.now() - 60 * 60_000)),
+      ),
+    )
+    .catch(() => {});
+
   // --- Resolve model + pricing ---------------------------------------------
   const modelId = params.modelId ?? (await getDefaultModelId());
   const pricing = await db.query.modelPricing.findFirst({
@@ -133,6 +147,19 @@ export async function runAgentTurn(params: {
     return;
   }
 
+  // --- Token allowance gate -------------------------------------------------
+  // The displayed 5-hour/weekly limits are REAL: a spent allowance blocks new
+  // runs (a run that starts under the limit may finish over it — nothing is
+  // killed mid-build). Admins bypass; app_settings.token_metering_enabled
+  // (false) is the emergency off switch.
+  if (!isAdminRole(user.role)) {
+    const gate = await checkTokenAllowance(user.id, plan, new Date());
+    if (!gate.ok) {
+      await onEvent({ type: "error", message: gate.message });
+      return;
+    }
+  }
+
   // --- Require a connected Studio plugin -----------------------------------
   // Every build happens live in Studio, so a request without a connected
   // plugin can't do anything. Tell the client to connect it — no credits are
@@ -165,12 +192,12 @@ export async function runAgentTurn(params: {
   }
   await onEvent({ type: "session", chatSessionId: chatSession.id });
 
-  // --- Create request row + reserve credits --------------------------------
-  // The effort tier picked by the user sizes the session's credit cap; models
-  // without a tier table fall back to the pricing row's per-request cap.
+  // --- Create the request row ----------------------------------------------
+  // The effort tier picked by the user sizes this session's TOKEN ceiling —
+  // the same unit as the plan allowance, so the two are directly comparable.
   const effort = params.effort ?? DEFAULT_EFFORT;
-  const tier = effortTier(modelId, effort);
-  const maxReserve = tier ? tier.maxCredits : pricing.maxCreditsPerRequest;
+  const sessionTokenBudget =
+    effortTokenBudget(modelId, effort) ?? DEFAULT_SESSION_TOKENS;
 
   const [aiRequest] = await db
     .insert(schema.aiRequests)
@@ -178,37 +205,10 @@ export async function runAgentTurn(params: {
       sessionId: chatSession.id,
       userId: user.id,
       modelId,
-      creditsReserved: maxReserve,
+      creditsReserved: 0,
     })
     .returning();
 
-  let reserved = maxReserve;
-  try {
-    reserved = await reserveCredits({
-      userId: user.id,
-      aiRequestId: aiRequest.id,
-      amount: maxReserve,
-      minToStart: tier?.minToStart,
-    });
-    if (reserved !== maxReserve) {
-      await db
-        .update(schema.aiRequests)
-        .set({ creditsReserved: reserved })
-        .where(eq(schema.aiRequests.id, aiRequest.id));
-    }
-  } catch (err) {
-    const message =
-      err instanceof InsufficientCreditsError
-        ? `Your build allowance is too low for ${effort} effort on ${pricing.displayName}. Pick a lower effort, wait for your allowance to refill, or upgrade your plan for higher limits.`
-        : err instanceof SpendLimitExceededError
-          ? `You've hit your ${err.scope} usage limit.`
-          : "Could not start the build — try again in a moment.";
-    await failRequest(aiRequest.id, message);
-    await onEvent({ type: "error", message });
-    return;
-  }
-
-  let reservedToRefund = reserved;
   let inputTokens = 0;
   let outputTokens = 0;
   let toolCallCount = 0;
@@ -337,11 +337,10 @@ export async function runAgentTurn(params: {
     for (let iteration = 0; iteration < maxIterations; iteration++) {
       throwIfStopped();
 
-      // Effort budget guard: when the session's effort cap is nearly spent,
-      // stop cleanly and tell the user how to continue — instead of dying
-      // mid-build with a silent clamp.
-      const runningCost = computeCost(pricing, inputTokens, outputTokens);
-      if (iteration > 0 && runningCost >= reserved * 0.92) {
+      // Effort budget guard: when the session's token ceiling is nearly
+      // spent, stop cleanly and tell the user how to continue — instead of
+      // dying mid-build with a silent clamp.
+      if (iteration > 0 && inputTokens + outputTokens >= sessionTokenBudget) {
         // On max there is nothing to raise — every new run starts a fresh
         // budget, so "continue" alone is the right advice.
         const note =
@@ -370,19 +369,38 @@ export async function runAgentTurn(params: {
       signal?.addEventListener("abort", onRunAbort, { once: true });
       let response;
       try {
-        response = await adapter({
-          apiKey,
-          modelId,
-          system,
-          messages,
-          tools,
-          thinkingEnabled,
-          webSearch,
-          signal: callController.signal,
-          onTextDelta: (text) => void onEvent({ type: "text_delta", text }),
-          onThinkingDelta: (text) =>
-            void onEvent({ type: "thinking_delta", text }),
-        });
+        // Transient provider hiccups (z.ai 429 "temporarily overloaded",
+        // stray 5xx, dropped sockets) get two quiet retries with backoff
+        // instead of failing the whole run.
+        for (let attempt = 0; ; attempt++) {
+          try {
+            response = await adapter({
+              apiKey,
+              modelId,
+              system,
+              messages,
+              tools,
+              thinkingEnabled,
+              webSearch,
+              signal: callController.signal,
+              onTextDelta: (text) => void onEvent({ type: "text_delta", text }),
+              onThinkingDelta: (text) =>
+                void onEvent({ type: "thinking_delta", text }),
+            });
+            break;
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            const transient =
+              /\b(429|500|502|503|529)\b|temporarily overloaded|rate.?limit|overloaded|ECONNRESET|socket hang up|fetch failed|terminated/i.test(
+                msg,
+              );
+            if (attempt >= 2 || !transient || callController.signal.aborted) {
+              throw err;
+            }
+            await new Promise((r) => setTimeout(r, 2500 * (attempt + 1)));
+            throwIfStopped();
+          }
+        }
       } finally {
         clearTimeout(callTimeout);
         signal?.removeEventListener("abort", onRunAbort);
@@ -657,15 +675,10 @@ export async function runAgentTurn(params: {
       messages.push({ role: "user", content: resultBlocks });
     }
 
-    // --- Settle credits + close out the request ----------------------------
-    const actualCost = computeCost(pricing, inputTokens, outputTokens);
-    const charged = await settleCredits({
-      userId: user.id,
-      aiRequestId: aiRequest.id,
-      reserved,
-      actualCost,
-    });
-    reservedToRefund = 0;
+    // --- Close out the request ----------------------------------------------
+    // Tokens are the user-facing meter; provider cost is still recorded per
+    // request (in credits) so admin analytics keep working.
+    const charged = computeCost(pricing, inputTokens, outputTokens);
 
     await db
       .update(schema.aiRequests)
@@ -683,8 +696,8 @@ export async function runAgentTurn(params: {
       .set({ updatedAt: new Date(), lastModelId: modelId })
       .where(eq(schema.chatSessions.id, chatSession.id));
 
-    // "% of your rolling 5-hour allowance" — informational until the token
-    // backend ships; never let a stats query kill a finished run.
+    // "% of your rolling 5-hour allowance" — never let a stats query kill a
+    // finished run.
     const windowUsedPct = await tokenWindowUsage(user.id, plan, new Date())
       .then((w) => w.pct)
       .catch(() => undefined);
@@ -697,17 +710,10 @@ export async function runAgentTurn(params: {
       windowUsedPct,
     });
   } catch (err) {
-    // User pressed Stop (or disconnected): charge actual usage so far,
-    // refund the rest of the reserve, and cancel outstanding Studio calls.
+    // User pressed Stop (or disconnected): record usage so far and cancel
+    // outstanding Studio calls.
     if (err instanceof TurnStoppedError || signal?.aborted) {
-      const actualCost = computeCost(pricing, inputTokens, outputTokens);
-      const charged = await settleCredits({
-        userId: user.id,
-        aiRequestId: aiRequest.id,
-        reserved,
-        actualCost,
-      }).catch(() => 0);
-      reservedToRefund = 0;
+      const charged = computeCost(pricing, inputTokens, outputTokens);
       await db
         .update(schema.aiRequests)
         .set({
@@ -747,28 +753,19 @@ export async function runAgentTurn(params: {
       return;
     }
 
-    // Charge for work actually done. If the model consumed tokens before the
-    // error, the user is billed for that usage (unused reserve refunded); only
-    // a request that never reached the provider (e.g. no API key configured)
-    // is fully refunded.
+    // Only tokens actually consumed count — a request that never reached the
+    // provider (e.g. no API key configured) costs the user nothing.
     const consumedTokens = inputTokens > 0 || outputTokens > 0;
-    if (err instanceof NoProviderKeyError || !consumedTokens) {
-      if (reservedToRefund > 0) {
-        await refundCredits({
-          userId: user.id,
-          aiRequestId: aiRequest.id,
-          reserved: reservedToRefund,
-        }).catch(() => {});
-      }
-    } else {
-      const actualCost = computeCost(pricing, inputTokens, outputTokens);
-      await settleCredits({
-        userId: user.id,
-        aiRequestId: aiRequest.id,
-        reserved,
-        actualCost,
-      }).catch(() => {});
-      reservedToRefund = 0;
+    if (consumedTokens) {
+      await db
+        .update(schema.aiRequests)
+        .set({
+          inputTokens,
+          outputTokens,
+          creditsCharged: computeCost(pricing, inputTokens, outputTokens),
+        })
+        .where(eq(schema.aiRequests.id, aiRequest.id))
+        .catch(() => {});
     }
 
     const message =

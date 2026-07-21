@@ -16,7 +16,7 @@ const MAX_CONCURRENT = 1;
 const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 5 * 60 * 1000;
 
-export const maxDuration = 600; // agent turns can legitimately run minutes
+export const maxDuration = 2700; // Max-effort turns can legitimately run ~45m
 
 const bodySchema = z.object({
   message: z.string().min(1).max(8000),
@@ -109,8 +109,15 @@ export async function POST(request: NextRequest) {
 
   const controller = registerRun(user.id);
   // Failsafe: no run may hold the slot forever (e.g. a wedged provider
-  // connection) — hard-abort after 15 minutes so the user is never stuck.
-  const killTimer = setTimeout(() => controller.abort(), 15 * 60_000);
+  // connection) — hard-abort so the user is never stuck. Big-effort sessions
+  // legitimately run long (Titan Max especially), so the ceiling scales.
+  const killMs =
+    body.effort === "max"
+      ? 45 * 60_000
+      : body.effort === "high"
+        ? 25 * 60_000
+        : 15 * 60_000;
+  const killTimer = setTimeout(() => controller.abort(), killMs);
   const encoder = new TextEncoder();
   const out: {
     controller: ReadableStreamDefaultController<Uint8Array> | null;

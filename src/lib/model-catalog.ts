@@ -3,13 +3,15 @@
  * plan. Plain module (no server-only) so both the seed/apply scripts and the
  * app can import it.
  *
- * PRICING MODEL — profitability:
- *   1 credit ≈ $0.20–0.25 (packs are 20/$4.99, 75/$14.99, 200/$39.99).
- *   Credits are FRACTIONAL: a typical request costs ~0.1–0.5 credits. The
- *   per-1k rates below were originally set at provider $/1k × 3 when a
- *   credit sold for ~$1 — at ~$0.20/credit the effective markup on provider
- *   cost is thin; revisit rates if usage margins matter. Everything here is
- *   admin-editable at runtime.
+ * METERING — what users spend:
+ *   TOKENS are the user-facing meter. A plan grants a token allowance per
+ *   rolling 5-hour window (TOKEN_LIMITS_5H) plus a weekly cap; each effort
+ *   tier caps how many tokens ONE build session may consume (EFFORT_TIERS).
+ *   Both are the same unit, so they are directly comparable.
+ *
+ *   The credit rates below no longer gate anything — they exist so every
+ *   request records an approximate provider COST (ai_requests.creditsCharged)
+ *   for admin analytics. Rates are provider $/1k tokens x 3.
  */
 
 export type PlanTier = "free" | "pro" | "max";
@@ -49,15 +51,20 @@ export const EFFORT_IDS: EffortId[] = ["low", "medium", "high", "max"];
 
 export const DEFAULT_EFFORT: EffortId = "medium";
 
-export type EffortTier = { maxCredits: number; minToStart?: number };
+/** A session's token ceiling at a given effort. */
+export type EffortTier = { maxTokens: number };
 
 /**
- * Not every model offers every effort (Titan is Low or Max, nothing between).
+ * Effort tiers are denominated in TOKENS — the same unit as the plan
+ * allowances below — so the two systems are directly comparable. Each tier is
+ * sized as a fraction of the window allowance of the plan that unlocks the
+ * model, so a single session can never eat more than its share:
  *
- * Budgets are sized so the TOKEN estimates ascend with the tier — cheap
- * models must not show bigger session budgets than expensive ones (Luna's
- * rates are ~10x cheaper than Sol's, so equal credits looked upside-down).
- * Approx tokens at max: Luna 670k < Vega 830k < Sol 1.6M < Titan 3.7M.
+ *   Luna/Vega  (Free, 50k per 5h)  -> max session 35k / 40k  (~70-80%)
+ *   Sol        (Pro,  1M per 5h)   -> max session 500k       (~50%, 2 per window)
+ *   Titan      (Max,  2.5M per 5h) -> max session 1.5M       (~60%)
+ *
+ * Not every model offers every effort (Titan is Low or Max, nothing between).
  */
 export const EFFORT_TIERS: Record<
   string,
@@ -65,31 +72,34 @@ export const EFFORT_TIERS: Record<
 > = {
   // Luna
   "glm-4.7-flash": {
-    low: { maxCredits: 0.05 },
-    medium: { maxCredits: 0.12 },
-    high: { maxCredits: 0.2 },
-    max: { maxCredits: 0.35 },
+    low: { maxTokens: 6_000 },
+    medium: { maxTokens: 12_000 },
+    high: { maxTokens: 20_000 },
+    max: { maxTokens: 35_000 },
   },
   // Vega
   "glm-5-turbo": {
-    low: { maxCredits: 0.5 },
-    medium: { maxCredits: 1 },
-    high: { maxCredits: 1.5, minToStart: 1 },
-    max: { maxCredits: 2.5, minToStart: 2 },
+    low: { maxTokens: 8_000 },
+    medium: { maxTokens: 16_000 },
+    high: { maxTokens: 26_000 },
+    max: { maxTokens: 40_000 },
   },
   // Sol
   "glm-5": {
-    low: { maxCredits: 1 },
-    medium: { maxCredits: 2.5 },
-    high: { maxCredits: 4.5, minToStart: 3 },
-    max: { maxCredits: 7.5, minToStart: 4 },
+    low: { maxTokens: 60_000 },
+    medium: { maxTokens: 150_000 },
+    high: { maxTokens: 300_000 },
+    max: { maxTokens: 500_000 },
   },
   // Titan — Low for quick work, Max for the full flagship experience.
   "glm-5.2": {
-    low: { maxCredits: 2 },
-    max: { maxCredits: 25, minToStart: 20 },
+    low: { maxTokens: 200_000 },
+    max: { maxTokens: 1_500_000 },
   },
 };
+
+/** Fallback session ceiling for a model with no effort table. */
+export const DEFAULT_SESSION_TOKENS = 20_000;
 
 /** Effort tier for a model, or null when the model has no effort table. */
 export function effortTier(
@@ -106,22 +116,12 @@ export function effortIdsFor(modelId: string): EffortId[] {
   return EFFORT_IDS.filter((id) => tiers[id] != null);
 }
 
-/**
- * Rough tokens a session can consume at a given effort (blended input/output
- * rate against the tier's credit cap) — the picker's "updating with effort"
- * limit readout.
- */
-export function effortTokenEstimate(
+/** Tokens a session may consume at a given effort (exact, not an estimate). */
+export function effortTokenBudget(
   modelId: string,
   effort: EffortId,
 ): number | null {
-  const tier = effortTier(modelId, effort);
-  const m = MODEL_CATALOG.find((x) => x.modelId === modelId);
-  if (!tier || !m) return null;
-  const blendedPer1k =
-    0.75 * m.inputCreditsPer1k + 0.25 * m.outputCreditsPer1k;
-  if (blendedPer1k <= 0) return null;
-  return Math.round((tier.maxCredits / blendedPer1k) * 1000);
+  return effortTier(modelId, effort)?.maxTokens ?? null;
 }
 
 /** Context windows (thousands of tokens) for the picker's model info. */
@@ -441,4 +441,6 @@ export const APP_SETTINGS_DEFAULTS: { key: string; value: unknown }[] = [
   // Stripe price ids are filled in by scripts/stripe-setup.ts:
   { key: "stripe_pro_price_id", value: "" },
   { key: "stripe_max_price_id", value: "" },
+  // Kill switch for token-allowance enforcement (true = limits enforced).
+  { key: "token_metering_enabled", value: true },
 ];
