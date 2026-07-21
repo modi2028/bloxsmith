@@ -107,7 +107,7 @@ export function BloxImageButton() {
               className="aspect-video w-full rounded-xl border border-line object-cover"
             />
             <p className="mt-1.5 text-xs text-faint">
-              Save it now — the link is temporary. Right-click → Save image, or{" "}
+              Saved to your projects. Right-click → Save image, or{" "}
               <a
                 href={url}
                 target="_blank"

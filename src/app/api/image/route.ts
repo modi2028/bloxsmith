@@ -10,7 +10,9 @@ import {
   reserveCredits,
   settleCredits,
 } from "@/server/credits/ledger";
+import { persistToChat } from "@/server/ai/image-persist";
 import { getProviderApiKey, NoProviderKeyError } from "@/server/ai/keys";
+import { mirrorImage } from "@/server/storage";
 import { clientIp, rateLimit } from "@/server/security/ratelimit";
 import { getSiteSettings } from "@/server/site-settings";
 
@@ -28,6 +30,10 @@ const ZAI_IMAGE_BASE =
 
 const bodySchema = z.object({
   prompt: z.string().trim().min(3).max(1500),
+  /** When present, the request + result are saved into this project. */
+  chatSessionId: z.string().uuid().optional(),
+  /** What the user actually typed (persisted as their message). */
+  shownAs: z.string().trim().max(2000).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -124,7 +130,31 @@ export async function POST(request: NextRequest) {
       reserved: IMAGE_COST_CREDITS,
       actualCost: IMAGE_COST_CREDITS,
     });
-    return Response.json({ url, cost: IMAGE_COST_CREDITS });
+
+    // The provider URL expires within hours, so host our own copy —
+    // otherwise the picture breaks on the next page load. If mirroring
+    // fails the temporary URL still works right now, so don't fail the call.
+    let finalUrl = url;
+    try {
+      finalUrl = await mirrorImage(url, user.id);
+    } catch (err) {
+      console.error("Image mirror failed, serving temporary URL:", err);
+    }
+
+    // Persist into the chat so a refresh doesn't lose the picture.
+    const chatSessionId = await persistToChat({
+      userId: user.id,
+      chatSessionId: body.chatSessionId,
+      shownAs: body.shownAs ?? body.prompt,
+      prompt: body.prompt,
+      url: finalUrl,
+    }).catch(() => body.chatSessionId ?? null);
+
+    return Response.json({
+      url: finalUrl,
+      cost: IMAGE_COST_CREDITS,
+      chatSessionId,
+    });
   } catch (err) {
     await refundCredits({
       userId: user.id,

@@ -291,11 +291,16 @@ export function ChatApp({
         const res = await fetch("/api/image", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
+          body: JSON.stringify({
+            prompt,
+            shownAs,
+            ...(chatSessionId ? { chatSessionId } : {}),
+          }),
         });
         const data = (await res.json().catch(() => ({}))) as {
           url?: string;
           error?: string;
+          chatSessionId?: string;
         };
         if (!res.ok || !data.url) {
           finish({
@@ -304,7 +309,11 @@ export function ChatApp({
           });
         } else {
           finish({ status: "done", url: data.url });
+          // Adopt the project the server saved it into, so a refresh (and
+          // the sidebar) find the picture again.
+          if (data.chatSessionId) setChatSessionId(data.chatSessionId);
           notifyDone("Your picture is ready!");
+          router.refresh();
         }
       } catch {
         finish({ status: "error", error: "Couldn't reach the server." });
@@ -312,7 +321,7 @@ export function ChatApp({
         setBusy(false);
       }
     },
-    [],
+    [chatSessionId, router],
   );
 
   // Live token usage for the current run + the 5-hour-window readout.
@@ -1040,6 +1049,14 @@ export function ChatApp({
                               src={part.url}
                               alt={part.prompt}
                               className="fade-up w-full"
+                              onError={(e) => {
+                                // An old provider link that has expired.
+                                e.currentTarget.style.display = "none";
+                                e.currentTarget.parentElement?.insertAdjacentHTML(
+                                  "beforeend",
+                                  '<p class="px-3.5 py-6 text-center text-xs text-faint">This image is no longer available.</p>',
+                                );
+                              }}
                             />
                           </a>
                         )}
@@ -1154,7 +1171,13 @@ export function ChatApp({
                   );
                 })}
 
-                {busy && i === messages.length - 1 && (
+                {busy &&
+                  i === messages.length - 1 &&
+                  // An image is rendering its own loader — a second
+                  // "Thinking…" block underneath just adds noise.
+                  !msg.parts.some(
+                    (p) => p.t === "image" && p.status === "generating",
+                  ) && (
                   <div>
                     {/* Reasoning indicator — always shown while the model
                         works; click to watch the thoughts live. The Thinking

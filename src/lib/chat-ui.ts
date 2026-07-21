@@ -69,6 +69,9 @@ type DbBlock = {
   tool_use_id?: string;
   content?: unknown;
   is_error?: boolean;
+  /** image_result blocks (generated pictures). */
+  url?: string;
+  prompt?: string;
 };
 
 /**
@@ -125,6 +128,13 @@ export function mapDbMessagesToUi(
       for (const b of blocks) {
         if (b?.type === "text" && b.text) {
           assistant.parts.push({ t: "text", text: b.text });
+        } else if (b?.type === "image_result" && b.url) {
+          assistant.parts.push({
+            t: "image",
+            status: "done",
+            url: b.url,
+            prompt: b.prompt ?? "",
+          });
         } else if (b?.type === "tool_use" && b.id && b.name) {
           assistant.parts.push({
             t: "tool",
