@@ -18,6 +18,7 @@ import {
 } from "@/lib/model-catalog";
 import { checkTokenAllowance, tokenWindowUsage } from "@/server/token-usage";
 import { isAdminRole } from "@/lib/roles";
+import { checkScriptSafety } from "@/lib/script-safety";
 import {
   checkBuildArtifact,
   checkContentPolicy,
@@ -830,6 +831,29 @@ export async function runAgentTurn(params: {
               });
               continue;
             }
+          }
+        }
+
+        // Never write a backdoor into someone's game, whatever was asked.
+        // Applies to staff too: this protects the USER's place, not taste.
+        if (toolUse.name === "write_script") {
+          const src = (validated.args as { source?: string }).source ?? "";
+          const risk = checkScriptSafety(src);
+          if (risk.blocked) {
+            resultBlocks.push(
+              toolResultBlock(
+                toolUse.id,
+                `blocked_unsafe_script: this uses ${risk.reason}. Rewrite it WITHOUT that — use normal Roblox APIs and keep all logic in the script itself. Do not obfuscate it or try another way around this.`,
+                true,
+              ),
+            );
+            await onEvent({
+              type: "tool_result",
+              id: toolUse.id,
+              ok: false,
+              error: "Blocked — unsafe script",
+            });
+            continue;
           }
         }
 

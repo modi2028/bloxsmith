@@ -115,6 +115,40 @@ const BLOCKED: { re: RegExp; reason: string }[] = [
     re: /\b(suicide|self harm|hanging|noose) (simulator|game|roleplay|rp|map|challenge)\b|\bkill (yourself|myself) (simulator|game)\b/,
     reason: "self-harm content",
   },
+  // --- Things that would get the USER banned from Roblox -------------------
+  {
+    re: /\b(free robux|robux (generator|gen|hack)|robux for free)\b|\b(steal|steals|stealing|phish|phishes|grab|grabs|log|logs) (their |the |someone ?s |a )?(password|passwords|account|accounts|cookie|cookies|login|logins)\b|\broblox (account )?(stealer|logger)\b/,
+    reason: "a Robux scam or account-stealing setup",
+  },
+  {
+    re: /\b(backdoor|remote (code )?exec)\b|\bscript that (lets me|gives me) (control|admin) (of|in) (any|other) (game|place)\b/,
+    reason: "a game backdoor",
+  },
+  {
+    re: /\b(bypass|get around|defeat|evade) (the )?(roblox )?(chat )?(filter|moderation|tos|rules)\b|\bfilter bypass\b|\bsay (swear|curse) words? (past|through) the filter\b/,
+    reason: "bypassing Roblox moderation",
+  },
+  // --- Sexual / minors ------------------------------------------------------
+  {
+    re: /\b(condo|scented con|nsfw|sex|porn|hentai|strip club|brothel) (game|map|place|room|build|world)\b|\b(make|build) (a |an )?(sex|nsfw|porn) \w+/,
+    reason: "sexual content",
+  },
+  {
+    re: /\b(child|kid|minor|underage|loli|shota)\b[\s\S]{0,30}\b(sexual|nude|naked|strip|porn|nsfw)\b|\b(sexual|nude|naked|nsfw)\b[\s\S]{0,30}\b(child|kid|minor|underage)\b/,
+    reason: "content sexualising minors",
+  },
+  // --- Real-world harm ------------------------------------------------------
+  {
+    // Two shapes: an item with no innocent game meaning, or an explicitly
+    // REAL weapon. Bare "bomb" is left out so "bomb defusal game" builds.
+    re: /\bhow to (make|build|cook)\b[^.]{0,24}\b(pipe bomb|meth|napalm|silencer|nerve gas|thermite)\b|\bhow to (make|build|cook)\b[^.]{0,16}\b(real|working|functional|actual)\b[^.]{0,16}\b(bomb|explosive|gun|firearm)\b|\b(real|working) (bomb|explosive|gun|firearm) (instructions|recipe|blueprint)\b/,
+    reason: "real weapon or drug instructions",
+  },
+  {
+    // Note: normalisation turns "someone's" into "someone s".
+    re: /\b(dox|doxx|doxxing)\b|\b(find|leak|post|get) (their|his|her|someone ?s|a players?) (home address|address|phone number|ip address|real name)\b/,
+    reason: "doxxing someone",
+  },
 ];
 
 /**
