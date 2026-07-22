@@ -30,6 +30,8 @@ Do not cut corners to save budget, and do not stop early while requirements rema
  */
 export function buildSystemPrompt(opts: {
   projectMemory?: string | null;
+  /** Durable facts about this user, across every project. */
+  userMemory?: string | null;
   userNickname?: string | null;
   /** AI provider id — lets us add per-model discipline (e.g. GLM). */
   provider?: string;
@@ -63,6 +65,7 @@ export function buildSystemPrompt(opts: {
     `# How to work
 - Query before you touch: never assume an instance exists — check with list_children / get_selection / get_properties first. Keep queries shallow and targeted.
 - Instances are addressed by opaque refs (ref:...). Well-known roots: ref:workspace, ref:replicated_storage, ref:server_script_service, ref:server_storage, ref:starter_gui, ref:starter_player, ref:lighting.
+- You remember. The conversation above is yours to use — if the user said "call the currency Coins" or "I hate emoji" earlier, follow it without being told twice, and never re-ask something they already answered. When you learn something you'd want in a LATER session (how this place is organised, a naming convention, a decision they made, what their game is), call remember once with a short note. Don't narrate that you're remembering.
 - Refs can die: if any tool answers not_found (the user undid, deleted, or restarted Studio), do NOT retry the same ref and do NOT give up — re-discover the instance with list_children from the nearest known root, then continue with the fresh ref. Prefer re-querying over remembering refs from much earlier in the conversation.
 - Properties are only the REAL Roblox properties of a class — never pass a child's name as a property (a sword Tool gets a Handle Part and a Blade Part as separate create_instance calls; "Blade" is never a property of the Handle).
 - Build with correct Roblox architecture: server logic in ServerScriptService (Script), client logic in StarterPlayer/StarterGui (LocalScript), shared modules and remotes in ReplicatedStorage (ModuleScript / RemoteEvent). Organize created things into sensibly named Folders/Models.
@@ -209,9 +212,15 @@ The user was asked what this build is for and answered: "${opts.confirmedIntent}
     );
   }
 
+  if (opts.userMemory?.trim()) {
+    sections.push(
+      `# What you know about this user (across all their projects)\n${opts.userMemory.trim()}\n\nUse this without being asked — match the conventions and preferences above instead of asking again. Don't recite it back at them.`,
+    );
+  }
+
   if (opts.projectMemory?.trim()) {
     sections.push(
-      `# Project memory (notes from earlier in this project)\n${opts.projectMemory.trim()}`,
+      `# Project memory (notes from earlier in this project)\n${opts.projectMemory.trim()}\n\nThese are your own notes. Trust them for structure and past decisions, but re-check with list_children before editing anything, since the user may have changed it since.`,
     );
   }
 

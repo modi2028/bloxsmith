@@ -155,6 +155,29 @@ export function getStudioTools(
     },
   ];
 
+  // Durable memory: what's worth knowing next time, not a transcript.
+  tools.push({
+    name: "remember",
+    description:
+      "Save a short fact you'll want in a LATER session. Use it when you learn something durable: how the place is organised, names and conventions the user expects, decisions they made ('coins not gems'), or what their game is. Use scope 'user' for things true of this person across all their projects (preferences, style), and 'project' for facts about this specific place. Do NOT use it for one-off details, things visible from list_children, or a summary of what you just did.",
+    input_schema: {
+      type: "object",
+      properties: {
+        note: {
+          type: "string",
+          description: "One short sentence, written for your future self.",
+        },
+        scope: {
+          type: "string",
+          enum: ["project", "user"],
+          description: "'project' = this place, 'user' = this person always.",
+        },
+      },
+      required: ["note"],
+      additionalProperties: false,
+    },
+  });
+
   // Vague requests get ONE multiple-choice question before any building, so
   // the user steers the direction instead of receiving a generic guess.
   tools.push({

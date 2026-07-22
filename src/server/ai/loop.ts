@@ -50,6 +50,7 @@ import {
 } from "./asset-approvals";
 import { searchRobloxAssets } from "./asset-search";
 import { waitForClarification } from "./clarifications";
+import { getUserMemory, rememberProject, rememberUser } from "./memory";
 import { getStudioTools } from "./tools";
 
 // Tool-loop depth scales with the chosen effort — a big Max budget is
@@ -339,6 +340,7 @@ export async function runAgentTurn(params: {
     const tools = getStudioTools({ assetTools });
     const system = buildSystemPrompt({
       projectMemory: chatSession.projectMemory,
+      userMemory: await getUserMemory(user.id).catch(() => null),
       userNickname: user.nickname ?? user.displayName ?? user.username,
       provider: pricing.provider,
       assetTools,
@@ -358,12 +360,29 @@ export async function runAgentTurn(params: {
       where: eq(schema.chatMessages.sessionId, chatSession.id),
       orderBy: asc(schema.chatMessages.createdAt),
     });
-    const messages: ProviderMessage[] = history
-      .filter((m) => m.role !== "system")
+    // Replay the recent turns in full. Everything older is what project
+    // memory is for — resending a months-old transcript on every model call
+    // would quietly burn the user's allowance for no benefit.
+    const MAX_REPLAYED = 80;
+    const usable = history.filter((m) => m.role !== "system");
+    const trimmed = usable.length > MAX_REPLAYED;
+    const messages: ProviderMessage[] = usable
+      .slice(-MAX_REPLAYED)
       .map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       }));
+    if (trimmed) {
+      messages.unshift({
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `(auto) This project is older than the messages shown — ${usable.length - MAX_REPLAYED} earlier turns are not included. Rely on your project memory for what came before, and re-check the place with list_children rather than assuming.`,
+          },
+        ],
+      });
+    }
 
     // Vision bridge: GLM models can't see images, so a vision model (Haiku)
     // describes them once and the description is stored as its own block —
@@ -716,6 +735,33 @@ export async function runAgentTurn(params: {
             ok: false,
             error: "Plugin outdated — update the Bloxsmith plugin in Studio",
           });
+          continue;
+        }
+
+        // Memory is written server-side; it never touches Studio.
+        if (toolUse.name === "remember") {
+          const a = validated.args as {
+            note: string;
+            scope?: "project" | "user";
+          };
+          try {
+            if (a.scope === "user") await rememberUser(user.id, a.note);
+            else await rememberProject(chatSession.id, a.note);
+            resultBlocks.push(
+              toolResultBlock(toolUse.id, "noted", false),
+            );
+            await onEvent({ type: "tool_result", id: toolUse.id, ok: true });
+          } catch {
+            resultBlocks.push(
+              toolResultBlock(toolUse.id, "could not save that note", true),
+            );
+            await onEvent({
+              type: "tool_result",
+              id: toolUse.id,
+              ok: false,
+              error: "Couldn't save",
+            });
+          }
           continue;
         }
 

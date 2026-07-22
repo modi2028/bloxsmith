@@ -111,6 +111,9 @@ export const users = pgTable(
     // Set when repeated attempts to get banned content through trip the
     // policy limiter. Chat is blocked until this passes; admins can clear it.
     restrictedUntil: timestamp("restricted_until", { withTimezone: true }),
+    // Durable notes the AI keeps about THIS USER across every project —
+    // preferences, naming conventions, what they are building overall.
+    aiMemory: text("ai_memory"),
     disabled: boolean("disabled").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

@@ -146,6 +146,14 @@ export const toolArgSchemas = {
   revert_build: z
     .object({ steps: z.number().int().min(1).max(200) })
     .strict(),
+  // Server-side: save a durable note so later sessions know it. Never
+  // reaches the plugin.
+  remember: z
+    .object({
+      note: z.string().trim().min(3).max(300),
+      scope: z.enum(["project", "user"]).default("project"),
+    })
+    .strict(),
   // Server-side: ask the user one multiple-choice question when the request
   // is too vague to build well. Never reaches the plugin.
   ask_user: z
