@@ -240,9 +240,11 @@ On the **app** service (not the proxy), set:
 | `CHATGPT_OAUTH_BASE`  | `http://<proxy-service-name>.railway.internal:10531/v1` |
 | `CHATGPT_OAUTH_MODEL` | e.g. `gpt-5.5` — see below                              |
 
-Railway's private network is IPv6, which is why the proxy binds `::` in
-`Dockerfile.openai-oauth`. If the app can't reach it, that binding is the
-first thing to check.
+The proxy binds `0.0.0.0`. Do **not** "fix" this to the IPv6 wildcard `::`:
+openai-oauth concatenates the host into its own upstream URL, so `::` yields
+`http://:::10531` and every request returns 500 `Failed to parse URL`. The
+IPv4 bind is verified reachable from the app service over
+`openai-oauth.railway.internal`. Override with `PROXY_HOST` if ever needed.
 
 Then confirm which models the account actually offers and set
 `CHATGPT_OAUTH_MODEL` to one of them:

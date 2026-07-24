@@ -19,9 +19,10 @@ RUN mkdir -p /data/.codex
 ENV OPENAI_OAUTH_VERSION=latest
 
 # The entrypoint seeds the session from CODEX_AUTH_JSON on first boot and
-# binds :: (Railway's private network is IPv6; a 127.0.0.1 default would be
-# unreachable from the app service). sed strips CRLF so the script still runs
-# when the repo is checked out on Windows.
+# binds 0.0.0.0 (the 127.0.0.1 default would be unreachable from the app
+# service; the IPv6 wildcard "::" breaks openai-oauth's URL building — see
+# the entrypoint). sed strips CRLF so the script still runs when the repo is
+# checked out on Windows.
 COPY scripts/openai-oauth-entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 

@@ -37,9 +37,14 @@ if [ ! -f "$AUTH_FILE" ]; then
   exit 1
 fi
 
+# Bind 0.0.0.0, NOT the IPv6 wildcard "::". openai-oauth builds its own
+# upstream URL by concatenating the host, so "::" produces "http://:::10531"
+# and every request comes back 500 "Failed to parse URL". 0.0.0.0 is verified
+# reachable from the app service over <service>.railway.internal.
+#
 # Own port, deliberately not Railway's injected PORT: this service must stay
 # private, and a shifting port would silently break CHATGPT_OAUTH_BASE on the
 # app service.
 exec npx "openai-oauth@${OPENAI_OAUTH_VERSION:-latest}" \
-  --host "${PROXY_HOST:-::}" \
+  --host "${PROXY_HOST:-0.0.0.0}" \
   --port "${PROXY_PORT:-10531}"
