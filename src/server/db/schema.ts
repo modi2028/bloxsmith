@@ -36,6 +36,10 @@ export const providerName = pgEnum("provider_name", [
   "google",
   "openai",
   "zai", // Z.ai (Zhipu) GLM models via their OpenAI-compatible API
+  // ChatGPT over a Codex OAuth session rather than a paid API key. Separate
+  // from "openai" on purpose: different endpoint, different credential, and
+  // it must stay switchable without disturbing the paid path.
+  "chatgpt",
 ]);
 
 export const toolCallStatus = pgEnum("tool_call_status", [

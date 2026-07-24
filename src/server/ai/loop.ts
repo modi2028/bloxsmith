@@ -14,9 +14,14 @@ import {
   DEFAULT_EFFORT,
   DEFAULT_SESSION_TOKENS,
   effortTokenBudget,
+  isUnmeteredModel,
   type EffortId,
 } from "@/lib/model-catalog";
-import { checkTokenAllowance, tokenWindowUsage } from "@/server/token-usage";
+import {
+  checkTokenAllowance,
+  checkUnmeteredFairUse,
+  tokenWindowUsage,
+} from "@/server/token-usage";
 import { isAdminRole } from "@/lib/roles";
 import { checkScriptSafety } from "@/lib/script-safety";
 import {
@@ -44,6 +49,7 @@ import { streamClaudeResponse } from "./providers/anthropic";
 import { streamGoogleResponse } from "./providers/google";
 import { streamOpenAIResponse } from "./providers/openai";
 import { streamZaiResponse } from "./providers/zai";
+import { streamChatGptResponse } from "./providers/chatgpt";
 import {
   isAssetApproved,
   waitForAssetApproval,
@@ -69,6 +75,7 @@ const PROVIDER_ADAPTERS: Partial<Record<ProviderId, ProviderAdapter>> = {
   google: streamGoogleResponse,
   openai: streamOpenAIResponse,
   zai: streamZaiResponse,
+  chatgpt: streamChatGptResponse,
 };
 
 export type { AgentEvent };
@@ -264,7 +271,19 @@ export async function runAgentTurn(params: {
   // runs (a run that starts under the limit may finish over it — nothing is
   // killed mid-build). Admins bypass; app_settings.token_metering_enabled
   // (false) is the emergency off switch.
-  if (!isAdminRole(user.role)) {
+  //
+  // Unmetered models (ChatGPT on a subscription) skip the plan allowance
+  // entirely — we pay nothing per token, so spending an allowance the user
+  // bought would be arbitrary. They answer to a fair-use ceiling instead,
+  // which protects the single shared upstream account. Admins bypass ours,
+  // NOT the upstream one: a third-party account doesn't care about roles.
+  if (isUnmeteredModel(modelId)) {
+    const fair = await checkUnmeteredFairUse(user.id, modelId, new Date());
+    if (!fair.ok) {
+      await onEvent({ type: "error", message: fair.message });
+      return;
+    }
+  } else if (!isAdminRole(user.role)) {
     const gate = await checkTokenAllowance(user.id, plan, new Date());
     if (!gate.ok) {
       await onEvent({ type: "error", message: gate.message });

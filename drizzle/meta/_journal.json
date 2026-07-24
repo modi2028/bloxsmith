@@ -113,6 +113,13 @@
       "when": 1784729038431,
       "tag": "0015_purple_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1784980000000,
+      "tag": "0016_chatgpt-provider",
+      "breakpoints": true
     }
   ]
 }

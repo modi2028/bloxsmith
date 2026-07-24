@@ -18,7 +18,7 @@ export type PlanTier = "free" | "pro" | "max";
 
 export type CatalogModel = {
   modelId: string;
-  provider: "anthropic" | "openai" | "google" | "zai";
+  provider: "anthropic" | "openai" | "google" | "zai" | "chatgpt";
   displayName: string;
   description: string;
   tier: "flagship" | "balanced" | "fast";
@@ -36,6 +36,39 @@ export type CatalogModel = {
 
 /** Shown under "Recommended · Best at coding" in the model picker. */
 export const RECOMMENDED_MODEL_IDS = new Set(["glm-5", "glm-5.2"]);
+
+// ---------------------------------------------------------------------------
+// Unmetered models
+// ---------------------------------------------------------------------------
+
+/**
+ * Models that cost us nothing per token, so they do NOT draw down the plan
+ * token allowance and their usage is excluded from the 5-hour/weekly meters.
+ *
+ * Today that is ChatGPT, which rides a ChatGPT subscription through the
+ * openai-oauth proxy rather than metered API credits. Charging a user's
+ * allowance for tokens we never pay for would be arbitrary — and it would
+ * make the model's large context useless, since a free plan's whole 5-hour
+ * window is smaller than one full-context call.
+ *
+ * "Unmetered" means unmetered BY US, not unlimited: the upstream account has
+ * its own real rate limits, which UNMETERED_TOKENS_5H below protects.
+ */
+export const UNMETERED_MODEL_IDS = new Set(["chatgpt"]);
+
+export function isUnmeteredModel(modelId: string): boolean {
+  return UNMETERED_MODEL_IDS.has(modelId);
+}
+
+/**
+ * Fair-use ceiling for unmetered models, per user per rolling 5 hours.
+ *
+ * The entire site shares ONE upstream ChatGPT subscription, so its rate limit
+ * is global. Without this, a single heavy user starves everyone else (and
+ * draws attention to an account we would rather keep quiet). Sized to allow
+ * roughly two full Max-effort sessions per window.
+ */
+export const UNMETERED_TOKENS_5H = 500_000;
 
 // ---------------------------------------------------------------------------
 // Effort tiers — per model, the user picks how hard (and how expensive) a
@@ -104,6 +137,16 @@ export const EFFORT_TIERS: Record<
     high: { maxTokens: 110_000 },
     max: { maxTokens: 160_000 },
   },
+  // ChatGPT — unmetered, so these tiers are sized against the model's own
+  // 400k context and the UNMETERED_TOKENS_5H fair-use window rather than
+  // against a plan allowance. Max stays comfortably under the context limit
+  // so a long session doesn't run into a hard upstream wall mid-build.
+  chatgpt: {
+    low: { maxTokens: 40_000 },
+    medium: { maxTokens: 90_000 },
+    high: { maxTokens: 160_000 },
+    max: { maxTokens: 260_000 },
+  },
   // Titan — Low for quick work, Max for the full flagship experience, plus
   // the staff-only unrestricted mode.
   "glm-5.2": {
@@ -145,6 +188,10 @@ export const MODEL_LIMITS: Record<string, { contextK: number }> = {
   "glm-5-turbo": { contextK: 128 },
   "glm-5": { contextK: 200 },
   "glm-5.2": { contextK: 200 },
+  // Real Codex ceiling, not the 500k that was originally asked for — the
+  // picker advertising more context than the model accepts would surface as
+  // a mystery failure mid-build.
+  chatgpt: { contextK: 400 },
 };
 
 /**
@@ -213,6 +260,30 @@ export const MODEL_CATALOG: CatalogModel[] = [
     enabled: true,
     isDefault: false,
     sort: 20,
+  },
+  {
+    // ChatGPT through a Codex OAuth session (see providers/chatgpt.ts), not
+    // the paid OpenAI API — hence the zero rates: these columns record what a
+    // request COST us, and a subscription-backed call costs nothing per token.
+    // Free for every plan, and unmetered (UNMETERED_MODEL_IDS), so it never
+    // eats an allowance the user paid for.
+    modelId: "chatgpt",
+    provider: "chatgpt",
+    displayName: "ChatGPT",
+    description: "OpenAI's ChatGPT — free for everyone, with a huge context",
+    tier: "flagship",
+    inputCreditsPer1k: 0,
+    outputCreditsPer1k: 0,
+    baseCost: 0,
+    maxCreditsPerRequest: 0,
+    proOnly: false,
+    minPlan: "free",
+    enabled: true,
+    // Never the default: it depends on a third-party proxy and an account
+    // that can be cut off without notice, so a signed-out visitor's first
+    // build must not land on it.
+    isDefault: false,
+    sort: 25,
   },
   {
     // GLM-5: $1.0/$3.2 per 1M tokens.

@@ -20,6 +20,7 @@
     "apply:catalog": "tsx scripts/apply-catalog.ts",
     "stripe:setup": "tsx scripts/stripe-setup.ts",
     "make:code": "tsx scripts/make-code.ts",
+    "chatgpt:models": "tsx scripts/list-chatgpt-models.ts",
     "set:plan": "tsx scripts/set-plan.ts"
   },
   "dependencies": {

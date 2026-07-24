@@ -11,7 +11,12 @@ export class NoProviderKeyError extends Error {
   }
 }
 
-export type ProviderId = "anthropic" | "google" | "openai" | "zai";
+export type ProviderId =
+  | "anthropic"
+  | "google"
+  | "openai"
+  | "zai"
+  | "chatgpt";
 
 /**
  * Fetch and decrypt a provider API key at the moment of use. The plaintext
@@ -20,6 +25,12 @@ export type ProviderId = "anthropic" | "google" | "openai" | "zai";
 export async function getProviderApiKey(
   provider: ProviderId,
 ): Promise<string> {
+  // ChatGPT holds no API key of ours — the local openai-oauth proxy carries
+  // the Codex OAuth session and ignores the Authorization header. A
+  // placeholder keeps the shared OpenAI client happy (it refuses an empty
+  // apiKey) without implying a secret exists.
+  if (provider === "chatgpt") return "oauth";
+
   const row = await db.query.providerKeys.findFirst({
     where: eq(schema.providerKeys.provider, provider),
   });

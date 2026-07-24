@@ -1,0 +1,30 @@
+# The openai-oauth proxy, as its own service.
+#
+# This holds the ChatGPT sign-in for the whole site and re-exposes it as an
+# OpenAI-compatible endpoint that the app talks to over the PRIVATE network.
+#
+# SECURITY: this endpoint takes no API key — anything that can reach it gets
+# ChatGPT billed to our account. It must never be given a public domain.
+# See DEPLOYMENT.md §8.
+FROM node:22-slim
+
+# Where the OAuth session lives. Mount a persistent volume here: the proxy
+# refreshes the session over time, and without persistence every redeploy
+# reverts to the bootstrap credentials until they go stale.
+ENV CODEX_HOME=/data/.codex
+RUN mkdir -p /data/.codex
+
+# Set to an exact version to freeze upgrades — this is an unofficial
+# dependency sitting in the request path of a user-facing model.
+ENV OPENAI_OAUTH_VERSION=latest
+
+# The entrypoint seeds the session from CODEX_AUTH_JSON on first boot and
+# binds :: (Railway's private network is IPv6; a 127.0.0.1 default would be
+# unreachable from the app service). sed strips CRLF so the script still runs
+# when the repo is checked out on Windows.
+COPY scripts/openai-oauth-entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+
+EXPOSE 10531
+
+CMD ["/entrypoint.sh"]

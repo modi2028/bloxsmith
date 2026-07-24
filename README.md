@@ -90,6 +90,61 @@ See [Build plan](#build-plan).
 | `npm run db:generate` | Regenerate SQL migrations after schema changes    |
 | `npm run db:migrate`  | Apply migrations to `DATABASE_URL`                |
 | `npm run db:seed`     | Seed model pricing + settings (skips existing)    |
+| `npm run chatgpt:models` | List models the ChatGPT OAuth session can reach |
+
+## The ChatGPT model (openai-oauth)
+
+The `chatgpt` model is **not** the paid OpenAI API. It rides a ChatGPT
+subscription through [openai-oauth](https://github.com/EvanZhouDev/openai-oauth),
+an unofficial proxy that re-exposes a Codex OAuth session as an
+OpenAI-compatible endpoint. Read this before touching it:
+
+> **The mechanism is tolerated; our deployment shape is the exposed part.**
+> Unlike Anthropic (Feb 2026) and Google's Gemini CLI (Feb 2026), OpenAI has
+> not restricted Codex OAuth tokens in third-party clients, so using them is
+> not in itself a terms breach. What openai-oauth *does* rule out is how we
+> use it: its README says to keep it to "personal, local experimentation",
+> and to "not run as a hosted service, do not share access, and do not pool
+> or redistribute tokens." One account serving every user of this site is
+> precisely that, and OpenAI has revoked third-party OAuth apps before (it
+> pulled OpenClaw's permission and then rejected its logins outright).
+>
+> Practical consequence: the account behind this can be cut off without
+> warning. Treat it as expendable, keep it off the default model, and make
+> sure another model can take over — which is what the fallbacks below do.
+
+**Running it.** The proxy is a separate process that must be reachable from
+the app:
+
+```sh
+npx openai-oauth@latest login     # one-time, opens a ChatGPT sign-in
+npx openai-oauth@latest --detach  # serves http://127.0.0.1:10531/v1
+```
+
+In Docker it has to be a sidecar (or run in the same container with a
+supervisor) — the app does **not** start it. If it's down, `chatgpt` requests
+fail with an "offline" notice and every other model keeps working.
+
+**Config.**
+
+| Env var                | Default                     | What it does                          |
+| ---------------------- | --------------------------- | ------------------------------------- |
+| `CHATGPT_OAUTH_BASE`   | `http://127.0.0.1:10531/v1` | Where the proxy listens               |
+| `CHATGPT_OAUTH_MODEL`  | `gpt-5.5`                   | Upstream model actually requested     |
+
+Which models an account can reach depends on its ChatGPT plan and changes over
+time, so `CHATGPT_OAUTH_MODEL` is config, not code — our catalog id
+(`chatgpt`) is deliberately decoupled from it. Run `npm run chatgpt:models` to
+see what the connected account actually offers; the script warns if the
+configured model isn't in the list.
+
+**Metering.** Subscription-backed tokens cost us nothing, so `chatgpt` is
+listed in `UNMETERED_MODEL_IDS`: it never draws down a plan's token allowance
+and is excluded from the 5-hour/weekly meters (charging a user for tokens we
+don't pay for would be arbitrary, and a free plan's whole window is smaller
+than one full-context call). Unmetered by us is not unlimited — a per-user
+fair-use ceiling of `UNMETERED_TOKENS_5H` protects the shared upstream
+account, and unlike the plan gate it has no admin bypass and no kill switch.
 
 ## Credits system
 

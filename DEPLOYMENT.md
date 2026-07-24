@@ -171,6 +171,130 @@ auto-update.
 
 ---
 
+## 8. The ChatGPT model, for everyone (openai-oauth)
+
+The `chatgpt` model is powered by a ChatGPT subscription over the
+[openai-oauth](https://github.com/EvanZhouDev/openai-oauth) proxy, not the
+paid OpenAI API. The proxy is a **separate long-running process**, so serving
+it site-wide means giving it its own Railway service on the private network.
+
+Read the risk note in the README first. In short: the OAuth mechanism itself
+is tolerated by OpenAI, but pooling one account across a hosted site is what
+the project rules out, so treat this account as expendable and never make it
+the default model.
+
+### 8.1 One-time: create the session locally
+
+The sign-in is an interactive browser flow, so it cannot happen inside a
+headless container. Do it on your machine, then carry the result up:
+
+```powershell
+npx openai-oauth@latest login
+```
+
+That writes the session to `~/.codex/auth.json` (`$env:USERPROFILE\.codex\auth.json`
+on Windows). Use a **dedicated ChatGPT account** — not your personal one —
+because everything the site does will run through it. A Pro plan gives far
+more headroom than Plus; every user shares its rate limit.
+
+### 8.2 Add the proxy service on Railway
+
+1. Railway → **the same project** as the app (private networking is
+   per-project) → **New** → **GitHub Repo** → same repo. Railway will start
+   an incorrect first build immediately; ignore it, step 3 fixes it.
+2. Service → Settings → **Rename** to `openai-oauth`. Do this before step 6:
+   the internal hostname comes from the service name.
+3. Service → **Variables** → add `RAILWAY_DOCKERFILE_PATH` =
+   `Dockerfile.openai-oauth`. It must be a *service variable*, not a root
+   `railway.json` — a root config would apply to the app service too and
+   break its build.
+4. Settings → **Networking** → **Public Networking**: confirm there is **no
+   domain**. If Railway generated one, delete it. (See the security note
+   below — this matters more than anything else on this page.)
+5. Settings → **Volumes**: add a volume mounted at `/data`. **Required, not
+   optional** — the proxy rotates the session as it runs, and the entrypoint
+   only seeds from the env var when no session file exists yet. Without the
+   volume, every redeploy restores the stale bootstrap copy and the model
+   dies once the original credentials age out.
+6. Variables → set `CODEX_AUTH_JSON` to the **entire contents** of your local
+   `~/.codex/auth.json`. Copy it without opening it:
+
+   ```powershell
+   Get-Content "$env:USERPROFILE\.codex\auth.json" -Raw | Set-Clipboard
+   ```
+
+   The entrypoint writes it to the volume on first boot and never overwrites
+   it afterwards. Re-running `openai-oauth login` locally later may rotate
+   the session and invalidate what production is holding — if the model
+   starts failing after you log in again, re-seed (§8.6).
+
+The service refuses to start with a clear log line if no session is present,
+rather than coming up healthy and failing every request.
+
+### 8.3 Point the app at it
+
+On the **app** service (not the proxy), set:
+
+| Variable              | Value                                                  |
+| --------------------- | ------------------------------------------------------ |
+| `CHATGPT_OAUTH_BASE`  | `http://<proxy-service-name>.railway.internal:10531/v1` |
+| `CHATGPT_OAUTH_MODEL` | e.g. `gpt-5.5` — see below                              |
+
+Railway's private network is IPv6, which is why the proxy binds `::` in
+`Dockerfile.openai-oauth`. If the app can't reach it, that binding is the
+first thing to check.
+
+Then confirm which models the account actually offers and set
+`CHATGPT_OAUTH_MODEL` to one of them:
+
+```sh
+npm run chatgpt:models
+```
+
+Run it locally against the proxy, or with `CHATGPT_OAUTH_BASE` pointed at the
+deployed one. It warns if the configured model isn't in the account's list —
+worth checking after any plan change, since the list moves over time.
+
+### 8.4 Never expose the proxy publicly
+
+**The proxy endpoint requires no API key.** Anything that can reach it gets
+unlimited ChatGPT billed to your account. A public domain on that service
+turns it into an open proxy, which is both the fastest way to lose the
+account and a bill you did not agree to. Keep it on the private network, and
+if you ever port-forward it locally for debugging, bind `127.0.0.1`.
+
+### 8.5 What users see when it breaks
+
+If the proxy is down or the session expires, `chatgpt` requests fail with a
+short "pick another model" notice and **every other model keeps working** —
+the failure is contained to that one model. Because of this, `chatgpt` is
+deliberately not the default and not `isDefault` in the catalog.
+
+To take it offline entirely, set `enabled: false` on the `chatgpt` row in
+`src/lib/model-catalog.ts` and run `npm run apply:catalog` — the model
+disappears from the picker without a deploy of the app itself.
+
+### 8.6 Replacing the session
+
+If the session goes bad (revoked, expired, or you logged in again locally and
+rotated it), updating `CODEX_AUTH_JSON` alone does **nothing** — the
+entrypoint refuses to overwrite a session that already exists on the volume,
+because on every ordinary redeploy that file is the good one.
+
+To force it:
+
+1. `npx openai-oauth@latest login` locally to get a fresh session.
+2. Copy it: `Get-Content "$env:USERPROFILE\.codex\auth.json" -Raw | Set-Clipboard`
+3. On the proxy service, set `CODEX_AUTH_JSON` to the new value **and** add
+   `CODEX_AUTH_RESEED=1`.
+4. Redeploy. The logs will show `CODEX_AUTH_RESEED=1 — replacing the stored
+   session`.
+5. **Remove `CODEX_AUTH_RESEED`.** Left in place, every future redeploy
+   overwrites the rotated session with the bootstrap copy — the exact failure
+   the volume exists to prevent.
+
+---
+
 ## Launch checklist
 
 - [ ] Code pushed to GitHub, Railway deploying green
@@ -182,3 +306,15 @@ auto-update.
 - [ ] Paired the published plugin and ran a real build end-to-end
 - [ ] Provider API keys set in prod DB (`npm run key:set` runs against the
       same Supabase, so they're already there)
+
+If you are shipping the ChatGPT model (§8):
+
+- [ ] `npm run db:migrate` applied (adds `chatgpt` to the provider enum) and
+      `npm run apply:catalog` run against production
+- [ ] Proxy service deployed from `Dockerfile.openai-oauth`, with a volume at
+      `/data` and `CODEX_AUTH_JSON` set
+- [ ] Proxy service has **no public domain** — private networking only
+- [ ] App service has `CHATGPT_OAUTH_BASE` + `CHATGPT_OAUTH_MODEL` set
+- [ ] `npm run chatgpt:models` lists the configured model for that account
+- [ ] Ran a real build on ChatGPT end-to-end, then stopped the proxy and
+      confirmed other models still build fine

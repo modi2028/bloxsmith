@@ -109,7 +109,7 @@ export function ZaiMark({ className = "size-4" }: { className?: string }) {
   );
 }
 
-/** Logo for an AI provider id ("anthropic" | "openai" | "google" | "zai"). */
+/** Logo for an AI provider id ("anthropic" | "openai" | "chatgpt" | "google" | "zai"). */
 export function ProviderIcon({
   provider,
   className = "size-4",
@@ -118,7 +118,10 @@ export function ProviderIcon({
   className?: string;
 }) {
   if (provider === "anthropic") return <ClaudeMark className={className} />;
-  if (provider === "openai") return <OpenAIMark className={className} />;
+  // "chatgpt" is the same brand as "openai" — it differs only in how we
+  // authenticate (Codex OAuth session vs a paid API key), not to the user.
+  if (provider === "openai" || provider === "chatgpt")
+    return <OpenAIMark className={className} />;
   if (provider === "google") return <GeminiMark className={className} />;
   if (provider === "zai") return <ZaiMark className={className} />;
   return null;
