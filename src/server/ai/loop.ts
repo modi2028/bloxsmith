@@ -158,9 +158,13 @@ export async function runAgentTurn(params: {
     return;
   }
 
-  // Tool tiers: Creator Store models on Sol + Titan; web search on Titan
-  // only (its prompt tells it to use search as a fallback, not per task).
-  const assetTools = ["glm-5", "glm-5.2"].includes(modelId);
+  // Tool tiers: Creator Store models on Sol + Titan + ChatGPT; web search on
+  // Titan only (its prompt tells it to use search as a fallback, not per task).
+  const assetTools = ["glm-5", "glm-5.2", "chatgpt"].includes(modelId);
+  // Web search is NOT a prompt flag — it only works where the adapter injects
+  // a provider-native search tool, which today is z.ai alone. Turning it on
+  // for a model without that tool would tell the model it can search when it
+  // cannot, and it would invent results instead of admitting it.
   const webSearch = modelId === "glm-5.2";
 
   // Per-user model bans (admin-managed).

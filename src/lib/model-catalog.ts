@@ -188,9 +188,8 @@ export const MODEL_LIMITS: Record<string, { contextK: number }> = {
   "glm-5-turbo": { contextK: 128 },
   "glm-5": { contextK: 200 },
   "glm-5.2": { contextK: 200 },
-  // Real Codex ceiling, not the 500k that was originally asked for — the
-  // picker advertising more context than the model accepts would surface as
-  // a mystery failure mid-build.
+  // Real Codex ceiling. The picker advertising more context than the model
+  // accepts would surface as a mystery failure mid-build.
   chatgpt: { contextK: 400 },
 };
 
@@ -274,7 +273,8 @@ export const MODEL_CATALOG: CatalogModel[] = [
     modelId: "chatgpt",
     provider: "chatgpt",
     displayName: "ChatGPT",
-    description: "OpenAI's ChatGPT — huge context, free of your allowance",
+    description:
+      "OpenAI's ChatGPT — Creator Store models, free of your allowance",
     tier: "flagship",
     inputCreditsPer1k: 0,
     outputCreditsPer1k: 0,
@@ -285,7 +285,8 @@ export const MODEL_CATALOG: CatalogModel[] = [
     enabled: true,
     // Never the default: it depends on a third-party proxy and an account
     // that can be cut off without notice, so a signed-out visitor's first
-    // build must not land on it.
+    // build must not land on it. (It is also Pro-gated, so it could not be
+    // the default anyway — free users would hit the plan wall immediately.)
     isDefault: false,
     sort: 25,
   },
