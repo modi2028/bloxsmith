@@ -238,7 +238,7 @@ On the **app** service (not the proxy), set:
 | Variable              | Value                                                  |
 | --------------------- | ------------------------------------------------------ |
 | `CHATGPT_OAUTH_BASE`  | `http://<proxy-service-name>.railway.internal:10531/v1` |
-| `CHATGPT_OAUTH_MODEL` | e.g. `gpt-5.5` — see below                              |
+| `CHATGPT_OAUTH_MODEL` | e.g. `gpt-5.6-sol` — see below                          |
 
 The proxy binds `0.0.0.0`. Do **not** "fix" this to the IPv6 wildcard `::`:
 openai-oauth concatenates the host into its own upstream URL, so `::` yields

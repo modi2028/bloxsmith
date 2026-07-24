@@ -48,8 +48,8 @@ export const RECOMMENDED_MODEL_IDS = new Set(["glm-5", "glm-5.2"]);
  * Today that is ChatGPT, which rides a ChatGPT subscription through the
  * openai-oauth proxy rather than metered API credits. Charging a user's
  * allowance for tokens we never pay for would be arbitrary — and it would
- * make the model's large context useless, since a free plan's whole 5-hour
- * window is smaller than one full-context call.
+ * make the model's large context useless, since even a Pro 5-hour window is
+ * smaller than one full-context call.
  *
  * "Unmetered" means unmetered BY US, not unlimited: the upstream account has
  * its own real rate limits, which UNMETERED_TOKENS_5H below protects.
@@ -265,19 +265,23 @@ export const MODEL_CATALOG: CatalogModel[] = [
     // ChatGPT through a Codex OAuth session (see providers/chatgpt.ts), not
     // the paid OpenAI API — hence the zero rates: these columns record what a
     // request COST us, and a subscription-backed call costs nothing per token.
-    // Free for every plan, and unmetered (UNMETERED_MODEL_IDS), so it never
-    // eats an allowance the user paid for.
+    //
+    // Pro-gated despite costing us nothing: the whole site shares ONE upstream
+    // subscription, so the constraint is that account's rate limit, not our
+    // spend. Restricting it to paid plans keeps the load survivable and makes
+    // it a genuine perk — an unmetered model that never touches the allowance
+    // Pro and Max users actually paid for (UNMETERED_MODEL_IDS).
     modelId: "chatgpt",
     provider: "chatgpt",
     displayName: "ChatGPT",
-    description: "OpenAI's ChatGPT — free for everyone, with a huge context",
+    description: "OpenAI's ChatGPT — huge context, free of your allowance",
     tier: "flagship",
     inputCreditsPer1k: 0,
     outputCreditsPer1k: 0,
     baseCost: 0,
     maxCreditsPerRequest: 0,
-    proOnly: false,
-    minPlan: "free",
+    proOnly: true,
+    minPlan: "pro",
     enabled: true,
     // Never the default: it depends on a third-party proxy and an account
     // that can be cut off without notice, so a signed-out visitor's first

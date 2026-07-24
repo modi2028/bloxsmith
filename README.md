@@ -130,7 +130,7 @@ fail with an "offline" notice and every other model keeps working.
 | Env var                | Default                     | What it does                          |
 | ---------------------- | --------------------------- | ------------------------------------- |
 | `CHATGPT_OAUTH_BASE`   | `http://127.0.0.1:10531/v1` | Where the proxy listens               |
-| `CHATGPT_OAUTH_MODEL`  | `gpt-5.5`                   | Upstream model actually requested     |
+| `CHATGPT_OAUTH_MODEL`  | `gpt-5.6-sol`               | Upstream model actually requested     |
 
 Which models an account can reach depends on its ChatGPT plan and changes over
 time, so `CHATGPT_OAUTH_MODEL` is config, not code — our catalog id

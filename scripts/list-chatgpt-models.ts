@@ -16,7 +16,7 @@ import { config as loadDotenv } from "dotenv";
 loadDotenv({ path: [".env.local", ".env"] });
 
 const BASE = process.env.CHATGPT_OAUTH_BASE ?? "http://127.0.0.1:10531/v1";
-const CURRENT = process.env.CHATGPT_OAUTH_MODEL ?? "gpt-5.5";
+const CURRENT = process.env.CHATGPT_OAUTH_MODEL ?? "gpt-5.6-sol";
 
 async function main() {
   let res: Response;

@@ -35,7 +35,7 @@ const BASE_URL = process.env.CHATGPT_OAUTH_BASE ?? "http://127.0.0.1:10531/v1";
  * depends on its plan and changes over time, so switching is a config change,
  * not a migration. `npm run chatgpt:models` lists what this account offers.
  */
-const UPSTREAM_MODEL = process.env.CHATGPT_OAUTH_MODEL ?? "gpt-5.5";
+const UPSTREAM_MODEL = process.env.CHATGPT_OAUTH_MODEL ?? "gpt-5.6-sol";
 
 /** The proxy isn't running / isn't reachable. */
 function isUnreachable(err: unknown): boolean {
