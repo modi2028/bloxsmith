@@ -55,6 +55,64 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
+/**
+ * Tween a number so the token counter ticks up instead of teleporting.
+ *
+ * Usage arrives in lumps — one event per model call — so the raw number jumps
+ * 234 -> 544 and the user can't tell whether that was one big step or the
+ * counter glitching. Counting through the gap makes the spend legible.
+ *
+ * Retargets from wherever the current animation reached, so back-to-back
+ * updates chain smoothly rather than snapping back to the last target.
+ */
+function useCountUp(target: number, durationMs = 600): number {
+  const [display, setDisplay] = useState(target);
+  const displayRef = useRef(target);
+  const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const from = displayRef.current;
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+    // Snap instead of animating when there's nothing to show: no change, a
+    // reset to zero at the start of a run (counting *down* would be a lie),
+    // or a user who asked for reduced motion.
+    if (from === target || target < from || reduceMotion) {
+      displayRef.current = target;
+      setDisplay(target);
+      return;
+    }
+
+    const start = performance.now();
+    const delta = target - from;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      // easeOutCubic — quick off the mark, settles onto the final figure.
+      const value = Math.round(from + delta * (1 - Math.pow(1 - t, 3)));
+      displayRef.current = value;
+      setDisplay(value);
+      if (t < 1) frameRef.current = requestAnimationFrame(step);
+    };
+    frameRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
+    };
+  }, [target, durationMs]);
+
+  return display;
+}
+
+/**
+ * Its own component on purpose: this re-renders on every animation frame, and
+ * ChatApp is far too big to redraw 60 times a second for a token count.
+ */
+function CountUp({ value }: { value: number }) {
+  return <>{formatTokens(useCountUp(value))}</>;
+}
+
 /** Fire a desktop notification if allowed and the user isn't looking. */
 function notifyDone(message: string) {
   try {
@@ -1321,8 +1379,8 @@ export function ChatApp({
                     </button>
                     {liveUsage && (
                       <p className="mt-0.5 text-[11px] tabular-nums text-faint">
-                        {formatTokens(liveUsage.input)} in ·{" "}
-                        {formatTokens(liveUsage.output)} out
+                        <CountUp value={liveUsage.input} /> in ·{" "}
+                        <CountUp value={liveUsage.output} /> out
                       </p>
                     )}
                     {modelId === "glm-5.2" && !runningTool && (
