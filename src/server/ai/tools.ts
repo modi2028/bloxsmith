@@ -37,7 +37,7 @@ const propertyValue = {
 };
 
 export function getStudioTools(
-  opts: { assetTools?: boolean } = {},
+  opts: { assetTools?: boolean; webSearchTool?: boolean } = {},
 ): ModelToolDef[] {
   const tools: ModelToolDef[] = [
     {
@@ -242,6 +242,29 @@ export function getStudioTools(
         },
       },
     );
+  }
+
+  // Live web search, run server-side by us (see web-search.ts). Offered as a
+  // real tool rather than a provider feature so the call is observable — the
+  // chat can show the user what was searched and why.
+  if (opts.webSearchTool) {
+    tools.push({
+      name: "web_search",
+      description:
+        "Search the live web. Use it FREELY for inspiration and reference before building anything visual or thematic — what a real version of this looks like, how popular Roblox games do it, colour palettes, layouts, mechanics. Also use it for facts you don't know and Roblox APIs you're unsure about. Prefer short English keyword queries ('neon cyberpunk city street', not a sentence). Searching costs the user very little and makes builds dramatically better, so reach for it early rather than guessing.",
+      input_schema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Short English keywords.",
+          },
+          limit: { type: "integer", minimum: 1, maximum: 10 },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    });
   }
 
   // NOTE: a run_luau (arbitrary code execution) tool was intentionally removed

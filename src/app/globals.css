@@ -506,6 +506,18 @@ body {
   animation-play-state: paused;
 }
 
+/* Web-search globe. Slow enough to read as "looking something up" rather
+   than a generic spinner. */
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2.4s linear infinite;
+}
+
 /* Gentle vertical float for the decorative backdrop cards. */
 @keyframes float-y {
   from {
@@ -830,6 +842,7 @@ body {
   .gradient-pan,
   .glow-breathe,
   .conic-border,
+  .animate-spin-slow,
   .drift,
   .animate-marquee,
   .float-card,

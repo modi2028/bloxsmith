@@ -70,6 +70,26 @@ function notifyDone(message: string) {
   }
 }
 
+/**
+ * Web search gets its own mark instead of the generic dot: it is the one tool
+ * that reaches outside the user's place, so it should be obvious at a glance
+ * that the AI went and looked something up. Spins while the search runs.
+ */
+function SearchGlobe({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      className={`size-3.5 shrink-0 text-sky-400 ${spinning ? "animate-spin-slow" : ""}`}
+      aria-hidden
+    >
+      <circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.4" />
+      <ellipse cx="8" cy="8" rx="2.6" ry="6.2" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M2 6.2h12M2 9.8h12" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
 function toolLabel(part: UiToolPart): string {
   const a = part.args as Record<string, string | undefined>;
   switch (part.tool) {
@@ -85,6 +105,8 @@ function toolLabel(part: UiToolPart): string {
       return "Looking around the place";
     case "search_assets":
       return `Searching the Creator Store${a.query ? ` for “${a.query}”` : ""}`;
+    case "web_search":
+      return a.query ? `Searching the web for “${a.query}”` : "Searching the web";
     case "insert_asset":
       return `Inserting a Creator Store model${a.name ? ` “${a.name}”` : ""}`;
     case "get_selection":
@@ -1214,12 +1236,19 @@ export function ChatApp({
                       </div>
                     );
                   }
+                  const isWebSearch = part.tool === "web_search";
                   return (
                     <div
                       key={j}
-                      className="glass-chip flex items-center gap-2.5 rounded-lg border border-line px-3 py-2 text-[13px]"
+                      className={`glass-chip flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[13px] ${
+                        isWebSearch
+                          ? "border-sky-500/40 bg-sky-500/[0.06]"
+                          : "border-line"
+                      }`}
                     >
-                      {part.status === "running" ? (
+                      {isWebSearch ? (
+                        <SearchGlobe spinning={part.status === "running"} />
+                      ) : part.status === "running" ? (
                         <span className="size-2 shrink-0 animate-pulse rounded-full bg-ember" />
                       ) : part.status === "ok" ? (
                         <svg
@@ -1242,7 +1271,9 @@ export function ChatApp({
                         className={
                           part.status === "running"
                             ? "shimmer-text font-medium"
-                            : "text-muted"
+                            : isWebSearch
+                              ? "text-sky-200/80"
+                              : "text-muted"
                         }
                       >
                         {toolLabel(part)}
