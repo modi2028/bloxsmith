@@ -310,6 +310,26 @@ export function AdminUsers({
                       <button
                         type="button"
                         disabled={busyId === u.id}
+                        onClick={() => {
+                          if (
+                            !confirm(
+                              `Reset ${u.displayName ?? u.username}'s token limits?\n\nTheir 5-hour, weekly and Titan fair-use windows all go back to zero immediately. Usage history and cost records are kept.`,
+                            )
+                          )
+                            return;
+                          void run(u.id, {
+                            action: "resetLimits",
+                            userId: u.id,
+                          });
+                        }}
+                        title="Clear spent allowance — both windows and Titan fair use"
+                        className="rounded border border-line px-2 py-1 text-xs transition hover:border-ember/60 disabled:opacity-40"
+                      >
+                        Reset limits
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busyId === u.id}
                         onClick={() => editModelBans(u)}
                         className="rounded border border-line px-2 py-1 text-xs transition hover:border-ember/60 disabled:opacity-40"
                       >

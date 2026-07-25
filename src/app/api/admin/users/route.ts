@@ -49,6 +49,11 @@ const actionSchema = z.discriminatedUnion("action", [
     userId: z.string().uuid(),
     models: z.array(z.string().min(1).max(100)).max(50),
   }),
+  z.object({
+    // Clear a user's spent token allowance (both windows + Titan fair use).
+    action: z.literal("resetLimits"),
+    userId: z.string().uuid(),
+  }),
 ]);
 
 /**
@@ -166,6 +171,27 @@ export async function POST(request: NextRequest) {
       targetType: "user",
       targetId: target.id,
       before: { restrictedUntil: target.restrictedUntil },
+      ip,
+    });
+    return Response.json({ ok: true });
+  }
+
+  if (body.action === "resetLimits") {
+    // Marker, not a purge: the rolling windows ignore everything recorded
+    // before this instant, while ai_requests keeps the real history for the
+    // usage charts and cost analytics.
+    const resetAt = new Date();
+    await db
+      .update(schema.users)
+      .set({ tokenResetAt: resetAt, updatedAt: resetAt })
+      .where(eq(schema.users.id, target.id));
+    await auditAdmin({
+      actorUserId: admin.id,
+      action: "user.reset_limits",
+      targetType: "user",
+      targetId: target.id,
+      before: { tokenResetAt: target.tokenResetAt },
+      after: { tokenResetAt: resetAt },
       ip,
     });
     return Response.json({ ok: true });

@@ -23,6 +23,21 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const UNMETERED_IDS = [...UNMETERED_MODEL_IDS];
 
 /**
+ * An admin "reset limits" sets users.tokenResetAt, and every rolling window
+ * starts no earlier than that moment. Clamping the window start (rather than
+ * deleting usage rows) means the reset frees the user immediately while their
+ * real history stays intact for the charts and the cost analytics.
+ */
+async function windowStart(userId: string, since: Date): Promise<Date> {
+  const row = await db.query.users.findFirst({
+    where: eq(schema.users.id, userId),
+    columns: { tokenResetAt: true },
+  });
+  const reset = row?.tokenResetAt;
+  return reset && reset > since ? reset : since;
+}
+
+/**
  * Token totals in a rolling window.
  *
  * By default this is the METERED total: usage on unmetered models (ChatGPT on
@@ -101,9 +116,13 @@ export async function tokenWindowUsage(
   const weeklyLimit = Math.round(
     TOKEN_LIMITS_WEEK[plan] * (1 + referralPct / 100),
   );
+  const [fiveHourStart, weekStart] = await Promise.all([
+    windowStart(userId, new Date(now.getTime() - FIVE_HOURS_MS)),
+    windowStart(userId, new Date(now.getTime() - WEEK_MS)),
+  ]);
   const [win, week] = await Promise.all([
-    windowStats(userId, new Date(now.getTime() - FIVE_HOURS_MS)),
-    windowStats(userId, new Date(now.getTime() - WEEK_MS)),
+    windowStats(userId, fiveHourStart),
+    windowStats(userId, weekStart),
   ]);
   return {
     used: win.total,
@@ -313,11 +332,13 @@ export async function unmeteredWindowUsage(
   pct: number;
   resetsAt: Date | null;
 }> {
-  const win = await windowStats(
+  // A reset clears the fair-use window too — "reset this user's limits" would
+  // be a half-truth if the flagship stayed capped.
+  const since = await windowStart(
     userId,
     new Date(now.getTime() - FIVE_HOURS_MS),
-    { onlyModelId: modelId },
   );
+  const win = await windowStats(userId, since, { onlyModelId: modelId });
   return {
     used: win.total,
     limit: UNMETERED_TOKENS_5H,

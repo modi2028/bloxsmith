@@ -115,6 +115,11 @@ export const users = pgTable(
     // Set when repeated attempts to get banned content through trip the
     // policy limiter. Chat is blocked until this passes; admins can clear it.
     restrictedUntil: timestamp("restricted_until", { withTimezone: true }),
+    // Admin "reset limits": token windows ignore every request recorded
+    // BEFORE this moment. Deliberately a marker rather than deleting
+    // ai_requests rows — usage charts, cost analytics and the audit trail all
+    // stay intact, and the reset itself is visible instead of silent.
+    tokenResetAt: timestamp("token_reset_at", { withTimezone: true }),
     // Durable notes the AI keeps about THIS USER across every project —
     // preferences, naming conventions, what they are building overall.
     aiMemory: text("ai_memory"),
