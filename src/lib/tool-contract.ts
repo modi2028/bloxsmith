@@ -127,6 +127,16 @@ export const toolArgSchemas = {
       limit: z.number().int().min(1).max(10).optional(),
     })
     .strict(),
+  // Server-side live web search (never reaches the plugin). A tool missing
+  // from this table is rejected as "Unknown tool", which the model reports to
+  // the user as the feature being unavailable — so anything added to
+  // getStudioTools must be added here too.
+  web_search: z
+    .object({
+      query: z.string().min(1).max(200),
+      limit: z.number().int().min(1).max(10).optional(),
+    })
+    .strict(),
   insert_asset: z
     .object({
       assetId: z.number().int().positive(),
