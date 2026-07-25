@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { isAdminRole } from "@/lib/roles";
 import { getSessionUser } from "@/server/auth/session";
+import { restrictionNotice } from "@/server/ai/policy";
 import { NoProviderKeyError } from "@/server/ai/keys";
 import { freeGlmChat } from "@/server/ai/free-glm";
 import { rateLimit } from "@/server/security/ratelimit";
@@ -36,6 +37,10 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
+
+  // A paused account is paused everywhere, not just in the build loop.
+  const paused = await restrictionNotice(user);
+  if (paused) return Response.json({ error: paused }, { status: 403 });
 
   const rl = rateLimit(`prompt:${user.id}`, 10, 5 * 60_000);
   if (!rl.ok) {

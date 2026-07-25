@@ -1,5 +1,6 @@
 import "server-only";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { isAdminRole } from "@/lib/roles";
 import { db, schema } from "@/server/db";
 
 /**
@@ -176,4 +177,26 @@ export function restrictionRemaining(until: Date, now: Date): string {
   if (mins < 60) return `in about ${mins} minute${mins === 1 ? "" : "s"}`;
   const hours = Math.ceil(mins / 60);
   return `in about ${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+/**
+ * THE gate for a paused account. Every AI-facing entry point calls this —
+ * builds, the assistant, the prompt rewriter, image generation, clarify.
+ *
+ * A pause that only covered the build loop was not a pause: the same user
+ * could carry straight on through Blox Chat, the Better Prompter and
+ * thumbnail generation, all of which reach a model. Anything that can produce
+ * content has to be behind one check, and this is it.
+ *
+ * Returns the user-facing message when paused, or null when clear. Admins are
+ * never paused.
+ */
+export async function restrictionNotice(
+  user: { id: string; role: string },
+  now: Date = new Date(),
+): Promise<string | null> {
+  if (isAdminRole(user.role)) return null;
+  const state = await getPolicyState(user.id, now);
+  if (!state.restrictedUntil) return null;
+  return `Chat is paused on your account after repeated requests for content we don't build. It unlocks ${restrictionRemaining(state.restrictedUntil, now)}.`;
 }

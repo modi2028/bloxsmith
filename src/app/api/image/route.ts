@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { isAdminRole } from "@/lib/roles";
 import { getSessionUser } from "@/server/auth/session";
+import { restrictionNotice } from "@/server/ai/policy";
 import {
   InsufficientCreditsError,
   SpendLimitExceededError,
@@ -46,6 +47,11 @@ export async function POST(request: NextRequest) {
       { error: "Bloxsmith is under maintenance — try again soon." },
       { status: 503 },
     );
+  }
+  // A paused account is paused everywhere, not just in the build loop.
+  const accountPaused = await restrictionNotice(user);
+  if (accountPaused) {
+    return Response.json({ error: accountPaused }, { status: 403 });
   }
   // Paused means paused for everyone, staff included (see /api/chat).
   if (site.imagePaused) {
