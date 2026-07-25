@@ -8,8 +8,11 @@ import { Landing } from "@/components/Landing";
 import { Sidebar } from "@/components/Sidebar";
 import { BRAND } from "@/lib/brand";
 import { getPublicStats } from "@/server/public-stats";
-import { tokenWindowUsage } from "@/server/token-usage";
-import { RECOMMENDED_MODEL_IDS } from "@/lib/model-catalog";
+import { tokenWindowUsage, unmeteredWindowUsage } from "@/server/token-usage";
+import {
+  RECOMMENDED_MODEL_IDS,
+  UNMETERED_MODEL_IDS,
+} from "@/lib/model-catalog";
 import { isAdminRole } from "@/lib/roles";
 import { mapDbMessagesToUi, type UiMessage } from "@/lib/chat-ui";
 import { getSessionUser, type SessionUser } from "@/server/auth/session";
@@ -303,6 +306,18 @@ export default async function Home({
         .catch(() => 0)
     : 0;
 
+  // Titan is excluded from the plan window, so the composer's meter would sit
+  // still through an entire Titan build. Its fair-use window is fetched
+  // alongside, and the composer swaps to it when Titan is the chosen model —
+  // a Max user shouldn't have to open /usage to see what they have left.
+  const unmeteredId = [...UNMETERED_MODEL_IDS][0];
+  const titanPct =
+    user && unmeteredId
+      ? await unmeteredWindowUsage(user.id, unmeteredId, new Date())
+          .then((w) => w.pct)
+          .catch(() => 0)
+      : 0;
+
   // Plugin considered connected if any active token polled in the last 15s.
   let pluginConnected: boolean | null = null;
   if (user) {
@@ -450,6 +465,7 @@ export default async function Home({
             tagline={BRAND.tagline}
             models={models}
             usagePct={user ? usagePct : null}
+            unmeteredPct={user ? titanPct : null}
             canAudit={PLAN_RANK[planTier] >= PLAN_RANK.pro}
             isStaff={isAdminRole(user.role)}
             pluginConnected={pluginConnected}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { EffortId } from "@/lib/model-catalog";
+import { isUnmeteredModel, type EffortId } from "@/lib/model-catalog";
 import { CostPreview } from "./CostPreview";
 import { ModelPicker, type ChatModel } from "./ModelPicker";
 import { StudioStatus } from "./StudioStatus";
@@ -41,6 +41,7 @@ export function ChatComposer({
   autoFocus = false,
   initialText,
   usagePct,
+  unmeteredPct,
   studioConnected,
   canQueue = false,
 }: {
@@ -64,6 +65,8 @@ export function ChatComposer({
   initialText?: string;
   /** Percent of the rolling 5-hour allowance used — shown as a mini meter. */
   usagePct?: number | null;
+  /** Percent of the unmetered model's own fair-use window used. */
+  unmeteredPct?: number | null;
   /** Plugin connection at render time — shows the live green/red chip. */
   studioConnected?: boolean | null;
   /** While busy: whether another message can still join the queue (max 3). */
@@ -267,21 +270,43 @@ export function ChatComposer({
               disabled={busy}
             />
             {effort && <CostPreview modelId={modelId} effort={effort} />}
-            {usagePct != null && (
-              <a
-                href="/usage"
-                className="glass-chip flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-muted transition hover:text-foreground"
-                title="Your build allowance — click for details"
-              >
-                <span className="relative h-1.5 w-10 overflow-hidden rounded-full bg-line-strong">
+            {/* On an unmetered model the plan meter would sit motionless
+                through the whole build, because that model never draws on it.
+                Show that model's own fair-use window instead, so the number
+                next to the composer always describes the limit actually in
+                play for the model that's selected. */}
+            {(() => {
+              const unmetered = isUnmeteredModel(modelId);
+              const pct = unmetered ? unmeteredPct : usagePct;
+              if (pct == null) return null;
+              return (
+                <a
+                  href="/usage"
+                  className="glass-chip flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs text-muted transition hover:text-foreground"
+                  title={
+                    unmetered
+                      ? "Titan's fair-use window — your plan allowance is untouched. Click for details"
+                      : "Your build allowance — click for details"
+                  }
+                >
+                  <span className="relative h-1.5 w-10 overflow-hidden rounded-full bg-line-strong">
+                    <span
+                      className={`absolute inset-y-0 left-0 rounded-full ${
+                        unmetered ? "bg-sky-400" : "bg-ember"
+                      }`}
+                      style={{ width: `${Math.min(100, pct)}%` }}
+                    />
+                  </span>
                   <span
-                    className="absolute inset-y-0 left-0 rounded-full bg-ember"
-                    style={{ width: `${Math.min(100, usagePct)}%` }}
-                  />
-                </span>
-                <span className="font-semibold text-ember">{usagePct}%</span>
-              </a>
-            )}
+                    className={`font-semibold ${
+                      unmetered ? "text-sky-400" : "text-ember"
+                    }`}
+                  >
+                    {pct}%
+                  </span>
+                </a>
+              );
+            })()}
             {studioConnected != null && (
               <StudioStatus initial={studioConnected} />
             )}

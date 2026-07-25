@@ -18,10 +18,13 @@ function fmt(n: number): string {
 }
 
 /**
- * What this build is likely to cost, shown BEFORE sending — enforced limits
- * make surprise spend the main source of friction. The "typical" number is
- * the user's own median on this model, so it gets more accurate as they use
- * it, and is simply omitted until there is enough history to be honest.
+ * The ceiling on this build, shown BEFORE sending — enforced limits make
+ * surprise spend the main source of friction.
+ *
+ * The API still returns the user's median ("typical") spend, but it is no
+ * longer displayed: two numbers plus a remaining figure was more arithmetic
+ * than a composer hint should ask of anyone. The median still earns its keep
+ * server-side, where it decides the amber `tight` warning.
  */
 export function CostPreview({
   modelId,
@@ -56,13 +59,8 @@ export function CostPreview({
   return (
     <span
       className={`text-[11px] ${est.tight ? "text-amber-400" : "text-faint"}`}
-      title={
-        est.typical
-          ? `Median of your last ${est.samples} builds on this model`
-          : "Send a few builds and this becomes your own average"
-      }
+      title="The most this build can use, and what's left in your window"
     >
-      {est.typical ? `~${fmt(est.typical)} typical · ` : ""}
       up to {fmt(est.budget)}
       {est.remaining != null && ` · ${fmt(est.remaining)} left`}
       {est.tight && " — may not fit"}

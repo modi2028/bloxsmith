@@ -207,6 +207,7 @@ export function ChatApp({
   tagline,
   models,
   usagePct: initialUsagePct,
+  unmeteredPct: initialUnmeteredPct = null,
   canAudit = false,
   isStaff = false,
   pluginConnected = null,
@@ -220,6 +221,8 @@ export function ChatApp({
   models: ChatModel[];
   /** Percent of the rolling 5-hour allowance used (null = signed out). */
   usagePct?: number | null;
+  /** Percent of Titan's separate fair-use window used (null = signed out). */
+  unmeteredPct?: number | null;
   /** Pro and above unlock the "Fix my game" audit run. */
   canAudit?: boolean;
   /** Admins can select the staff-only effort. */
@@ -986,6 +989,7 @@ export function ChatApp({
             onThinkingVisibleChange={changeThinkingPref}
             isStaff={isStaff}
             usagePct={windowPct ?? initialUsagePct}
+            unmeteredPct={initialUnmeteredPct}
             studioConnected={pluginConnected}
             initialText={seedText}
             autoFocus
@@ -1589,6 +1593,7 @@ export function ChatApp({
             onThinkingVisibleChange={changeThinkingPref}
             isStaff={isStaff}
             usagePct={windowPct ?? initialUsagePct}
+            unmeteredPct={initialUnmeteredPct}
             studioConnected={pluginConnected}
             canQueue={queue.length < 3}
             compact
