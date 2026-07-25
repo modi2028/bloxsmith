@@ -18,13 +18,15 @@ function fmt(n: number): string {
 }
 
 /**
- * The ceiling on this build, shown BEFORE sending — enforced limits make
- * surprise spend the main source of friction.
+ * A warning, not a readout.
  *
- * The API still returns the user's median ("typical") spend, but it is no
- * longer displayed: two numbers plus a remaining figure was more arithmetic
- * than a composer hint should ask of anyone. The median still earns its keep
- * server-side, where it decides the amber `tight` warning.
+ * This used to show the budget, the user's median spend and the remaining
+ * allowance on every keystroke-adjacent render — three numbers of homework
+ * sitting above the message box, none of which changed what anyone did.
+ *
+ * All that survives is the case that genuinely alters a decision: the build
+ * cannot fit in what's left of the window. The estimate endpoint still
+ * returns budget/median/remaining, because deciding `tight` needs them.
  */
 export function CostPreview({
   modelId,
@@ -54,16 +56,16 @@ export function CostPreview({
     };
   }, [modelId, effort]);
 
-  if (!est) return null;
+  // Nothing in the normal case: the running commentary on spend was noise
+  // above the message box. The one thing worth interrupting for is a build
+  // that cannot fit in what's left — that changes what the user should do
+  // before sending, so it survives as a short amber warning.
+  if (!est || !est.tight) return null;
 
   return (
-    <span
-      className={`text-[11px] ${est.tight ? "text-amber-400" : "text-faint"}`}
-      title="The most this build can use, and what's left in your window"
-    >
-      up to {fmt(est.budget)}
-      {est.remaining != null && ` · ${fmt(est.remaining)} left`}
-      {est.tight && " — may not fit"}
+    <span className="text-[11px] text-amber-400">
+      may not fit
+      {est.remaining != null && ` — ${fmt(est.remaining)} left`}
     </span>
   );
 }
