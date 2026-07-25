@@ -288,17 +288,42 @@ export async function checkUnmeteredFairUse(
   modelId: string,
   now: Date,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  const w = await unmeteredWindowUsage(userId, modelId, now);
+  if (w.used < w.limit) return { ok: true };
+  return {
+    ok: false,
+    message: `You've hit the fair-use limit on Titan for now — it frees up ${humanUntil(w.resetsAt, now)}. Your plan's own allowance is untouched, so you can keep building on another model in the meantime.`,
+  };
+}
+
+/**
+ * The same fair-use window, shaped for DISPLAY. The usage page needs this
+ * because an unmetered model is excluded from the plan meters — without its
+ * own bar, a build on it looks like it consumed nothing at all, while the
+ * charts further down the page still count it. That contradiction reads as a
+ * broken page.
+ */
+export async function unmeteredWindowUsage(
+  userId: string,
+  modelId: string,
+  now: Date,
+): Promise<{
+  used: number;
+  limit: number;
+  pct: number;
+  resetsAt: Date | null;
+}> {
   const win = await windowStats(
     userId,
     new Date(now.getTime() - FIVE_HOURS_MS),
     { onlyModelId: modelId },
   );
-  if (win.total < UNMETERED_TOKENS_5H) return { ok: true };
-  const resetsAt = win.oldest
-    ? new Date(win.oldest.getTime() + FIVE_HOURS_MS)
-    : null;
   return {
-    ok: false,
-    message: `You've hit the fair-use limit on ChatGPT for now — it frees up ${humanUntil(resetsAt, now)}. Your plan's own allowance is untouched, so you can keep building on another model in the meantime.`,
+    used: win.total,
+    limit: UNMETERED_TOKENS_5H,
+    pct: Math.min(100, Math.round((win.total / UNMETERED_TOKENS_5H) * 100)),
+    resetsAt: win.oldest
+      ? new Date(win.oldest.getTime() + FIVE_HOURS_MS)
+      : null,
   };
 }

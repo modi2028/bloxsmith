@@ -7,11 +7,16 @@ import {
   MODEL_CATALOG,
   TOKEN_LIMITS_5H,
   TOKEN_LIMITS_WEEK,
+  UNMETERED_MODEL_IDS,
   formatTokenLimit,
 } from "@/lib/model-catalog";
 import { getSessionUser } from "@/server/auth/session";
 import { db, schema } from "@/server/db";
-import { tokenWindowUsage, usageInsights } from "@/server/token-usage";
+import {
+  tokenWindowUsage,
+  unmeteredWindowUsage,
+  usageInsights,
+} from "@/server/token-usage";
 
 export const metadata = { title: "Usage" };
 
@@ -89,10 +94,23 @@ export default async function UsagePage() {
     | "max";
 
   const now = new Date();
-  const [usage, insights] = await Promise.all([
+  // Unmetered models get their own bar: they are excluded from the plan
+  // windows above, so without this a Titan build reads as zero usage here
+  // while still showing up in the charts below.
+  const unmeteredId = [...UNMETERED_MODEL_IDS][0];
+  const [usage, insights, unmetered] = await Promise.all([
     tokenWindowUsage(user.id, plan, now),
     usageInsights(user.id, now),
+    unmeteredId
+      ? unmeteredWindowUsage(user.id, unmeteredId, now)
+      : Promise.resolve(null),
   ]);
+  const unmeteredName =
+    MODEL_CATALOG.find((m) => m.modelId === unmeteredId)?.displayName ?? "Titan";
+  // Show it to anyone who can actually reach the model, and to anyone who has
+  // used it — never to a free user who would only wonder what it is.
+  const showUnmetered =
+    unmetered != null && (plan === "max" || unmetered.used > 0);
   const planName = plan === "max" ? "Max" : plan === "pro" ? "Pro" : "Free";
   const peak = Math.max(0, ...insights.daily.map((d) => d.tokens));
 
@@ -134,6 +152,15 @@ export default async function UsagePage() {
           limit={usage.weeklyLimit}
           pct={usage.weeklyPct}
         />
+        {showUnmetered && (
+          <UsageBar
+            label={`${unmeteredName} · fair use`}
+            sub={`${unmeteredName} builds don't count against the two limits above — this is its own 5-hour window`}
+            used={unmetered.used}
+            limit={unmetered.limit}
+            pct={unmetered.pct}
+          />
+        )}
       </div>
 
       {/* Last 14 days */}
@@ -244,6 +271,8 @@ export default async function UsagePage() {
           tasks use tokens faster. When a limit is full, new builds pause
           until usage rolls out of the window; a build already running always
           finishes.
+          {showUnmetered &&
+            ` ${unmeteredName} sits outside all of this — its builds cost you none of the allowance above, and answer only to their own fair-use window. That is why ${unmeteredName} usage shows in the charts below but not in the two limits.`}
           {usage.referralPct > 0 &&
             ` Your referral bonus adds +${usage.referralPct}% to both limits.`}
         </p>
