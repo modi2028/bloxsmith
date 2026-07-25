@@ -1,4 +1,6 @@
 import "server-only";
+import { checkBuildArtifact } from "@/lib/content-policy";
+import { redactInjection } from "@/lib/untrusted-text";
 import { getProviderApiKey } from "./keys";
 
 /**
@@ -22,6 +24,7 @@ const SEARCH_URL =
   process.env.ZAI_SEARCH_URL || "https://api.z.ai/api/paas/v4/web_search";
 
 export type WebSearchHit = { title: string; url: string; snippet: string };
+
 
 /** Shape varies by engine/version, so every field is read defensively. */
 type RawHit = {
@@ -66,14 +69,19 @@ export async function searchWeb(params: {
   const body = (await res.json()) as { search_result?: RawHit[] };
   const hits = (body.search_result ?? [])
     .map((r) => ({
-      title: (r.title ?? "").trim(),
+      title: redactInjection((r.title ?? "").trim()),
       url: (r.link ?? r.url ?? "").trim(),
-      snippet: (r.content ?? r.snippet ?? "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 600),
+      snippet: redactInjection(
+        (r.content ?? r.snippet ?? "").replace(/\s+/g, " ").trim(),
+      ).slice(0, 600),
     }))
-    .filter((r) => r.snippet || r.title);
+    .filter((r) => r.snippet || r.title)
+    // The same screen the build artifacts get. Search reaches every model now,
+    // including the free tier, so a query with an innocent wording can still
+    // pull back graphic or attack-related text — and whatever comes back
+    // steers the build. Blocked results are dropped entirely rather than
+    // redacted: there is no version of that content we want in the context.
+    .filter((r) => !checkBuildArtifact(`${r.title} ${r.snippet}`).blocked);
 
   // The index is Chinese-leaning, so an English query can still surface CJK
   // pages. Nothing is discarded — they are just ranked below the English ones,

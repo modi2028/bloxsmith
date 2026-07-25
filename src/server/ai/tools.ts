@@ -251,7 +251,7 @@ export function getStudioTools(
     tools.push({
       name: "web_search",
       description:
-        "Search the live web. Use it FREELY for inspiration and reference before building anything visual or thematic — what a real version of this looks like, how popular Roblox games do it, colour palettes, layouts, mechanics. Also use it for facts you don't know and Roblox APIs you're unsure about. Prefer short English keyword queries ('neon cyberpunk city street', not a sentence). Searching costs the user very little and makes builds dramatically better, so reach for it early rather than guessing.",
+        "Search the live web. ALWAYS call this when the user asks you to search, look something up, or find ideas — you have this tool, so never claim you cannot. Otherwise use it FREELY for inspiration and reference before building anything visual or thematic — what a real version of this looks like, how popular Roblox games do it, colour palettes, layouts, mechanics — and for facts or Roblox APIs you're unsure about. Prefer short English keyword queries ('neon cyberpunk city street', not a sentence). Searching costs the user very little and makes builds dramatically better, so reach for it early rather than guessing.",
       input_schema: {
         type: "object",
         properties: {

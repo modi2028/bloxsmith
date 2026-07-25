@@ -162,14 +162,15 @@ export async function runAgentTurn(params: {
   // Tool tiers: Creator Store models on both paid rungs — Sol (glm-5.2) and
   // Titan (chatgpt).
   const assetTools = ["glm-5.2", "chatgpt"].includes(modelId);
-  // Sol searches through z.ai's PROVIDER-NATIVE tool: it runs inside their
-  // inference, so there is no tool call for us (or the user) to observe.
-  const webSearch = modelId === "glm-5.2";
-  // Titan has no native search — the Codex endpoint accepts a web_search tool
-  // and silently ignores it, then the model tells the user it cannot search.
-  // So Titan gets OUR tool instead, which we run server-side and can show
-  // live in the chat.
-  const webSearchTool = modelId === "chatgpt";
+  // Web search is OUR tool, on EVERY model. A user who asks "search the web
+  // for ideas" gets a search whichever rung they are on, and every search is
+  // a visible tool call rather than something happening off-screen.
+  //
+  // This replaces z.ai's provider-native search (still supported by the zai
+  // adapter, just no longer switched on): that one worked on a single model
+  // and ran inside their inference, so nothing could show the user it had
+  // happened — and Titan could not have it at all.
+  const webSearchTool = true;
 
   // Per-user model bans (admin-managed).
   const userRow = await db.query.users.findFirst({
@@ -371,7 +372,6 @@ export async function runAgentTurn(params: {
       userNickname: user.nickname ?? user.displayName ?? user.username,
       provider: pricing.provider,
       assetTools,
-      webSearch,
       webSearchTool,
       effort,
       // Audit is a paid feature; a free plan silently gets a normal run.
@@ -566,7 +566,6 @@ export async function runAgentTurn(params: {
               messages,
               tools,
               thinkingEnabled: thinkForCall,
-              webSearch,
               signal: callController.signal,
               onTextDelta: (text) => {
                 streamedChars += text.length;
