@@ -40,7 +40,11 @@ export function ProjectList({
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-0.5 overflow-y-auto px-3">
+    // h-full is load-bearing: this is a block child of the sidebar's
+    // flex-1 wrapper, so without an explicit height it sizes to its content,
+    // overflow-y-auto never engages, and a long project list overflows and is
+    // clipped mid-row against the plugin card instead of scrolling.
+    <div className="flex h-full min-h-0 flex-col gap-0.5 overflow-y-auto px-3 pb-2">
       {projects.map((p) => (
         <div
           key={p.id}
