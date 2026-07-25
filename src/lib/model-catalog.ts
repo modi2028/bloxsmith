@@ -35,7 +35,7 @@ export type CatalogModel = {
 };
 
 /** Shown under "Recommended · Best at coding" in the model picker. */
-export const RECOMMENDED_MODEL_IDS = new Set(["glm-5", "glm-5.2"]);
+export const RECOMMENDED_MODEL_IDS = new Set(["glm-5.2", "chatgpt"]);
 
 // ---------------------------------------------------------------------------
 // Unmetered models
@@ -68,7 +68,7 @@ export function isUnmeteredModel(modelId: string): boolean {
  * draws attention to an account we would rather keep quiet). Sized to allow
  * roughly two full Max-effort sessions per window.
  */
-export const UNMETERED_TOKENS_5H = 500_000;
+export const UNMETERED_TOKENS_5H = 750_000;
 
 // ---------------------------------------------------------------------------
 // Effort tiers — per model, the user picks how hard (and how expensive) a
@@ -102,15 +102,20 @@ export type EffortTier = { maxTokens: number };
 
 /**
  * Effort tiers are denominated in TOKENS — the same unit as the plan
- * allowances below — so the two systems are directly comparable. Each tier is
- * sized against the window of the plan that unlocks the model, so a single
- * session can never promise more than the window can actually deliver:
+ * allowances below — so the two systems are directly comparable.
  *
- *   Luna/Vega  (Free, 30k per 5h)   -> max session 26k   (~85%, one real build)
- *   Sol        (Pro,  200k per 5h)  -> max session 160k  (~80%)
- *   Titan      (Max,  1M per 5h)    -> max session 800k  (~80%)
+ * TWO ceilings bind every max tier, and the smaller one wins:
+ *   1. ~80% of the 5-hour window of the plan that unlocks the model, so a
+ *      session can actually finish inside one window.
+ *   2. ~80% of the model's own CONTEXT WINDOW — a session that outgrows the
+ *      context dies mid-build no matter how much allowance is left.
  *
- * Not every model offers every effort (Titan is Low or Max, nothing between).
+ *   Luna  (Free, 30k per 5h, 128k ctx)  -> max 26k   (87% of window)
+ *   Sol   (Pro,  200k per 5h, 200k ctx) -> max 160k  (80% of both)
+ *   Titan (Max,  unmetered,   400k ctx) -> max 300k  (75% of context)
+ *
+ * Titan is unmetered, so ceiling 1 doesn't apply to it — its context window
+ * and the fair-use cap are what bound it.
  */
 export const EFFORT_TIERS: Record<
   string,
@@ -137,22 +142,24 @@ export const EFFORT_TIERS: Record<
     high: { maxTokens: 110_000 },
     max: { maxTokens: 160_000 },
   },
-  // ChatGPT — unmetered, so these tiers are sized against the model's own
-  // 400k context and the UNMETERED_TOKENS_5H fair-use window rather than
-  // against a plan allowance. Max stays comfortably under the context limit
-  // so a long session doesn't run into a hard upstream wall mid-build.
+  // Titan (chatgpt) — unmetered, so the plan window doesn't bind it. Sized
+  // against its own 400k context; max sits at 75% so a long session has room
+  // to finish rather than hitting the upstream wall mid-build.
   chatgpt: {
     low: { maxTokens: 40_000 },
     medium: { maxTokens: 90_000 },
-    high: { maxTokens: 160_000 },
-    max: { maxTokens: 260_000 },
+    high: { maxTokens: 180_000 },
+    max: { maxTokens: 300_000 },
+    unrestricted: { maxTokens: 300_000 },
   },
-  // Titan — Low for quick work, Max for the full flagship experience, plus
-  // the staff-only unrestricted mode.
+  // Sol (glm-5.2) — Pro's model. Previously ran to 800k, which was FOUR TIMES
+  // its own 200k context: those sessions could not physically complete. Now
+  // capped at 160k, inside both the 200k context and the 200k Pro window.
   "glm-5.2": {
-    low: { maxTokens: 120_000 },
-    max: { maxTokens: 800_000 },
-    unrestricted: { maxTokens: 800_000 },
+    low: { maxTokens: 25_000 },
+    medium: { maxTokens: 60_000 },
+    high: { maxTokens: 110_000 },
+    max: { maxTokens: 160_000 },
   },
 };
 
@@ -205,16 +212,39 @@ export const MODEL_LIMITS: Record<string, { contextK: number }> = {
  * growing context each round, so even a trivial build runs ~20k tokens.
  * Below that a free user only ever sees a half-finished build.
  */
+/**
+ * MARGIN MATH — why these numbers, so they can be re-derived when prices move.
+ *
+ * Provider cost per 1M tokens, blended 85% input / 15% output (the agent loop
+ * re-sends a growing context every round, so input dominates). Catalog rates
+ * are provider price x3, hence the /3:
+ *
+ *   Luna  (glm-4.7-flash)  ~$0.15 per 1M
+ *   Sol   (glm-5.2)        ~$1.95 per 1M
+ *   Titan (chatgpt)         $0    — subscription, not metered API
+ *
+ * Worst case is a user spending their whole weekly cap on the most expensive
+ * model their plan unlocks. Monthly = weekly x 4.33.
+ *
+ *   Free  120k/wk  -> 0.5M/mo on Luna  = ~$0.08/mo   (no revenue; acceptable)
+ *   Pro   750k/wk  -> 3.2M/mo on Sol   = ~$6.34 of $19.99  -> 68% margin
+ *   Max   2M/wk    -> 8.7M/mo on Sol   = ~$16.90 of $49.99 -> 66% margin
+ *
+ * Max was 5M/wk, which worst-cased to ~$42 of $49.99 — a 16% margin before
+ * Stripe fees, i.e. the tier lost money on anyone who actually used it. Its
+ * headline model (Titan) costs us nothing, so the metered allowance only ever
+ * needed to cover Sol.
+ */
 export const TOKEN_LIMITS_5H: Record<PlanTier, number> = {
   free: 30_000,
   pro: 200_000,
-  max: 1_000_000,
+  max: 400_000,
 };
 
 export const TOKEN_LIMITS_WEEK: Record<PlanTier, number> = {
   free: 120_000,
   pro: 750_000,
-  max: 5_000_000,
+  max: 2_000_000,
 };
 
 /** 5000 -> "5k", 200000 -> "200k", 1000000 -> "1M". */
@@ -245,6 +275,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     sort: 10,
   },
   {
+    // Retired: the lineup is Luna -> Sol -> Titan, three rungs, one per plan.
     modelId: "glm-5-turbo",
     provider: "zai",
     displayName: "Vega",
@@ -256,7 +287,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     maxCreditsPerRequest: 0.4,
     proOnly: false,
     minPlan: "free",
-    enabled: true,
+    enabled: false,
     isDefault: false,
     sort: 20,
   },
@@ -265,36 +296,39 @@ export const MODEL_CATALOG: CatalogModel[] = [
     // the paid OpenAI API — hence the zero rates: these columns record what a
     // request COST us, and a subscription-backed call costs nothing per token.
     //
-    // Pro-gated despite costing us nothing: the whole site shares ONE upstream
-    // subscription, so the constraint is that account's rate limit, not our
-    // spend. Restricting it to paid plans keeps the load survivable and makes
-    // it a genuine perk — an unmetered model that never touches the allowance
-    // Pro and Max users actually paid for (UNMETERED_MODEL_IDS).
+    // Titan — the flagship, Max only. Gated despite costing us nothing: the
+    // whole site shares ONE upstream subscription, so the constraint is that
+    // account's rate limit, not our spend. Putting it at the top rung keeps
+    // the load survivable AND gives Max a headline no competitor tier has —
+    // an unmetered model that never touches the allowance they paid for
+    // (UNMETERED_MODEL_IDS). It is also why Max's metered cap could come down
+    // without hurting real users: the flagship doesn't draw on it.
     modelId: "chatgpt",
     provider: "chatgpt",
-    displayName: "ChatGPT",
+    displayName: "Titan",
     description:
-      "OpenAI's ChatGPT — Creator Store models, free of your allowance",
+      "The flagship — biggest context, Creator Store, free of your allowance",
     tier: "flagship",
     inputCreditsPer1k: 0,
     outputCreditsPer1k: 0,
     baseCost: 0,
     maxCreditsPerRequest: 0,
     proOnly: true,
-    minPlan: "pro",
+    minPlan: "max",
     enabled: true,
     // Never the default: it depends on a third-party proxy and an account
     // that can be cut off without notice, so a signed-out visitor's first
-    // build must not land on it. (It is also Pro-gated, so it could not be
+    // build must not land on it. (It is also Max-gated, so it could not be
     // the default anyway — free users would hit the plan wall immediately.)
     isDefault: false,
-    sort: 25,
+    sort: 40,
   },
   {
-    // GLM-5: $1.0/$3.2 per 1M tokens.
+    // Retired: the name "Sol" moved to glm-5.2, which is strictly better and
+    // now carries the Pro tier on its own.
     modelId: "glm-5",
     provider: "zai",
-    displayName: "Sol",
+    displayName: "GLM-5",
     description: "Strong builds with Creator Store models",
     tier: "balanced",
     inputCreditsPer1k: 0.003,
@@ -303,7 +337,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     maxCreditsPerRequest: 0.5,
     proOnly: true,
     minPlan: "pro",
-    enabled: true,
+    enabled: false,
     isDefault: false,
     sort: 30,
   },
@@ -362,21 +396,23 @@ export const MODEL_CATALOG: CatalogModel[] = [
   {
     // $1.4/$4.4 per 1M tokens. The flagship: web search + Creator Store +
     // deep thinking; clearly above everything else in the lineup.
+    // Sol — Pro's model. $1.4/$4.4 per 1M tokens: deep thinking, native web
+    // search, Creator Store. Moved down from Max because Titan now owns the
+    // top rung, and Pro's allowance is sized around this model's cost.
     modelId: "glm-5.2",
     provider: "zai",
-    displayName: "Titan",
-    description:
-      "The flagship — deep thinking, web search, Creator Store models",
-    tier: "flagship",
+    displayName: "Sol",
+    description: "Deep thinking, web search, and Creator Store models",
+    tier: "balanced",
     inputCreditsPer1k: 0.0045,
     outputCreditsPer1k: 0.0135,
     baseCost: 0.004,
     maxCreditsPerRequest: 0.5,
     proOnly: true,
-    minPlan: "max",
+    minPlan: "pro",
     enabled: true,
     isDefault: false,
-    sort: 40,
+    sort: 30,
   },
   // ---- Retired from the picker (kept so apply:catalog disables their DB rows)
   {
@@ -521,7 +557,7 @@ export const PRO_PLAN = {
   priceUsd: 19.99,
   monthlyCredits: 20,
   perks: [
-    "Unlocks Sol — strong builds with real Creator Store models",
+    "Unlocks Sol — deep thinking, web search, Creator Store models",
     "Insert Creator Store models (trees, props, vehicles)",
     "A far bigger build allowance",
     "Priority on new models",
@@ -535,9 +571,9 @@ export const MAX_PLAN = {
   priceUsd: 49.99,
   monthlyCredits: 60,
   perks: [
-    "Unlocks Titan — the flagship with deep thinking and web search",
+    "Unlocks Titan — our flagship, with the biggest context we offer",
+    "Titan builds never touch your allowance",
     "Everything in Pro, including Creator Store models",
-    "The largest build allowance we offer",
     "First access to every new model and tool",
   ],
 } as const;

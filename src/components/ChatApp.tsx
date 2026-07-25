@@ -1296,8 +1296,8 @@ export function ChatApp({
                     )}
                     {modelId === "glm-5.2" && !runningTool && (
                       <p className="mt-1 text-[11px] text-faint">
-                        Titan is a deep-thinking model — complex builds can
-                        take a few minutes. The result is worth it.
+                        Sol is a deep-thinking model — complex builds can take
+                        a few minutes. The result is worth it.
                       </p>
                     )}
                     {showThinking && (

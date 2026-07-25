@@ -236,7 +236,7 @@ export function ModelPicker({
           {showEffort && (
             <span
               className={
-                current.id === "glm-5.2" && effort === "max"
+                current.id === "chatgpt" && effort === "max"
                   ? "titanium font-semibold"
                   : "text-faint"
               }
@@ -294,7 +294,9 @@ export function ModelPicker({
                   </p>
                   {effortIdsFor(current.id).map((id) => {
                     const est = effortTokenBudget(current.id, id);
-                    const isTitanMax = current.id === "glm-5.2" && id === "max";
+                    // Titan is `chatgpt` now — the titanium treatment follows
+                    // the flagship, not the model id it used to live on.
+                    const isTitanMax = current.id === "chatgpt" && id === "max";
                     const staffOnly = ADMIN_ONLY_EFFORTS.has(id);
                     const locked = staffOnly && !isStaff;
                     return (

@@ -68,7 +68,7 @@ export default async function StorePage({
       priceLabel: "$0",
       tagline: "Everything you need to start building",
       perks: [
-        "Luna and Vega models",
+        "The Luna model",
         ...allowanceLines("free"),
         "Live building in your Studio",
         "Daily login rewards",

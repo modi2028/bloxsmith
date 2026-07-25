@@ -167,11 +167,11 @@ const FAQS = [
   },
   {
     q: "Which AI models can I use?",
-    a: "Luna and Vega on the free plan. Pro unlocks Sol with real Creator Store models, and Max unlocks Titan, our flagship with deep thinking and web search. You can switch models per message.",
+    a: "Luna on the free plan. Pro unlocks Sol — deep thinking, web search and real Creator Store models — and Max unlocks Titan, our flagship, with the biggest context we offer and builds that never touch your allowance. You can switch models per message.",
   },
   {
     q: "What does it cost?",
-    a: `Free to start: ${formatTokenLimit(TOKEN_LIMITS_5H.free)} tokens every 5 hours, enough to build something real. Pro is $${PRO_PLAN.priceUsd.toFixed(2)}/month for ${formatTokenLimit(TOKEN_LIMITS_5H.pro)} per 5 hours plus Sol and Creator Store models, and Max is $${MAX_PLAN.priceUsd.toFixed(2)}/month for ${formatTokenLimit(TOKEN_LIMITS_5H.max)} plus Titan.`,
+    a: `Free to start: ${formatTokenLimit(TOKEN_LIMITS_5H.free)} tokens every 5 hours, enough to build something real. Pro is $${PRO_PLAN.priceUsd.toFixed(2)}/month for ${formatTokenLimit(TOKEN_LIMITS_5H.pro)} per 5 hours plus Sol and Creator Store models, and Max is $${MAX_PLAN.priceUsd.toFixed(2)}/month for ${formatTokenLimit(TOKEN_LIMITS_5H.max)} plus Titan — and Titan's builds don't count against that allowance at all.`,
   },
   {
     q: "How does it connect to Roblox Studio?",
@@ -445,7 +445,7 @@ export function Landing({
               Four models, one job
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-center text-sm text-muted">
-              Switch per message. Start free with Luna and Vega, go bigger when
+              Switch per message. Start free with Luna, go bigger when
               a build calls for it.
             </p>
           </Reveal>
@@ -528,7 +528,7 @@ export function Landing({
                 </p>
                 <ul className="mt-5 flex flex-col gap-2.5 text-sm text-muted">
                   {[
-                    "Luna and Vega models",
+                    "The Luna model",
                     `${formatTokenLimit(TOKEN_LIMITS_5H.free)} tokens every 5 hours`,
                     `${formatTokenLimit(TOKEN_LIMITS_WEEK.free)} tokens per week`,
                     "Full Studio plugin and live building",

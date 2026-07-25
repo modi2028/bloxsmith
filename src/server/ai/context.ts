@@ -37,7 +37,7 @@ export function buildSystemPrompt(opts: {
   provider?: string;
   /** Sol/Titan runs get the Creator Store tools — and a mandate to prefer them. */
   assetTools?: boolean;
-  /** Titan only: provider-native web search available as a fallback. */
+  /** Sol only: provider-native web search available as a fallback. */
   webSearch?: boolean;
   /** User-picked effort tier — scope expectations + budget behavior. */
   effort?: EffortId;
