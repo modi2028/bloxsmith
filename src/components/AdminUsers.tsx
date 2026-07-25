@@ -85,7 +85,7 @@ export function AdminUsers({
 
   const adjustCredits = (u: AdminUser) => {
     const input = window.prompt(
-      `Adjust credits for @${u.username} (current ${formatCredits(u.balance)}). Decimals allowed; use a negative number to subtract:`,
+      `Adjust IMAGE credits for @${u.username} (current ${formatCredits(u.balance)}).\n\nThese pay for thumbnail generation only — builds run on the token allowance, which is not affected. A thumbnail costs 0.05.\n\nDecimals allowed; use a negative number to subtract:`,
       "5",
     );
     if (input == null) return;
@@ -179,7 +179,7 @@ export function AdminUsers({
             <tr>
               <th className="px-3 py-2 font-medium">User</th>
               <th className="px-3 py-2 font-medium">Plan</th>
-              <th className="px-3 py-2 font-medium">Credits</th>
+              <th className="px-3 py-2 font-medium">Image credits</th>
               <th className="px-3 py-2 font-medium">Actions</th>
             </tr>
           </thead>
@@ -258,7 +258,7 @@ export function AdminUsers({
                         onClick={() => adjustCredits(u)}
                         className="rounded border border-line px-2 py-1 text-xs transition hover:border-ember/60 disabled:opacity-40"
                       >
-                        ± Credits
+                        ± Image credits
                       </button>
                       {u.plan !== "pro" && (
                         <button

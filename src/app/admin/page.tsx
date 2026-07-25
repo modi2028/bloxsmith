@@ -40,8 +40,9 @@ export default async function AdminPage() {
         {BRAND.name} admin
       </h1>
       <p className="mb-8 text-sm text-muted">
-        Manage users, credits, and Pro. Every action is written to the audit
-        log in Supabase.
+        Manage users, plans, and image credits. Builds run on the token
+        allowance — image credits only pay for thumbnail generation. Every
+        action is written to the audit log in Supabase.
       </p>
 
       <section className="mb-10">
@@ -74,7 +75,7 @@ export default async function AdminPage() {
       {admin.role === "super_admin" && (
         <section className="mb-10">
           <h2 className="mb-3 text-sm font-medium text-muted">
-            Pro &amp; credit codes
+            Pro &amp; image-credit codes
           </h2>
           <AdminCodeGenerator />
         </section>
@@ -130,16 +131,21 @@ export default async function AdminPage() {
       </section>
 
       <section className="mb-10">
-        <h2 className="mb-3 text-sm font-medium text-muted">
+        <h2 className="mb-1 text-sm font-medium text-muted">
           Models &amp; pricing
         </h2>
+        <p className="mb-3 text-xs text-faint">
+          Cost figures are our approximate provider spend per 1k tokens,
+          recorded for analytics. They are not image credits and they do not
+          gate anything — builds are limited by the plan token allowance.
+        </p>
         <div className="overflow-x-auto rounded-xl border border-line">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-line bg-surface/60 text-xs text-muted">
               <tr>
                 <th className="px-3 py-2 font-medium">Model</th>
-                <th className="px-3 py-2 font-medium">In /1k</th>
-                <th className="px-3 py-2 font-medium">Out /1k</th>
+                <th className="px-3 py-2 font-medium">Cost in /1k</th>
+                <th className="px-3 py-2 font-medium">Cost out /1k</th>
                 <th className="px-3 py-2 font-medium">Pro</th>
                 <th className="px-3 py-2 font-medium">Enabled</th>
               </tr>

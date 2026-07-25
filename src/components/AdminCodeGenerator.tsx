@@ -3,7 +3,9 @@
 import { useState } from "react";
 
 /**
- * Super-admin tool: mint redemption codes (Pro and/or credits) for the shop.
+ * Super-admin tool: mint redemption codes (Pro/Max days and/or image credits)
+ * for the shop. Image credits pay for thumbnail generation only — build
+ * allowance is plan-based tokens and is not granted by codes.
  * The plaintext code is shown exactly once — copy it before closing.
  */
 export function AdminCodeGenerator() {
@@ -25,7 +27,7 @@ export function AdminCodeGenerator() {
     const cr = Number(credits) || 0;
     const valid = Number(validDays) || 90;
     if (pro <= 0 && cr <= 0) {
-      setError("The code must grant Pro days and/or credits.");
+      setError("The code must grant Pro days and/or image credits.");
       return;
     }
     setPending(true);
@@ -54,7 +56,7 @@ export function AdminCodeGenerator() {
       }
       const parts = [
         pro > 0 ? `${plan === "max" ? "Max" : "Pro"} for ${pro} days` : null,
-        cr > 0 ? `${cr} credits` : null,
+        cr > 0 ? `${cr} image credits` : null,
       ].filter(Boolean);
       setResult({
         code: data.code,
@@ -104,7 +106,7 @@ export function AdminCodeGenerator() {
           />
         </label>
         <label className="text-xs text-muted">
-          Credits (optional)
+          Image credits (optional)
           <input
             value={credits}
             onChange={(e) => setCredits(e.target.value)}
