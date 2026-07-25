@@ -42,6 +42,25 @@ const tokenResponseSchema = z.object({
   token_type: z.string(),
 });
 
+/**
+ * A failure that came FROM Roblox, carrying their HTTP status.
+ *
+ * The status is the point: a 429 is Roblox throttling us and will clear on its
+ * own, while a 400 means the request was wrong and retrying is pointless.
+ * Telling a user "try again in a moment" for a 400, or "something broke on our
+ * side" for a 429, sends them down the wrong path — and a user who retries a
+ * throttle in a tight loop gets throttled harder.
+ */
+export class RobloxAuthError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "RobloxAuthError";
+  }
+}
+
 export async function exchangeCode(
   code: string,
   codeVerifier: string,
@@ -65,8 +84,9 @@ export async function exchangeCode(
     // no secrets — surface it in server logs to aid diagnosis. It is never
     // returned to the browser.
     const detail = await res.text().catch(() => "");
-    throw new Error(
+    throw new RobloxAuthError(
       `Roblox token exchange failed (${res.status}): ${detail.slice(0, 400)}`,
+      res.status,
     );
   }
   const parsed = tokenResponseSchema.parse(await res.json());
@@ -95,7 +115,10 @@ export async function fetchRobloxIdentity(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) {
-    throw new Error(`Roblox userinfo failed (${res.status})`);
+    throw new RobloxAuthError(
+      `Roblox userinfo failed (${res.status})`,
+      res.status,
+    );
   }
   const info = userinfoSchema.parse(await res.json());
   const robloxUserId = Number(info.sub);

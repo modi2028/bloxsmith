@@ -219,6 +219,8 @@ const AUTH_ERRORS: Record<string, string> = {
   proxy:
     "VPNs and proxies aren't allowed on Bloxsmith. Turn yours off and sign in again.",
   rate_limited: "Too many sign-in attempts — wait a minute and try again.",
+  roblox_busy:
+    "Roblox is limiting sign-ins right now — wait about a minute before trying again. Retrying straight away makes it last longer.",
 };
 
 export default async function Home({
