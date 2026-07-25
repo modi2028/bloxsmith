@@ -10,7 +10,6 @@ import {
   type EffortId,
 } from "@/lib/model-catalog";
 import { LogoMark } from "./Logo";
-import { OpenAIMark } from "./BrandMarks";
 
 export type ChatModel = {
   id: string;
@@ -42,26 +41,6 @@ const EFFORT_LABELS: Record<EffortId, string> = {
   max: "Max",
   unrestricted: "No Guardrails",
 };
-
-/**
- * ChatGPT wears OpenAI's own mark so it reads as the real thing at a glance;
- * every other model wears our house logo. Sizes are passed as literal classes
- * because Tailwind can't scan an interpolated one.
- */
-function ModelMark({
-  model,
-  size,
-  className,
-}: {
-  model: ChatModel;
-  size: number;
-  className: string;
-}) {
-  if (model.provider === "chatgpt" || model.provider === "openai") {
-    return <OpenAIMark className={`${className} text-foreground`} />;
-  }
-  return <LogoMark size={size} variant={model.proOnly ? "blue" : "ember"} />;
-}
 
 function Check() {
   return (
@@ -144,7 +123,7 @@ export function ModelPicker({
     const content = (
       <>
         <span className={`shrink-0 ${m.locked ? "opacity-50" : ""}`}>
-          <ModelMark model={m} size={17} className="size-[17px]" />
+          <LogoMark size={17} variant={m.proOnly ? "blue" : "ember"} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex items-center gap-2 text-sm">
@@ -231,7 +210,7 @@ export function ModelPicker({
         title="Model and effort"
       >
         <span suppressHydrationWarning className="flex items-center gap-1.5">
-          <ModelMark model={current} size={15} className="size-[15px]" />
+          <LogoMark size={15} variant={current.proOnly ? "blue" : "ember"} />
           <span className="font-medium text-foreground">{current.name}</span>
           {showEffort && (
             <span
