@@ -110,7 +110,7 @@ export type EffortTier = { maxTokens: number };
  *   2. ~80% of the model's own CONTEXT WINDOW — a session that outgrows the
  *      context dies mid-build no matter how much allowance is left.
  *
- *   Luna  (Free, 30k per 5h, 128k ctx)  -> max 26k   (87% of window)
+ *   Luna  (Free, 30k per 5h, 400k ctx)  -> max 26k   (87% of window)
  *   Sol   (Pro,  200k per 5h, 200k ctx) -> max 160k  (80% of both)
  *   Titan (Max,  unmetered,   400k ctx) -> max 300k  (75% of context)
  *
@@ -121,7 +121,15 @@ export const EFFORT_TIERS: Record<
   string,
   Partial<Record<EffortId, EffortTier>>
 > = {
-  // Luna
+  // Luna (ChatGPT 5.5). Sized by the FREE plan window, not the model's
+  // context — it has far more context than a free session may spend.
+  "chatgpt-5.5": {
+    low: { maxTokens: 8_000 },
+    medium: { maxTokens: 14_000 },
+    high: { maxTokens: 20_000 },
+    max: { maxTokens: 26_000 },
+  },
+  // Retired Luna (GLM), kept in case the row is ever re-enabled.
   "glm-4.7-flash": {
     low: { maxTokens: 8_000 },
     medium: { maxTokens: 14_000 },
@@ -191,6 +199,10 @@ export function effortTokenBudget(
 
 /** Context windows (thousands of tokens) for the picker's model info. */
 export const MODEL_LIMITS: Record<string, { contextK: number }> = {
+  // Luna's real ceiling is the Codex one, same family as Titan. A free
+  // session can only spend 26k of it, but the figure shown must be the
+  // model's, not the allowance's.
+  "chatgpt-5.5": { contextK: 400 },
   "glm-4.7-flash": { contextK: 128 },
   "glm-5-turbo": { contextK: 128 },
   "glm-5": { contextK: 200 },
@@ -259,9 +271,36 @@ export function formatTokenLimit(n: number): string {
 export const MODEL_CATALOG: CatalogModel[] = [
   // ---- Live lineup: Luna -> Vega -> Sol -> Titan -----------------------------
   {
+    // Luna — the free rung, now on ChatGPT 5.5 through the same Codex OAuth
+    // proxy as Titan. Zero rates because a subscription-backed call costs us
+    // nothing per token.
+    //
+    // METERED, unlike Titan, and deliberately so. The constraint here is not
+    // our spend, it is that free users and paying Max users draw on ONE shared
+    // ChatGPT account: left unmetered, the free tier would eat the rate limit
+    // Max subscribers are paying for. The normal free allowance is what keeps
+    // that in proportion.
+    modelId: "chatgpt-5.5",
+    provider: "chatgpt",
+    displayName: "Luna",
+    description: "Fast and free — quick tweaks and small builds",
+    tier: "fast",
+    inputCreditsPer1k: 0,
+    outputCreditsPer1k: 0,
+    baseCost: 0,
+    maxCreditsPerRequest: 0,
+    proOnly: false,
+    minPlan: "free",
+    enabled: true,
+    isDefault: true,
+    sort: 10,
+  },
+  {
+    // Retired: Luna moved to ChatGPT 5.5. Kept so apply:catalog disables the
+    // existing row rather than leaving it live.
     modelId: "glm-4.7-flash",
     provider: "zai",
-    displayName: "Luna",
+    displayName: "Luna (GLM)",
     description: "Fast and free — quick tweaks and small builds",
     tier: "fast",
     inputCreditsPer1k: 0.0003,
@@ -270,9 +309,9 @@ export const MODEL_CATALOG: CatalogModel[] = [
     maxCreditsPerRequest: 0.25,
     proOnly: false,
     minPlan: "free",
-    enabled: true,
-    isDefault: true,
-    sort: 10,
+    enabled: false,
+    isDefault: false,
+    sort: 99,
   },
   {
     // Retired: the lineup is Luna -> Sol -> Titan, three rungs, one per plan.
@@ -583,7 +622,7 @@ export const APP_SETTINGS_DEFAULTS: { key: string; value: unknown }[] = [
   { key: "fulfillment_mode", value: "stripe" }, // "stripe" | "manual"
   { key: "run_luau_enabled", value: false },
   { key: "signup_grant_credits", value: 1 },
-  { key: "default_model_id", value: "glm-4.7-flash" },
+  { key: "default_model_id", value: "chatgpt-5.5" },
   { key: "max_attachment_bytes", value: 5 * 1024 * 1024 },
   { key: "pro_monthly_credits", value: PRO_PLAN.monthlyCredits },
   { key: "max_monthly_credits", value: MAX_PLAN.monthlyCredits },

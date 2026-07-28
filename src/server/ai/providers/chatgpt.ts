@@ -30,12 +30,25 @@ import { streamOpenAICompatibleResponse } from "./openai";
 const BASE_URL = process.env.CHATGPT_OAUTH_BASE ?? "http://127.0.0.1:10531/v1";
 
 /**
- * Upstream model actually asked for. Deliberately env-driven and decoupled
- * from our catalog id ("chatgpt"): which models a ChatGPT account may reach
- * depends on its plan and changes over time, so switching is a config change,
- * not a migration. `npm run chatgpt:models` lists what this account offers.
+ * Our catalog id -> the model actually asked for upstream.
+ *
+ * Deliberately decoupled: which models a ChatGPT account may reach depends on
+ * its plan and changes over time, so switching one is config, not a migration.
+ * `npm run chatgpt:models` lists what the connected account offers.
+ *
+ * More than one rung rides this provider now — Titan on the strongest model
+ * available, Luna on a cheaper one for the free tier — so the mapping is
+ * per-model rather than a single global.
  */
-const UPSTREAM_MODEL = process.env.CHATGPT_OAUTH_MODEL ?? "gpt-5.6-sol";
+const UPSTREAM_MODELS: Record<string, string> = {
+  chatgpt: process.env.CHATGPT_OAUTH_MODEL ?? "gpt-5.6-sol",
+  "chatgpt-5.5": process.env.CHATGPT_OAUTH_MODEL_FREE ?? "gpt-5.5",
+};
+
+/** Fall back to Titan's model so an unmapped id fails loudly upstream, not here. */
+function upstreamFor(modelId: string): string {
+  return UPSTREAM_MODELS[modelId] ?? UPSTREAM_MODELS.chatgpt!;
+}
 
 /** The proxy isn't running / isn't reachable. */
 function isUnreachable(err: unknown): boolean {
@@ -50,7 +63,7 @@ export const streamChatGptResponse: ProviderAdapter = async (
 ): Promise<ModelResponse> => {
   try {
     return await streamOpenAICompatibleResponse(
-      { ...params, modelId: UPSTREAM_MODEL },
+      { ...params, modelId: upstreamFor(params.modelId) },
       {
         baseURL: BASE_URL,
         maxTokensParam: "max_completion_tokens",
