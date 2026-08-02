@@ -16,13 +16,28 @@ let bucketReady = false;
 
 async function ensureBucket(): Promise<void> {
   if (bucketReady) return;
+
+  const auth = {
+    Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+    apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+  };
+
+  // Ask before creating. The create endpoint reports an existing bucket as a
+  // FAILURE — 400 with a "Duplicate" body, not the 409 you would expect — so
+  // creating-and-tolerating-the-error means depending on the exact status and
+  // wording of an error response. A plain existence check does not.
+  const head = await fetch(
+    `${env.SUPABASE_URL}/storage/v1/bucket/${BUCKET}`,
+    { headers: auth, signal: AbortSignal.timeout(15_000) },
+  ).catch(() => null);
+  if (head?.ok) {
+    bucketReady = true;
+    return;
+  }
+
   const res = await fetch(`${env.SUPABASE_URL}/storage/v1/bucket`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-    },
+    headers: { "Content-Type": "application/json", ...auth },
     body: JSON.stringify({
       id: BUCKET,
       name: BUCKET,
@@ -32,12 +47,22 @@ async function ensureBucket(): Promise<void> {
     }),
     signal: AbortSignal.timeout(15_000),
   });
-  // 409 = already exists, which is the normal case after the first run.
-  if (res.ok || res.status === 409) {
+  if (res.ok) {
     bucketReady = true;
     return;
   }
-  throw new Error(`Could not prepare image storage (${res.status})`);
+
+  // Belt and braces: if two requests raced, the loser sees a duplicate error
+  // and the bucket is nonetheless there.
+  const body = await res.text().catch(() => "");
+  if (res.status === 409 || /duplicate|already exists/i.test(body)) {
+    bucketReady = true;
+    return;
+  }
+  // The body is what makes this diagnosable — a bare status said nothing.
+  throw new Error(
+    `Could not prepare image storage (${res.status}): ${body.slice(0, 200)}`,
+  );
 }
 
 /**

@@ -73,8 +73,16 @@ export const streamChatGptResponse: ProviderAdapter = async (
     );
   } catch (err) {
     if (isUnreachable(err)) {
+      // MUST stay retryable. The loop retries on a fixed set of tokens
+      // ("fetch failed" among them), and the proxy is briefly unreachable
+      // every time its service redeploys — a window the loop can ride out if
+      // it is allowed to try again, and cannot if this throws a friendly
+      // sentence matching none of those tokens. The wording here is for logs
+      // only; the user-facing text comes from the loop.
       throw new Error(
-        "ChatGPT is offline right now — pick another model and your build will run straight away.",
+        `ChatGPT proxy unreachable (fetch failed): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
       );
     }
     // 401/403 here means the OAuth session expired or was revoked upstream;
