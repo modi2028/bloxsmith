@@ -56,6 +56,24 @@ export async function mirrorImage(
 
   const contentType = srcRes.headers.get("content-type") ?? "image/png";
   const bytes = new Uint8Array(await srcRes.arrayBuffer());
+  return storeImageBytes(bytes, contentType, userId);
+}
+
+/**
+ * Store image bytes we already hold.
+ *
+ * Providers differ in what they hand back: z.ai returns a temporary URL,
+ * while the ChatGPT proxy returns base64 inline. The URL path has to fetch
+ * before it can store; this one is the shared half, and it is what a base64
+ * response uses directly.
+ */
+export async function storeImageBytes(
+  // Narrowed to an ArrayBuffer-backed view: a plain `Uint8Array` may be
+  // SharedArrayBuffer-backed, which is not a valid request body.
+  bytes: Uint8Array<ArrayBuffer>,
+  contentType: string,
+  userId: string,
+): Promise<string> {
   if (bytes.byteLength === 0) throw new Error("Source image was empty");
 
   await ensureBucket();
@@ -77,7 +95,9 @@ export async function mirrorImage(
         apikey: env.SUPABASE_SERVICE_ROLE_KEY,
         "cache-control": "31536000",
       },
-      body: bytes,
+      // Wrapped in a Blob so the body type is stable whether the caller hands
+      // us a Buffer (base64 decode) or a Uint8Array (fetched bytes).
+      body: new Blob([bytes], { type: contentType }),
       signal: AbortSignal.timeout(30_000),
     },
   );

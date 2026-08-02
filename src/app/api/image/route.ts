@@ -12,22 +12,27 @@ import {
   settleCredits,
 } from "@/server/credits/ledger";
 import { persistToChat } from "@/server/ai/image-persist";
-import { getProviderApiKey, NoProviderKeyError } from "@/server/ai/keys";
-import { mirrorImage } from "@/server/storage";
+import { mirrorImage, storeImageBytes } from "@/server/storage";
 import { clientIp, rateLimit } from "@/server/security/ratelimit";
 import { getSiteSettings } from "@/server/site-settings";
 
 /**
- * Blox Image — game thumbnail generation via Z.ai's GLM-Image.
- * Flat price per image; reserve -> settle so a failed generation refunds.
+ * Blox Image — game thumbnail generation through the ChatGPT (Codex OAuth)
+ * proxy, on gpt-image-2. Reserve -> settle so a failed generation refunds.
  *
- * NOTE: image generation is billed on Z.ai's pay-per-use API
- * (api.z.ai/api/paas/v4), which is separate from the GLM Coding Plan — the
- * Z.ai account needs a small API balance for this to work.
+ * Moved off Z.ai's pay-per-use image API, which needed a funded balance
+ * separate from the GLM Coding Plan and would fail outright when it ran dry.
+ * The subscription covers this instead, so a thumbnail now costs us nothing.
+ *
+ * The credit charge is KEPT regardless, and its meaning has changed: it is no
+ * longer recovering a cost, it is a fair-use quota. The whole site — Luna,
+ * Titan and now images — shares one upstream account, and unlimited free
+ * image generation is the quickest way to exhaust it.
  */
 const IMAGE_COST_CREDITS = 0.05;
-const ZAI_IMAGE_BASE =
-  process.env.ZAI_PAAS_BASE || "https://api.z.ai/api/paas/v4";
+const CHATGPT_BASE =
+  process.env.CHATGPT_OAUTH_BASE ?? "http://127.0.0.1:10531/v1";
+const IMAGE_MODEL = process.env.CHATGPT_IMAGE_MODEL ?? "gpt-image-2";
 
 const bodySchema = z.object({
   prompt: z.string().trim().min(3).max(1500),
@@ -107,29 +112,26 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const apiKey = await getProviderApiKey("zai");
-    const res = await fetch(`${ZAI_IMAGE_BASE}/images/generations`, {
+    const res = await fetch(`${CHATGPT_BASE}/images/generations`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "glm-image",
+        model: IMAGE_MODEL,
         prompt:
           "A vibrant, eye-catching Roblox game thumbnail, polished 3D game art, " +
           "dynamic composition, bright colors, no text, no watermark. Game: " +
           body.prompt,
-        size: "1344x768",
+        size: "1536x1024",
       }),
-      signal: AbortSignal.timeout(60_000),
+      // Image generation is slow — measured at well over 30s on this path.
+      signal: AbortSignal.timeout(180_000),
     });
     const data = (await res.json().catch(() => ({}))) as {
-      data?: { url?: string }[];
+      data?: { url?: string; b64_json?: string }[];
       error?: { message?: string; code?: string };
     };
-    const url = data.data?.[0]?.url;
-    if (!res.ok || !url) {
+    const first = data.data?.[0];
+    if (!res.ok || !first) {
       throw new Error(
         data.error?.message ?? `Image generation failed (${res.status})`,
       );
@@ -142,14 +144,27 @@ export async function POST(request: NextRequest) {
       actualCost: IMAGE_COST_CREDITS,
     });
 
-    // The provider URL expires within hours, so host our own copy —
-    // otherwise the picture breaks on the next page load. If mirroring
-    // fails the temporary URL still works right now, so don't fail the call.
-    let finalUrl = url;
-    try {
-      finalUrl = await mirrorImage(url, user.id);
-    } catch (err) {
-      console.error("Image mirror failed, serving temporary URL:", err);
+    // gpt-image-2 returns base64 inline, so there is no temporary URL to fall
+    // back on: storing it is the only way the picture survives the response.
+    // A URL is still handled in case the upstream shape ever changes back.
+    let finalUrl: string;
+    if (first.b64_json) {
+      finalUrl = await storeImageBytes(
+        new Uint8Array(Buffer.from(first.b64_json, "base64")),
+        "image/png",
+        user.id,
+      );
+    } else if (first.url) {
+      // A provider URL expires within hours, so host our own copy — but it
+      // works right now, so a mirroring failure shouldn't fail the call.
+      finalUrl = first.url;
+      try {
+        finalUrl = await mirrorImage(first.url, user.id);
+      } catch (err) {
+        console.error("Image mirror failed, serving temporary URL:", err);
+      }
+    } else {
+      throw new Error("Image generation returned no image");
     }
 
     // Persist into the chat so a refresh doesn't lose the picture.
@@ -173,12 +188,16 @@ export async function POST(request: NextRequest) {
       reserved: IMAGE_COST_CREDITS,
     }).catch(() => {});
     console.error("Blox Image failed:", err);
+    // The old "top up the provider account" case is gone with the paid image
+    // API. What can fail now is the proxy being unreachable, which is an
+    // outage rather than anything the user did.
     const message =
-      err instanceof NoProviderKeyError
-        ? "Image generation isn't configured yet."
-        : err instanceof Error && /insufficient|balance|recharge/i.test(err.message)
-          ? "Image generation is temporarily unavailable — the provider account needs topping up."
-          : "Couldn't generate the image — nothing was charged. Try again.";
+      err instanceof Error &&
+      /ECONNREFUSED|fetch failed|ENOTFOUND|socket hang up|timeout|aborted/i.test(
+        err.message,
+      )
+        ? "Image generation is offline right now — nothing was charged. Try again shortly."
+        : "Couldn't generate the image — nothing was charged. Try again.";
     return Response.json({ error: message }, { status: 502 });
   }
 }
