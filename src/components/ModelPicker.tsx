@@ -34,6 +34,14 @@ function fmtTokens(n: number): string {
   return `${Math.round(n / 1000)}k`;
 }
 
+/**
+ * A tier's ceiling as a phrase. An unlimited tier carries an infinite budget,
+ * which fmtTokens would happily render as "InfinityM".
+ */
+function budgetPhrase(n: number): string {
+  return Number.isFinite(n) ? `up to ${fmtTokens(n)} tokens` : "no token limit";
+}
+
 const EFFORT_LABELS: Record<EffortId, string> = {
   low: "Low",
   medium: "Medium",
@@ -318,7 +326,7 @@ export function ModelPicker({
                           ) : (
                             est != null && (
                               <span className="block text-[10px] text-faint">
-                                up to {fmtTokens(est)} tokens
+                                {budgetPhrase(est)}
                               </span>
                             )
                           )}
@@ -358,9 +366,9 @@ export function ModelPicker({
                   {MODEL_LIMITS[current.id] && (
                     <p className="border-t border-line px-3.5 py-2 text-[10px] text-faint">
                       {current.name}: {MODEL_LIMITS[current.id].contextK}k
-                      context · up to{" "}
-                      {fmtTokens(effortTokenBudget(current.id, effort) ?? 0)}{" "}
-                      tokens per build at {EFFORT_LABELS[effort]} effort
+                      context ·{" "}
+                      {budgetPhrase(effortTokenBudget(current.id, effort) ?? 0)}{" "}
+                      at {EFFORT_LABELS[effort]} effort
                     </p>
                   )}
 

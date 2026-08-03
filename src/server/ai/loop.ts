@@ -13,6 +13,7 @@ import {
   ADMIN_ONLY_EFFORTS,
   DEFAULT_EFFORT,
   DEFAULT_SESSION_TOKENS,
+  UNLIMITED_SESSION_TOKENS,
   effortTokenBudget,
   isUnmeteredModel,
   type EffortId,
@@ -286,17 +287,23 @@ export async function runAgentTurn(params: {
   // bought would be arbitrary. They answer to a fair-use ceiling instead,
   // which protects the single shared upstream account. Admins bypass ours,
   // NOT the upstream one: a third-party account doesn't care about roles.
-  if (isUnmeteredModel(modelId)) {
-    const fair = await checkUnmeteredFairUse(user.id, modelId, new Date());
-    if (!fair.ok) {
-      await onEvent({ type: "error", message: fair.message });
-      return;
-    }
-  } else if (!isAdminRole(user.role)) {
-    const gate = await checkTokenAllowance(user.id, plan, new Date());
-    if (!gate.ok) {
-      await onEvent({ type: "error", message: gate.message });
-      return;
+  // Staff have no token ceiling at all — no plan allowance, no fair-use
+  // window, and no per-session effort budget further down. This DOES spend
+  // the shared upstream account that both Luna and Titan depend on, so an
+  // admin session left running is now the one thing with nothing in its way.
+  if (!isAdminRole(user.role)) {
+    if (isUnmeteredModel(modelId)) {
+      const fair = await checkUnmeteredFairUse(user.id, modelId, new Date());
+      if (!fair.ok) {
+        await onEvent({ type: "error", message: fair.message });
+        return;
+      }
+    } else {
+      const gate = await checkTokenAllowance(user.id, plan, new Date());
+      if (!gate.ok) {
+        await onEvent({ type: "error", message: gate.message });
+        return;
+      }
     }
   }
 
@@ -343,8 +350,12 @@ export async function runAgentTurn(params: {
     ADMIN_ONLY_EFFORTS.has(requested) && !isStaff ? "max" : requested;
   const unrestricted = effort === "unrestricted" && isStaff;
 
-  const sessionTokenBudget =
-    effortTokenBudget(modelId, effort) ?? DEFAULT_SESSION_TOKENS;
+  // Staff sessions have no token ceiling either — an admin bypassing the
+  // window only to be stopped mid-build by the per-session budget would be a
+  // limit in all but name.
+  const sessionTokenBudget = isStaff
+    ? UNLIMITED_SESSION_TOKENS
+    : (effortTokenBudget(modelId, effort) ?? DEFAULT_SESSION_TOKENS);
 
   const [aiRequest] = await db
     .insert(schema.aiRequests)

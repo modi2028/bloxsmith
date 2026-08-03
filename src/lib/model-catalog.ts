@@ -101,6 +101,17 @@ export const DEFAULT_EFFORT: EffortId = "medium";
 export type EffortTier = { maxTokens: number };
 
 /**
+ * A tier with no token ceiling. The loop compares spend against the budget
+ * and stops when it is reached, so an infinite budget simply never stops it.
+ *
+ * "Unlimited" here means unlimited TOKENS, not unlimited work: the tool loop
+ * still caps at ITERATIONS_BY_EFFORT rounds, which is what actually stops a
+ * runaway. Only ever set this on an UNMETERED model — on a metered one it
+ * would let a single session eat an entire plan allowance in one go.
+ */
+export const UNLIMITED_SESSION_TOKENS = Number.POSITIVE_INFINITY;
+
+/**
  * Effort tiers are denominated in TOKENS — the same unit as the plan
  * allowances below — so the two systems are directly comparable.
  *
@@ -157,8 +168,10 @@ export const EFFORT_TIERS: Record<
     low: { maxTokens: 40_000 },
     medium: { maxTokens: 90_000 },
     high: { maxTokens: 180_000 },
-    max: { maxTokens: 300_000 },
-    unrestricted: { maxTokens: 300_000 },
+    // Max has no token ceiling. Titan is unmetered, so there is no allowance
+    // for a long session to eat; the 96-round tool loop is the backstop.
+    max: { maxTokens: UNLIMITED_SESSION_TOKENS },
+    unrestricted: { maxTokens: UNLIMITED_SESSION_TOKENS },
   },
   // Sol (glm-5.2) — Pro's model. Previously ran to 800k, which was FOUR TIMES
   // its own 200k context: those sessions could not physically complete. Now
