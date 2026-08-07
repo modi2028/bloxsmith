@@ -6,6 +6,10 @@
 const PALETTES = {
   silver: { light: "#EDEDF1", dark: "#83838C" },
   blue: { light: "#BFDBFE", dark: "#3B82F6" },
+  // Reads as white on a dark bar. Kept as two tones rather than flat #fff:
+  // the mark's whole identity is its facets, and a single colour flattens it
+  // into an anonymous pentagram.
+  white: { light: "#FFFFFF", dark: "#C9CBD2" },
 } as const;
 
 // Facet triangles (center → inner → outer), precomputed for viewBox 64.

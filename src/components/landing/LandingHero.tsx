@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { HERO_SPAN, scrollProgress } from "./scroll-progress";
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
@@ -43,6 +44,28 @@ const LogoScene = dynamic(() => import("./LogoScene"), {
 export function LandingHero({ ctaHref }: { ctaHref: string }) {
   const [showScene, setShowScene] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
+  const copyRef = useRef<HTMLDivElement>(null);
+
+  // The headline lifts and dissolves across the first third of the hero's
+  // scroll, handing the frame over to the logo. Written straight to style in
+  // a rAF loop off the same progress value the 3D scene reads, so copy and
+  // mark move as one thing rather than two effects racing.
+  useEffect(() => {
+    if (reducedMotion) return;
+    let frame = 0;
+    const tick = () => {
+      const el = copyRef.current;
+      if (el) {
+        const p = Math.min(1, scrollProgress.value / 0.42);
+        el.style.opacity = String(1 - p);
+        el.style.transform = `translate3d(0, ${-p * 90}px, 0)`;
+        el.style.filter = p > 0.02 ? `blur(${p * 6}px)` : "none";
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [reducedMotion]);
 
   useEffect(() => {
     // Anything below this is a phone GPU that will not hold 60fps on a
@@ -68,23 +91,31 @@ export function LandingHero({ ctaHref }: { ctaHref: string }) {
   }, []);
 
   return (
-    <section className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6">
-      {/* Ambient wash — sits behind the canvas and parallaxes slower than
-          the text, which is what sells the depth. */}
-      <div
-        aria-hidden
-        className="hero-wash pointer-events-none absolute inset-0 -z-10"
-      />
+    // Tall section, sticky frame. The extra height IS the animation: it gives
+    // the logo's scroll choreography a couple of viewports to play out
+    // instead of finishing in one flick of the wheel. HERO_SPAN in
+    // scroll-progress.ts must stay in step with this height.
+    <section className="relative" style={{ height: `${HERO_SPAN * 100}vh` }}>
+      <div className="sticky top-0 flex h-dvh flex-col items-center justify-center overflow-hidden px-6">
+        {/* Ambient wash — sits behind the canvas and parallaxes slower than
+            the text, which is what sells the depth. */}
+        <div
+          aria-hidden
+          className="hero-wash pointer-events-none absolute inset-0 -z-10"
+        />
 
-      <div className="absolute inset-0 -z-[5]">
-        {showScene && (
-          <div className="scene-fade h-full w-full">
-            <LogoScene reducedMotion={reducedMotion} />
-          </div>
-        )}
-      </div>
+        <div className="absolute inset-0 -z-[5]">
+          {showScene && (
+            <div className="scene-fade h-full w-full">
+              <LogoScene reducedMotion={reducedMotion} />
+            </div>
+          )}
+        </div>
 
-      <div className="relative z-10 flex flex-col items-center text-center">
+        <div
+          ref={copyRef}
+          className="hero-copy relative z-10 flex flex-col items-center text-center will-change-transform"
+        >
         <span className="mb-6 rounded-full border border-line px-3.5 py-1.5 text-[11px] uppercase tracking-[0.2em] text-muted backdrop-blur-sm">
           AI pair-builder for Roblox Studio
         </span>
@@ -115,13 +146,14 @@ export function LandingHero({ ctaHref }: { ctaHref: string }) {
             See how it works
           </a>
         </div>
-      </div>
+        </div>
 
-      <div
-        aria-hidden
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.3em] text-faint"
-      >
-        Scroll
+        <div
+          aria-hidden
+          className="scroll-hint absolute bottom-10 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.3em] text-faint"
+        >
+          Scroll
+        </div>
       </div>
     </section>
   );

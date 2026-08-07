@@ -61,6 +61,8 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
   // Pointer is tracked in a ref and eased in useFrame rather than driving
   // state — a re-render per mousemove would cost far more than the tilt.
   const pointer = useRef({ x: 0, y: 0 });
+  const elapsed = useRef(0);
+
   useFrame((state, delta) => {
     const m = mesh.current;
     if (!m) return;
@@ -71,23 +73,57 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
     // Clamp delta: a backgrounded tab resumes with a huge delta and would
     // otherwise snap the logo through a whole rotation on the first frame.
     const dt = Math.min(delta, 0.1);
+    elapsed.current += dt;
+    const t = elapsed.current;
     const p = scrollProgress.value;
 
-    // Continuous idle spin, plus scroll scrub. The scroll term dominates as
-    // the hero leaves, so the logo visibly winds away rather than drifting.
-    const spin = reducedMotion ? 0 : dt * 0.35;
-    m.rotation.y += spin + p * dt * 2.2;
+    // --- Entrance -------------------------------------------------------
+    // The mark arrives rather than simply existing: it spins up fast, then
+    // the extra rotation decays into the idle over ~4s while the scale
+    // overshoots slightly and settles. INTRO is eased, never linear, so the
+    // hand-off into the idle is invisible.
+    const INTRO = 4.2;
+    const introRaw = reducedMotion ? 1 : Math.min(1, t / INTRO);
+    const intro = 1 - Math.pow(1 - introRaw, 4);
+    // Decaying spin: fast at first, asymptotically approaching the idle rate.
+    const introSpin = reducedMotion ? 0 : (1 - intro) * 5.5;
+    // Overshoot: crosses 1 at ~70% and eases back down.
+    const introScale = reducedMotion
+      ? 1
+      : intro < 1
+        ? intro * (1 + 0.16 * Math.sin(intro * Math.PI))
+        : 1;
 
-    const targetX = reducedMotion ? 0 : pointer.current.y * 0.35 + p * 0.6;
-    const targetZ = reducedMotion ? 0 : -pointer.current.x * 0.25;
-    m.rotation.x += (targetX - m.rotation.x) * Math.min(1, dt * 4);
-    m.rotation.z += (targetZ - m.rotation.z) * Math.min(1, dt * 4);
+    // --- Rotation -------------------------------------------------------
+    const idleSpin = reducedMotion ? 0 : 0.34;
+    m.rotation.y += (idleSpin + introSpin + p * 2.6) * dt;
 
-    // Leaving the hero: shrink and lift out of centre, tied to progress.
-    const scale = (1 - p * 0.55) * (viewport.width < 6 ? 0.72 : 1);
-    m.scale.setScalar(Math.max(0.2, scale));
-    m.position.y = p * 1.6;
-    m.position.x = p * 0.8;
+    // Two out-of-phase oscillators on the other axes so the motion never
+    // repeats visibly — a single sine reads as mechanical within a few turns.
+    const bobX = reducedMotion ? 0 : Math.sin(t * 0.45) * 0.11;
+    const bobZ = reducedMotion ? 0 : Math.cos(t * 0.31) * 0.08;
+
+    const targetX = reducedMotion
+      ? 0
+      : pointer.current.y * 0.38 + bobX + p * 0.7;
+    const targetZ = reducedMotion ? 0 : -pointer.current.x * 0.28 + bobZ;
+    m.rotation.x += (targetX - m.rotation.x) * Math.min(1, dt * 3.5);
+    m.rotation.z += (targetZ - m.rotation.z) * Math.min(1, dt * 3.5);
+
+    // --- Position and scale ---------------------------------------------
+    // Scroll shrinks it and carries it up and aside; the float keeps it alive
+    // while the page is still.
+    const float = reducedMotion ? 0 : Math.sin(t * 0.62) * 0.055;
+    const small = viewport.width < 6;
+    const base = small ? 0.72 : 1;
+    const scale = base * introScale * (1 - p * 0.6);
+    m.scale.setScalar(Math.max(0.15, scale));
+
+    // Eases in from below on entry, then rises away as the hero leaves.
+    const entryOffset = reducedMotion ? 0 : (1 - intro) * -1.1;
+    m.position.y = entryOffset + float + p * 1.9;
+    m.position.x = p * 0.9;
+    m.position.z = (1 - intro) * -2.5;
   });
 
   return (
@@ -109,6 +145,77 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
         envMapIntensity={1.5}
       />
     </mesh>
+  );
+}
+
+/**
+ * Embers orbiting the mark.
+ *
+ * Cheap depth: eight small emissive spheres on tilted orbits, some passing
+ * behind the star and some in front. They also give the eye something to
+ * track while the logo itself is turning slowly, which is what stops a slow
+ * rotation reading as a stalled page.
+ */
+function Embers({ reducedMotion }: { reducedMotion: boolean }) {
+  const group = useRef<THREE.Group>(null);
+
+  const specs = useMemo(
+    () =>
+      Array.from({ length: 8 }, (_, i) => ({
+        radius: 1.55 + (i % 4) * 0.32,
+        speed: 0.22 + (i % 5) * 0.055,
+        phase: (i / 8) * Math.PI * 2,
+        tilt: (i % 2 === 0 ? 1 : -1) * (0.25 + (i % 3) * 0.18),
+        size: 0.021 + (i % 3) * 0.009,
+        color: ["#bfdbfe", "#a78bfa", "#f59e0b"][i % 3]!,
+      })),
+    [],
+  );
+
+  useFrame((state) => {
+    const g = group.current;
+    if (!g || reducedMotion) return;
+    const t = state.clock.elapsedTime;
+    const p = scrollProgress.value;
+    g.children.forEach((child, i) => {
+      const s = specs[i]!;
+      const a = t * s.speed + s.phase;
+      child.position.set(
+        Math.cos(a) * s.radius,
+        Math.sin(a) * s.radius * s.tilt,
+        Math.sin(a) * s.radius,
+      );
+    });
+    // Fade out with the hero rather than trailing into the next section.
+    g.scale.setScalar(Math.max(0.001, 1 - p * 1.4));
+  });
+
+  if (reducedMotion) return null;
+
+  return (
+    <group ref={group}>
+      {specs.map((s, i) => (
+        <mesh key={i}>
+          <sphereGeometry args={[s.size, 10, 10]} />
+          {/* Emissive so bloom picks them up as genuine points of light. */}
+          <meshBasicMaterial color={s.color} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** A key light that orbits, so highlights sweep across the facets. */
+function MovingKeyLight({ reducedMotion }: { reducedMotion: boolean }) {
+  const light = useRef<THREE.PointLight>(null);
+  useFrame((state) => {
+    const l = light.current;
+    if (!l || reducedMotion) return;
+    const t = state.clock.elapsedTime * 0.28;
+    l.position.set(Math.cos(t) * 4.5, 2.2 + Math.sin(t * 0.7) * 1.4, 4);
+  });
+  return (
+    <pointLight ref={light} intensity={22} distance={14} color="#ffe6c0" />
   );
 }
 
@@ -169,7 +276,9 @@ export default function LogoScene({
     >
       <ambientLight intensity={0.35} />
       <directionalLight position={[4, 5, 5]} intensity={1.1} />
+      <MovingKeyLight reducedMotion={reducedMotion} />
       <StarMesh reducedMotion={reducedMotion} />
+      <Embers reducedMotion={reducedMotion} />
       <Studio />
       {!reducedMotion && (
         <EffectComposer enableNormalPass={false}>

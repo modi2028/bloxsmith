@@ -12,9 +12,16 @@ export const scrollProgress = {
   value: 0,
 };
 
+/**
+ * How many viewport heights the hero occupies. The hero section is this tall
+ * with a sticky inner frame, so the logo's scroll choreography plays out over
+ * a long runway instead of being over in one flick of the wheel.
+ */
+export const HERO_SPAN = 2.2;
+
 /** Recompute from the current scroll offset. Cheap enough to call per frame. */
 export function updateScrollProgress(scrollY: number): void {
   if (typeof window === "undefined") return;
-  const span = window.innerHeight || 1;
+  const span = (window.innerHeight || 1) * HERO_SPAN;
   scrollProgress.value = Math.min(1, Math.max(0, scrollY / span));
 }

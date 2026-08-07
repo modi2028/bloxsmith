@@ -17,8 +17,10 @@ import {
   TiltCard,
 } from "./Interactive";
 import { Reveal } from "./Reveal";
+import { RingSystem } from "./RingSystem";
 import { SmoothScroll } from "./SmoothScroll";
 import { TierShowcase } from "./TierShowcase";
+import { TopBar } from "./TopBar";
 
 const SIGN_IN = "/api/auth/roblox/login";
 
@@ -71,11 +73,15 @@ export function LandingPage() {
   return (
     <div className="relative">
       <SmoothScroll />
+      <TopBar signInHref={SIGN_IN} />
 
       {/* --- 1. Hero ------------------------------------------------------ */}
       <LandingHero ctaHref={SIGN_IN} />
 
-      {/* --- 2. What it does --------------------------------------------- */}
+      {/* --- 2. The build loop, as rings — first thing past the hero ------ */}
+      <RingSystem />
+
+      {/* --- 3. What it does --------------------------------------------- */}
       <section className="relative px-6 py-28">
         <div className="mx-auto w-full max-w-6xl">
           <Reveal>

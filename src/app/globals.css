@@ -1014,3 +1014,141 @@ body {
     animation: none;
   }
 }
+
+/* Ring system — the build-loop diagram.
+   Rotation lives in CSS so four counter-spinning orbits cost no JS per frame.
+   Alternating direction is what stops it reading as one rigid wheel. */
+.ring-system .orbit {
+  animation: orbit-spin 26s linear infinite;
+}
+.ring-system .orbit-1 {
+  animation-duration: 19s;
+  animation-direction: reverse;
+}
+.ring-system .orbit-2 {
+  animation-duration: 14s;
+}
+.ring-system .orbit-3 {
+  animation-duration: 9s;
+  animation-direction: reverse;
+}
+
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring-system .orbit {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Liquid glass — the floating topbar material.
+
+   A flat blur reads as frosted plastic. What sells glass is the EDGE: a bright
+   specular along the top lip where light catches, a darker lower lip, and an
+   inner rim that separates the pane from what shows through it. Those are the
+   three inset shadows below; the blur alone does very little of the work.
+   --------------------------------------------------------------------------- */
+.liquid-glass {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.05) 45%,
+    rgba(255, 255, 255, 0.09) 100%
+  );
+  /* NOTE: the blur is applied with Tailwind's backdrop-* utilities on the
+     element, NOT here. Declaring backdrop-filter and -webkit-backdrop-filter
+     together in this file makes Lightning CSS collapse them to the prefixed
+     one alone, which then applies in neither engine. */
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 24px rgba(255, 255, 255, 0.05),
+    0 10px 40px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* A slow highlight travelling across the pane, so the surface looks wet
+   rather than printed. Masked to the top half where a real specular sits. */
+.liquid-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.16) 42%,
+    rgba(255, 255, 255, 0.05) 52%,
+    transparent 72%
+  );
+  background-size: 250% 100%;
+  animation: liquid-sheen 9s ease-in-out infinite;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
+}
+
+@keyframes liquid-sheen {
+  0%,
+  100% {
+    background-position: 130% 0;
+  }
+  50% {
+    background-position: -30% 0;
+  }
+}
+
+/* Off the hero there is real content behind the bar, so trade transparency
+   for legibility. */
+.liquid-glass.is-lifted {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(12, 10, 9, 0.55) 100%
+  );
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* The log-in pill: same material, brighter, with its own rim. */
+.liquid-glass-btn {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.26),
+    rgba(255, 255, 255, 0.12)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 2px 12px -4px rgba(0, 0, 0, 0.5);
+}
+
+.liquid-glass-btn:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.34),
+    rgba(255, 255, 255, 0.18)
+  );
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Backdrop-filter is the effect. Without it the panel would be a milky
+   rectangle, so fall back to something solid and legible instead. */
+@supports not (backdrop-filter: blur(1px)) {
+  .liquid-glass {
+    background: rgba(20, 18, 16, 0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass::before {
+    animation: none;
+  }
+}
