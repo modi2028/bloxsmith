@@ -26,12 +26,6 @@ export function LoginScreen() {
       />
       <StarLayer />
 
-      {/* Scrim so the card is legible over polished metal. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_50%_45%_at_50%_50%,var(--background)_40%,transparent_80%)]"
-      />
-
       <div className="relative z-10 w-full max-w-md">
         <Link
           href="/"
@@ -43,6 +37,9 @@ export function LoginScreen() {
           </span>
         </Link>
 
+        {/* No scrim behind this. A radial darkening reads as a black ellipse
+            sitting on the page — the card's own backdrop blur is what makes
+            it legible over the mark. */}
         <div className="liquid-glass wavy-glass rounded-3xl p-9 backdrop-blur-2xl backdrop-saturate-150 sm:p-11">
           <h1 className="text-center text-3xl font-semibold tracking-[-0.02em] text-white">
             Sign in
