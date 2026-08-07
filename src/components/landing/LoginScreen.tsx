@@ -24,19 +24,23 @@ export function LoginScreen() {
         aria-hidden
         className="hero-wash pointer-events-none absolute inset-0 z-0"
       />
-      <StarLayer />
+      {/* Toned down here: at full strength the metal blew straight through
+          the card's glass and took its text with it. */}
+      <StarLayer dim={0.45} />
+
+      {/* Brand sits at the top of the page, not stacked above the card —
+          there it landed in the middle of the mark and was unreadable. */}
+      <Link
+        href="/"
+        className="absolute inset-x-0 top-8 z-20 mx-auto flex w-fit items-center gap-2.5 transition hover:brightness-125"
+      >
+        <LogoMark size={26} variant="white" />
+        <span className="text-lg font-semibold tracking-[-0.01em] text-white">
+          {BRAND.name}
+        </span>
+      </Link>
 
       <div className="relative z-10 w-full max-w-md">
-        <Link
-          href="/"
-          className="mb-8 flex items-center justify-center gap-2.5 transition hover:brightness-125"
-        >
-          <LogoMark size={26} variant="white" />
-          <span className="text-lg font-semibold tracking-[-0.01em] text-white">
-            {BRAND.name}
-          </span>
-        </Link>
-
         {/* No scrim behind this. A radial darkening reads as a black ellipse
             sitting on the page — the card's own backdrop blur is what makes
             it legible over the mark. */}

@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { setStarHover } from "./scroll-progress";
+
+/** Slack in pixels for "all the way down" — sub-pixel scroll heights and
+ *  browser chrome mean the bottom is rarely an exact number. */
+const BOTTOM_SLACK = 90;
+
+function isAtBottom(): boolean {
+  const doc = document.documentElement;
+  return window.scrollY + window.innerHeight >= doc.scrollHeight - BOTTOM_SLACK;
+}
 
 /**
  * The closing act: hover the mark and it breaks apart, revealing the way in.
@@ -14,12 +23,43 @@ import { setStarHover } from "./scroll-progress";
  */
 export function Finale({ signUpHref }: { signUpHref: string }) {
   const [open, setOpen] = useState(false);
+  const [atBottom, setAtBottom] = useState(false);
+  const hovering = useRef(false);
+
+  // The mark only opens once you have actually reached the end of the page.
+  // Hovering it on the way past does nothing — the reveal is the reward for
+  // getting to the bottom, not something you can trip over early.
+  const sync = useCallback(() => {
+    const bottom = isAtBottom();
+    setAtBottom(bottom);
+    const shouldOpen = bottom && hovering.current;
+    setOpen(shouldOpen);
+    setStarHover(shouldOpen);
+  }, []);
+
+  useEffect(() => {
+    // Re-evaluated on scroll as well as on hover: someone can be holding the
+    // pointer still over the mark and scroll the last few pixels into range.
+    // The first evaluation is deferred a frame rather than run here — setState
+    // straight from an effect body cascades a render, and the layout has not
+    // settled at that point anyway.
+    const first = requestAnimationFrame(sync);
+    window.addEventListener("scroll", sync, { passive: true });
+    window.addEventListener("resize", sync);
+    return () => {
+      cancelAnimationFrame(first);
+      window.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
+      setStarHover(false);
+    };
+  }, [sync]);
 
   const engage = () => {
-    setOpen(true);
-    setStarHover(true);
+    hovering.current = true;
+    sync();
   };
   const release = () => {
+    hovering.current = false;
     setOpen(false);
     setStarHover(false);
   };
@@ -52,10 +92,13 @@ export function Finale({ signUpHref }: { signUpHref: string }) {
           href={signUpHref}
           tabIndex={open ? 0 : -1}
           aria-hidden={!open}
-          className={`liquid-glass-btn -mt-24 rounded-full px-9 py-4 text-sm font-semibold text-white transition-all duration-500 ${
+          // Solid white, not glass. A translucent pill on a near-black page
+          // behind a metallic arm was almost invisible — this has to be the
+          // brightest thing on screen once the mark is open.
+          className={`signup-cta -mt-40 rounded-full bg-white px-11 py-5 text-base font-bold text-black transition-all duration-500 ${
             open
               ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
-              : "pointer-events-none translate-y-2 scale-90 opacity-0"
+              : "pointer-events-none translate-y-3 scale-90 opacity-0"
           }`}
         >
           Sign up
@@ -66,7 +109,7 @@ export function Finale({ signUpHref }: { signUpHref: string }) {
             open ? "opacity-0" : "text-muted opacity-100"
           }`}
         >
-          Hover the mark
+          {atBottom ? "Hover the mark" : "Scroll to the end"}
         </p>
       </div>
     </section>

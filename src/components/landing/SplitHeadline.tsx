@@ -154,7 +154,12 @@ export function SplitHeadline({
               });
             }
             return (
-              <span key={ci} data-letter style={style}>
+              <span
+                key={ci}
+                data-letter
+                className={piece.gradient ? "gradient-letter" : undefined}
+                style={style}
+              >
                 {ch}
               </span>
             );

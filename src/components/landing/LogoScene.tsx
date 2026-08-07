@@ -56,7 +56,14 @@ function armShape(index: number): THREE.Shape {
   return shape;
 }
 
-function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
+function StarMesh({
+  reducedMotion,
+  dim = 1,
+}: {
+  reducedMotion: boolean;
+  /** <1 tones the mark down where it sits behind content, e.g. the login card. */
+  dim?: number;
+}) {
   const group = useRef<THREE.Group>(null);
   const arms = useRef<(THREE.Mesh | null)[]>([]);
   /** Eased focus state, so the mark glides between cards instead of jumping. */
@@ -215,24 +222,45 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
     // closes with weight. Each arm travels along its OWN axis, which is why
     // the geometry was never centred.
     const target = reducedMotion ? 0 : scrollProgress.starHover;
-    openAmount.current += (target - openAmount.current) * Math.min(1, dt * 4);
+    openAmount.current += (target - openAmount.current) * Math.min(1, dt * 3.2);
     const open = ease(clamp01(openAmount.current));
 
     const step = (Math.PI * 2) / 5;
+    const STAGGER = 0.07;
+    const span = 1 - STAGGER * 4;
+
     arms.current.forEach((arm, i) => {
       if (!arm) return;
       const angle = i * step - Math.PI / 2;
-      const push = open * 0.85;
+
+      // Each arm starts a beat after the last, so the mark unfolds instead of
+      // all five leaving at once.
+      const local = clamp01((open - i * STAGGER) / span);
+      // easeOutBack: the arm overshoots its resting place and settles back.
+      // That tiny recoil is what makes the break feel like it has weight
+      // rather than like five objects being repositioned.
+      const c1 = 1.9;
+      const c3 = c1 + 1;
+      const t1 = local - 1;
+      const springy =
+        local >= 1 ? 1 : 1 + c3 * t1 * t1 * t1 + c1 * t1 * t1;
+
+      const push = springy * 1.02;
       arm.position.set(
         Math.cos(angle) * push,
         Math.sin(angle) * push,
-        open * 0.25,
+        // Alternating depth so they separate in 3D, not just on a flat plane.
+        springy * (i % 2 === 0 ? 0.42 : -0.18),
       );
+
       // Only a hint of tumble. At half a radian the arms read as unrelated
       // blocks scattered on screen; kept small, the silhouette stays legible
       // as a star coming apart.
-      arm.rotation.z = open * 0.16 * (i % 2 === 0 ? 1 : -1);
-      arm.rotation.x = open * 0.1;
+      arm.rotation.z = springy * 0.16 * (i % 2 === 0 ? 1 : -1);
+      arm.rotation.x = springy * 0.1;
+      // A breath of scale on the way out — reads as release, not ejection.
+      const pop = 1 + Math.sin(clamp01(local) * Math.PI) * 0.07;
+      arm.scale.setScalar(pop);
     });
   });
 
@@ -261,7 +289,7 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
             iridescenceThicknessRange={[120, 780]}
             clearcoat={1}
             clearcoatRoughness={0.08}
-            envMapIntensity={1.8}
+            envMapIntensity={1.8 * dim}
           />
         </mesh>
       ))}
@@ -344,7 +372,13 @@ function Embers({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 /** A key light that orbits, so highlights sweep across the facets. */
-function MovingKeyLight({ reducedMotion }: { reducedMotion: boolean }) {
+function MovingKeyLight({
+  reducedMotion,
+  dim = 1,
+}: {
+  reducedMotion: boolean;
+  dim?: number;
+}) {
   const light = useRef<THREE.PointLight>(null);
   useFrame((state) => {
     const l = light.current;
@@ -353,7 +387,7 @@ function MovingKeyLight({ reducedMotion }: { reducedMotion: boolean }) {
     l.position.set(Math.cos(t) * 4.5, 2.2 + Math.sin(t * 0.7) * 1.4, 4);
   });
   return (
-    <pointLight ref={light} intensity={9} distance={14} color="#ffe6c0" />
+    <pointLight ref={light} intensity={9 * dim} distance={14} color="#ffe6c0" />
   );
 }
 
@@ -363,33 +397,33 @@ function MovingKeyLight({ reducedMotion }: { reducedMotion: boolean }) {
  * and this gives shaped highlights for a few KB instead of a multi-MB .hdr
  * over the network.
  */
-function Studio() {
+function Studio({ dim = 1 }: { dim?: number }) {
   return (
     <Environment resolution={256} frames={1}>
       <Lightformer
         form="rect"
-        intensity={5.5}
+        intensity={5.5 * dim}
         color="#bfdbfe"
         position={[-3, 2, 2]}
         scale={[5, 6, 1]}
       />
       <Lightformer
         form="rect"
-        intensity={4}
+        intensity={4 * dim}
         color="#a78bfa"
         position={[3, -1, 2]}
         scale={[4, 5, 1]}
       />
       <Lightformer
         form="circle"
-        intensity={4.5}
+        intensity={4.5 * dim}
         color="#f59e0b"
         position={[2, 3, -2]}
         scale={[3, 3, 1]}
       />
       <Lightformer
         form="rect"
-        intensity={2.5}
+        intensity={2.5 * dim}
         color="#ffffff"
         position={[0, -4, 1]}
         scale={[8, 2, 1]}
@@ -403,7 +437,7 @@ function Studio() {
       */}
       <Lightformer
         form="rect"
-        intensity={1.5}
+        intensity={1.5 * dim}
         color="#dbeafe"
         position={[0, 0.5, 7]}
         scale={[14, 12, 1]}
@@ -414,8 +448,15 @@ function Studio() {
 
 export default function LogoScene({
   reducedMotion = false,
+  dim = 1,
 }: {
   reducedMotion?: boolean;
+  /**
+   * Global brightness multiplier. The login page puts a card directly over
+   * the mark, and at full strength the metal blew through the glass and took
+   * the card's text with it.
+   */
+  dim?: number;
 }) {
   return (
     <Canvas
@@ -428,10 +469,10 @@ export default function LogoScene({
     >
       <ambientLight intensity={0.35} />
       <directionalLight position={[4, 5, 5]} intensity={1.1} />
-      <MovingKeyLight reducedMotion={reducedMotion} />
-      <StarMesh reducedMotion={reducedMotion} />
+      <MovingKeyLight reducedMotion={reducedMotion} dim={dim} />
+      <StarMesh reducedMotion={reducedMotion} dim={dim} />
       <Embers reducedMotion={reducedMotion} />
-      <Studio />
+      <Studio dim={dim} />
       {!reducedMotion && (
         <EffectComposer enableNormalPass={false}>
           {/* Threshold raised so only genuine speculars bloom. At 0.62 the

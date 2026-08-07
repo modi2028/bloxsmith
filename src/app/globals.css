@@ -1135,3 +1135,88 @@ body {
     0 2px 18px rgba(0, 0, 0, 0.55),
     0 1px 3px rgba(0, 0, 0, 0.4);
 }
+
+/* The gradient phrase glows in its own colours.
+   text-shadow is no use here: the glyph fill is transparent with the gradient
+   clipped to it, so a shadow would only draw a flat silhouette behind it.
+   drop-shadow filters the RENDERED result, so the halo picks up each letter's
+   own colour — blue at the start of the sweep, amber at the end. */
+.gradient-letter {
+  animation: gradient-shine 4.5s ease-in-out infinite;
+}
+
+/* Shine is brightness and saturation rather than a moving highlight: each
+   letter's background-position is set inline to keep the sweep continuous
+   across the phrase, so animating position here would fight it. */
+@keyframes gradient-shine {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 6px rgba(191, 219, 254, 0.4))
+      drop-shadow(0 0 20px rgba(167, 139, 250, 0.32)) brightness(1)
+      saturate(1.05);
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(240, 171, 252, 0.6))
+      drop-shadow(0 0 30px rgba(167, 139, 250, 0.5)) brightness(1.22)
+      saturate(1.35);
+  }
+}
+
+/* The dark legibility shadow must not touch these — it muddies the colour and
+   cancels the glow. */
+.hero-legible .gradient-letter {
+  text-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gradient-letter {
+    animation: none;
+    filter: drop-shadow(0 0 8px rgba(167, 139, 250, 0.35));
+  }
+}
+
+/* The finale call to action.
+   It sits in front of a lit metallic object on a near-black page, so it has
+   to win on contrast alone: solid white, and a halo that separates it from
+   whatever arm happens to pass behind it. */
+.signup-cta {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 0 28px rgba(255, 255, 255, 0.45),
+    0 0 70px rgba(167, 139, 250, 0.35),
+    0 12px 40px -12px rgba(0, 0, 0, 0.9);
+  animation: signup-pulse 2.8s ease-in-out infinite;
+}
+
+.signup-cta:hover {
+  animation: none;
+  transform: scale(1.05);
+  box-shadow:
+    0 0 0 1px #fff,
+    0 0 40px rgba(255, 255, 255, 0.7),
+    0 0 90px rgba(167, 139, 250, 0.5);
+}
+
+@keyframes signup-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.9),
+      0 0 28px rgba(255, 255, 255, 0.4),
+      0 0 70px rgba(167, 139, 250, 0.3),
+      0 12px 40px -12px rgba(0, 0, 0, 0.9);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px #fff,
+      0 0 40px rgba(255, 255, 255, 0.6),
+      0 0 95px rgba(167, 139, 250, 0.45),
+      0 12px 40px -12px rgba(0, 0, 0, 0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signup-cta {
+    animation: none;
+  }
+}

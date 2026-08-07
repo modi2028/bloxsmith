@@ -22,7 +22,7 @@ const LogoScene = dynamic(() => import("./LogoScene"), {
   loading: () => null,
 });
 
-export function StarLayer() {
+export function StarLayer({ dim = 1 }: { dim?: number } = {}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [show, setShow] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
@@ -85,7 +85,7 @@ export function StarLayer() {
       aria-hidden
       className="scene-fade pointer-events-none fixed inset-0 z-0"
     >
-      <LogoScene reducedMotion={reducedMotion} />
+      <LogoScene reducedMotion={reducedMotion} dim={dim} />
     </div>
   );
 }
