@@ -121,8 +121,12 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
         : 1;
 
     // --- Rotation -------------------------------------------------------
-    const idleSpin = reducedMotion ? 0 : 0.34;
-    m.rotation.y += (idleSpin + introSpin + p * 2.6) * dt;
+    // The scroll-driven spin is faded out for the finale: at the bottom the
+    // hero term was still contributing ~2.6 rad/s, which span the broken-open
+    // mark far too fast to read. Down there it turns on idle alone, slowed.
+    const finaleCalm = 1 - ease(clamp01((scrollProgress.page - 0.76) / 0.24));
+    const idleSpin = reducedMotion ? 0 : 0.34 * (0.45 + 0.55 * finaleCalm);
+    m.rotation.y += (idleSpin + introSpin + p * 2.6 * finaleCalm) * dt;
 
     // Two out-of-phase oscillators on the other axes so the motion never
     // repeats visibly — a single sine reads as mechanical within a few turns.
@@ -162,7 +166,7 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
     // closed silhouette — so at hero size the arms fly straight off both
     // edges of the screen and the break cannot be read. This keeps the whole
     // gesture inside the viewport.
-    const scale = base * introScale * (1 - away * 0.62) * (1 - home * 0.46);
+    const scale = base * introScale * (1 - away * 0.62) * (1 - home * 0.34);
     m.scale.setScalar(Math.max(0.08, scale));
 
     // RESTING_Y is barely off centre — enough to sit above the headline's

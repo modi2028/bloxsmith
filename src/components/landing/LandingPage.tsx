@@ -13,7 +13,6 @@ import { Finale } from "./Finale";
 import { Reveal } from "./Reveal";
 import { SmoothScroll } from "./SmoothScroll";
 import { StarLayer } from "./StarLayer";
-import { TierShowcase } from "./TierShowcase";
 import { TopBar } from "./TopBar";
 
 const SIGN_IN = "/login";
@@ -89,9 +88,6 @@ export function LandingPage() {
           </div>
         </Reveal>
       </section>
-
-      {/* --- 3. The lineup (pinned) --------------------------------------- */}
-      <TierShowcase />
 
       {/* --- 4. How it works ---------------------------------------------- */}
       <section id="how" className="relative px-6 py-28">
