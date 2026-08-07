@@ -1180,11 +1180,15 @@ body {
    to win on contrast alone: solid white, and a halo that separates it from
    whatever arm happens to pass behind it. */
 .signup-cta {
+  /* The glass itself carries almost no contrast against a dark page, so the
+     ring and the halo do the work of making it findable. */
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.9),
-    0 0 28px rgba(255, 255, 255, 0.45),
-    0 0 70px rgba(167, 139, 250, 0.35),
-    0 12px 40px -12px rgba(0, 0, 0, 0.9);
+    0 0 0 1px rgba(255, 255, 255, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 0 30px rgba(255, 255, 255, 0.28),
+    0 0 80px rgba(167, 139, 250, 0.4),
+    0 12px 40px -12px rgba(0, 0, 0, 0.95);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6);
   animation: signup-pulse 2.8s ease-in-out infinite;
 }
 
@@ -1192,26 +1196,29 @@ body {
   animation: none;
   transform: scale(1.05);
   box-shadow:
-    0 0 0 1px #fff,
-    0 0 40px rgba(255, 255, 255, 0.7),
-    0 0 90px rgba(167, 139, 250, 0.5);
+    0 0 0 1px rgba(255, 255, 255, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 0 46px rgba(255, 255, 255, 0.45),
+    0 0 110px rgba(167, 139, 250, 0.55);
 }
 
 @keyframes signup-pulse {
   0%,
   100% {
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.9),
-      0 0 28px rgba(255, 255, 255, 0.4),
-      0 0 70px rgba(167, 139, 250, 0.3),
-      0 12px 40px -12px rgba(0, 0, 0, 0.9);
+      0 0 0 1px rgba(255, 255, 255, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      0 0 28px rgba(255, 255, 255, 0.24),
+      0 0 75px rgba(167, 139, 250, 0.34),
+      0 12px 40px -12px rgba(0, 0, 0, 0.95);
   }
   50% {
     box-shadow:
-      0 0 0 1px #fff,
-      0 0 40px rgba(255, 255, 255, 0.6),
-      0 0 95px rgba(167, 139, 250, 0.45),
-      0 12px 40px -12px rgba(0, 0, 0, 0.9);
+      0 0 0 1px rgba(255, 255, 255, 0.75),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 0 42px rgba(255, 255, 255, 0.4),
+      0 0 105px rgba(167, 139, 250, 0.5),
+      0 12px 40px -12px rgba(0, 0, 0, 0.95);
   }
 }
 

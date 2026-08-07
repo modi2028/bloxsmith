@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { scrollProgress } from "./scroll-progress";
 import { usePrefersReducedMotion } from "./use-reduced-motion";
 
 /**
@@ -20,6 +21,18 @@ type Piece = { word: string; gradient: boolean };
 
 const RADIUS = 190;
 const STRENGTH = 46;
+
+/**
+ * Deterministic pseudo-random from an index. Every letter needs its own
+ * direction, distance, spin and timing, and those must be identical on every
+ * render — Math.random would reshuffle the whole headline on each mount.
+ */
+function hashed(i: number, salt: number): number {
+  const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 export function SplitHeadline({
   pieces,
@@ -66,8 +79,24 @@ export function SplitHeadline({
       pointer.active = false;
     };
 
+    // Each letter's own exit: a direction, a distance, a spin and a moment of
+    // departure, all fixed per index so the scatter is the same every time.
+    const exits = letters.map((_, i) => {
+      const angle = hashed(i, 1) * Math.PI * 2;
+      return {
+        dx: Math.cos(angle),
+        dy: Math.sin(angle) - 0.35, // biased upward, so it reads as lifting away
+        dist: 150 + hashed(i, 2) * 300,
+        spin: (hashed(i, 3) - 0.5) * 140,
+        // Staggered departure — they do not all leave on the same frame.
+        delay: hashed(i, 4) * 0.22,
+      };
+    });
+
     let frame = 0;
     const tick = () => {
+      const scroll = scrollProgress.value;
+
       for (let i = 0; i < letters.length; i++) {
         const c = centres[i]!;
         let tx = 0;
@@ -90,11 +119,26 @@ export function SplitHeadline({
         // Chase rather than snap, so letters settle back with some weight.
         cur.x += (tx - cur.x) * 0.16;
         cur.y += (ty - cur.y) * 0.16;
+
+        // Scroll exit, layered on top of the cursor repulsion rather than
+        // replacing it — a letter being pushed aside while the page scrolls
+        // should do both.
+        const e = exits[i]!;
+        const ep = clamp01((scroll - e.delay) / (0.5 - e.delay));
+        const eased = ep * ep; // accelerates away rather than drifting off
+        const ex = e.dx * e.dist * eased;
+        const ey = e.dy * e.dist * eased;
+        const spin = e.spin * eased;
+
         const l = letters[i]!;
-        if (Math.abs(cur.x) < 0.05 && Math.abs(cur.y) < 0.05) {
+        const x = cur.x + ex;
+        const y = cur.y + ey;
+        if (Math.abs(x) < 0.05 && Math.abs(y) < 0.05 && ep === 0) {
           l.style.transform = "";
+          l.style.opacity = "";
         } else {
-          l.style.transform = `translate3d(${cur.x.toFixed(2)}px, ${cur.y.toFixed(2)}px, 0)`;
+          l.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) rotate(${spin.toFixed(2)}deg)`;
+          l.style.opacity = ep > 0 ? String(clamp01(1 - ep * 1.15)) : "";
         }
       }
       frame = requestAnimationFrame(tick);
@@ -113,7 +157,10 @@ export function SplitHeadline({
       document.removeEventListener("pointerleave", onLeave);
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure);
-      letters.forEach((l) => (l.style.transform = ""));
+      letters.forEach((l) => {
+        l.style.transform = "";
+        l.style.opacity = "";
+      });
     };
   }, [reduced]);
 
