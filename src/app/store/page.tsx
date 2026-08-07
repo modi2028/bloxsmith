@@ -8,21 +8,12 @@ import {
   PRO_PLAN,
   TOKEN_LIMITS_5H,
   TOKEN_LIMITS_WEEK,
-  formatTokenLimit,
 } from "@/lib/model-catalog";
 import { getSessionUser } from "@/server/auth/session";
 import { db, schema } from "@/server/db";
 import { isStripeConfigured } from "@/server/stripe/client";
 
 export const metadata = { title: "Store" };
-
-/** "5k per 5 hours · 25k per week" — both windows, from the constants. */
-function allowanceLines(tier: "free" | "pro" | "max"): string[] {
-  return [
-    `${formatTokenLimit(TOKEN_LIMITS_5H[tier])} tokens per 5 hours`,
-    `${formatTokenLimit(TOKEN_LIMITS_WEEK[tier])} tokens per week`,
-  ];
-}
 
 export default async function StorePage({
   searchParams,
@@ -65,55 +56,68 @@ export default async function StorePage({
     {
       tier: "free",
       name: "Free",
-      priceLabel: "$0",
+      priceUsd: 0,
       tagline: "Everything you need to start building",
+      headline: "Luna",
       perks: [
-        "The Luna model",
-        ...allowanceLines("free"),
         "Live building in your Studio",
         "Daily login rewards",
+        "Chat history and saved builds",
       ],
+      tokens5h: TOKEN_LIMITS_5H.free,
+      tokensWeek: TOKEN_LIMITS_WEEK.free,
       purchasable: false,
     },
     {
       tier: "pro",
       name: "Pro",
-      priceLabel: `$${PRO_PLAN.priceUsd.toFixed(2)}/mo`,
+      priceUsd: PRO_PLAN.priceUsd,
       tagline: "For regular builders",
+      headline: "Sol",
       perks: [
-        "Everything in Free, plus Sol",
+        "Everything in Free",
         "Insert real Creator Store models",
-        ...allowanceLines("pro"),
         "Priority on new models",
       ],
+      tokens5h: TOKEN_LIMITS_5H.pro,
+      tokensWeek: TOKEN_LIMITS_WEEK.pro,
       purchasable: proConfigured,
     },
     {
       tier: "max",
       name: "Max",
-      priceLabel: `$${MAX_PLAN.priceUsd.toFixed(2)}/mo`,
+      priceUsd: MAX_PLAN.priceUsd,
       tagline: "The full Bloxsmith experience",
+      headline: "Titan — the flagship",
       perks: [
-        "Everything in Pro, plus Titan — the flagship",
+        "Everything in Pro",
         "Deep thinking and web search",
-        ...allowanceLines("max"),
         "First access to every new model and tool",
       ],
+      tokens5h: TOKEN_LIMITS_5H.max,
+      tokensWeek: TOKEN_LIMITS_WEEK.max,
       purchasable: maxConfigured,
     },
   ];
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-6 py-10">
+    <div className="relative mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-6 py-10">
+      <div
+        aria-hidden
+        className="dashboard-ambient pointer-events-none absolute inset-x-0 top-0 -z-10 h-[60vh]"
+      />
       <Link href="/" className="mb-8 text-sm text-muted hover:text-foreground">
         ← Back to {BRAND.name}
       </Link>
 
-      <div className="mb-12 text-center">
-        <h1 className="text-4xl font-bold tracking-tight">
+      <div className="mb-14 text-center">
+        <p className="text-[11px] uppercase tracking-[0.3em] text-faint">
+          Plans
+        </p>
+        <h1 className="mt-4 text-5xl font-bold tracking-[-0.035em] sm:text-6xl">
           Pick your <span className="gradient-pan">power level</span>
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-sm text-muted">
+        <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-muted">
           Every plan comes with a build allowance that refills every 5 hours.
           Upgrade or cancel any time.
         </p>

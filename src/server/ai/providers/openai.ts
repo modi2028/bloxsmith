@@ -197,10 +197,27 @@ export async function streamOpenAICompatibleResponse(
 
   for await (const chunk of stream) {
     const choice = chunk.choices?.[0];
-    // GLM (and friends) stream reasoning separately from the answer.
-    const reasoning = (
-      choice?.delta as { reasoning_content?: string } | undefined
-    )?.reasoning_content;
+    // Reasoning arrives on a side channel, and there is no agreed name for it.
+    // GLM (and friends) use `reasoning_content`; the Codex OAuth proxy in
+    // front of ChatGPT uses `reasoning`, sometimes as a bare string and
+    // sometimes as an object with the text under `content` or `summary`. Only
+    // reading the first of those is why Thinking showed nothing on the
+    // ChatGPT-backed models.
+    const raw = choice?.delta as
+      | {
+          reasoning_content?: string;
+          reasoning?:
+            | string
+            | { content?: string; summary?: string; text?: string };
+        }
+      | undefined;
+    const reasoning =
+      raw?.reasoning_content ??
+      (typeof raw?.reasoning === "string"
+        ? raw.reasoning
+        : (raw?.reasoning?.content ??
+          raw?.reasoning?.summary ??
+          raw?.reasoning?.text));
     if (typeof reasoning === "string" && reasoning) {
       params.onThinkingDelta?.(reasoning);
     }

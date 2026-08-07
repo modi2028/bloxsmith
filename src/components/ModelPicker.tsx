@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ADMIN_ONLY_EFFORTS,
   EFFORT_TIERS,
-  MODEL_LIMITS,
   effortIdsFor,
-  effortTokenBudget,
   type EffortId,
 } from "@/lib/model-catalog";
 import { LogoMark } from "./Logo";
@@ -28,20 +26,6 @@ export type ChatModel = {
   recommended?: boolean;
 };
 
-/** 83000 -> "83k", 1850000 -> "1.9M". */
-function fmtTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  return `${Math.round(n / 1000)}k`;
-}
-
-/**
- * A tier's ceiling as a phrase. An unlimited tier carries an infinite budget,
- * which fmtTokens would happily render as "InfinityM".
- */
-function budgetPhrase(n: number): string {
-  return Number.isFinite(n) ? `up to ${fmtTokens(n)} tokens` : "no token limit";
-}
-
 const EFFORT_LABELS: Record<EffortId, string> = {
   low: "Low",
   medium: "Medium",
@@ -61,6 +45,132 @@ function Check() {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+/* Geometry, shared between the pointer maths and the CSS. The thumb travels
+   inside the groove's padding, so every position is measured against
+   (track width - padding on both sides - the thumb itself). */
+const PAD = 4;
+const THUMB = 26;
+const TRAVEL = `calc(100% - ${PAD * 2 + THUMB}px)`;
+
+/**
+ * The effort track: a groove with a stop per tier and a thumb you drag.
+ *
+ * The thumb follows the pointer continuously rather than jumping between
+ * notches — forcing it stop-to-stop mid-drag makes a five-position control
+ * feel like it is fighting you. The VALUE still snaps: it commits to the
+ * nearest stop as you move, and the thumb glides onto that stop when you let
+ * go. So it drags free and lands on points.
+ */
+function EffortTrack({
+  ids,
+  value,
+  onChange,
+}: {
+  ids: EffortId[];
+  value: EffortId;
+  onChange: (id: EffortId) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Non-null only while a drag is in flight; that is also the "is dragging"
+  // flag, which is why the thumb's transition keys off it.
+  const [dragFrac, setDragFrac] = useState<number | null>(null);
+
+  const last = Math.max(1, ids.length - 1);
+  const index = Math.max(0, ids.indexOf(value));
+  const frac = dragFrac ?? index / last;
+  const atTop = index === ids.length - 1;
+
+  const fracFrom = (clientX: number): number => {
+    const el = ref.current;
+    if (!el) return 0;
+    const r = el.getBoundingClientRect();
+    const travel = r.width - PAD * 2 - THUMB;
+    if (travel <= 0) return 0;
+    return Math.min(
+      1,
+      Math.max(0, (clientX - r.left - PAD - THUMB / 2) / travel),
+    );
+  };
+
+  const commit = (f: number) => {
+    const next = ids[Math.round(f * last)];
+    if (next && next !== value) onChange(next);
+  };
+
+  const step = (delta: number) => {
+    const next = ids[Math.min(ids.length - 1, Math.max(0, index + delta))];
+    if (next && next !== value) onChange(next);
+  };
+
+  return (
+    <div
+      ref={ref}
+      role="slider"
+      tabIndex={0}
+      aria-label="Effort"
+      aria-valuemin={0}
+      aria-valuemax={ids.length - 1}
+      aria-valuenow={index}
+      aria-valuetext={EFFORT_LABELS[value]}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        const f = fracFrom(e.clientX);
+        setDragFrac(f);
+        commit(f);
+      }}
+      onPointerMove={(e) => {
+        if (dragFrac == null) return;
+        const f = fracFrom(e.clientX);
+        setDragFrac(f);
+        commit(f);
+      }}
+      onPointerUp={(e) => {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        setDragFrac(null);
+      }}
+      onPointerCancel={() => setDragFrac(null)}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowLeft" || e.key === "ArrowDown") step(-1);
+        else if (e.key === "ArrowRight" || e.key === "ArrowUp") step(1);
+        else if (e.key === "Home") step(-ids.length);
+        else if (e.key === "End") step(ids.length);
+        else return;
+        e.preventDefault();
+      }}
+      className="effort-groove relative mt-1.5 h-[34px] w-full cursor-pointer touch-none select-none rounded-xl"
+    >
+      {ids.map((id, i) => (
+        <span
+          key={id}
+          aria-hidden
+          className={`pointer-events-none absolute top-1/2 size-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full ${
+            i === ids.length - 1 ? "bg-effort-max" : "bg-white/30"
+          }`}
+          style={{
+            left: `calc(${PAD + THUMB / 2}px + ${i / last} * ${TRAVEL})`,
+          }}
+        />
+      ))}
+
+      <span
+        aria-hidden
+        className={`effort-thumb absolute top-1/2 -translate-y-1/2 rounded-lg ${
+          atTop ? "is-max" : ""
+        }`}
+        style={{
+          width: THUMB,
+          height: THUMB,
+          left: `calc(${PAD}px + ${frac} * ${TRAVEL})`,
+          transition:
+            dragFrac == null
+              ? "left 0.28s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, box-shadow 0.3s ease"
+              : "background-color 0.3s ease, box-shadow 0.3s ease",
+        }}
+      />
+    </div>
   );
 }
 
@@ -289,103 +399,44 @@ export function ModelPicker({
               </button>
 
               {effortOpen && (
-                <div className="glass-menu absolute bottom-0 left-full z-40 ml-2 w-64 rounded-xl border border-line max-sm:left-auto max-sm:right-0 max-sm:bottom-full max-sm:mb-2 max-sm:ml-0">
-                  <p className="border-b border-line px-3.5 py-2.5 text-[11px] leading-relaxed text-faint">
-                    Higher effort means bigger, more thorough builds, but takes
-                    longer and uses your limits faster.
-                  </p>
-                  {(() => {
-                    const ids = efforts;
-                    const index = Math.max(0, ids.indexOf(effort));
-                    // The top rung reads purple: it is the "as far as this
-                    // model goes" setting, and it should not look like just
-                    // another notch on an ember track.
-                    const atTop = effort === topEffort;
-                    const pct =
-                      ids.length > 1 ? (index / (ids.length - 1)) * 100 : 0;
-
-                    return (
-                      <div className="px-3.5 py-3">
-                        <p
-                          className={`mb-2.5 text-sm font-semibold transition-colors ${
-                            atTop ? "text-effort-max" : "text-foreground"
-                          }`}
-                        >
-                          {EFFORT_LABELS[effort]}
-                        </p>
-
-                        <div className="mb-2 flex items-center justify-between text-[11px]">
-                          <span className="text-faint">Faster</span>
-                          <span className="text-faint">Smarter</span>
-                        </div>
-
-                        <div className="effort-slider relative">
-                          {/* Ticks sit under the track so the notches are
-                              visible through the unfilled portion. */}
-                          <div
-                            aria-hidden
-                            className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-between px-1"
-                          >
-                            {ids.map((id) => (
-                              <span
-                                key={id}
-                                className="size-1 rounded-full bg-white/25"
-                              />
-                            ))}
-                          </div>
-
-                          <div
-                            aria-hidden
-                            className={`pointer-events-none absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full transition-all duration-300 ${
-                              atTop ? "effort-fill-max" : "bg-ember/70"
-                            }`}
-                            style={{ width: `calc(${pct}% + 2px)` }}
-                          />
-
-                          <input
-                            type="range"
-                            min={0}
-                            max={Math.max(0, ids.length - 1)}
-                            step={1}
-                            value={index}
-                            aria-label="Effort"
-                            onChange={(e) => {
-                              const next = ids[Number(e.target.value)];
-                              if (next) onEffortChange?.(next);
-                            }}
-                            className={`effort-range relative z-10 w-full ${
-                              atTop ? "is-max" : ""
-                            }`}
-                          />
-                        </div>
-
-                        <p className="mt-3 text-[11px] text-faint">
-                          {ADMIN_ONLY_EFFORTS.has(effort)
-                            ? "No content limits · staff only"
-                            : (() => {
-                                const est = effortTokenBudget(current.id, effort);
-                                return est == null
-                                  ? ""
-                                  : Number.isFinite(est)
-                                    ? `up to ${fmtTokens(est)} tokens per build`
-                                    : "no token limit";
-                              })()}
-                        </p>
-                      </div>
-                    );
-                  })()}
-
-                  {MODEL_LIMITS[current.id] && (
-                    <p className="border-t border-line px-3.5 py-2 text-[10px] text-faint">
-                      {current.name}: {MODEL_LIMITS[current.id].contextK}k
-                      context ·{" "}
-                      {budgetPhrase(effortTokenBudget(current.id, effort) ?? 0)}{" "}
-                      at {EFFORT_LABELS[effort]} effort
+                <div className="glass-menu absolute bottom-0 left-full z-40 ml-2 w-[270px] rounded-2xl border border-line p-3.5 max-sm:bottom-full max-sm:left-auto max-sm:right-0 max-sm:mb-2 max-sm:ml-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm">
+                      <span className="text-muted">Effort </span>
+                      <span
+                        className={`font-semibold ${
+                          effort === topEffort
+                            ? "text-effort-max"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {EFFORT_LABELS[effort]}
+                      </span>
                     </p>
-                  )}
+                    {/* The explanation lives on the hint, not on the panel.
+                        Spelling out budgets and trade-offs under the track
+                        turned a one-line control into a wall of text. */}
+                    <span
+                      title="Higher effort means bigger, more thorough builds, but takes longer and uses your limits faster."
+                      className="mt-px flex size-4 shrink-0 cursor-help items-center justify-center rounded-full border border-line-strong text-[9px] font-bold text-faint transition hover:text-muted"
+                    >
+                      ?
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-faint">
+                    <span>Faster</span>
+                    <span>Smarter</span>
+                  </div>
+
+                  <EffortTrack
+                    ids={efforts}
+                    value={effort}
+                    onChange={(id) => onEffortChange?.(id)}
+                  />
 
                   {onThinkingVisibleChange && (
-                    <div className="border-t border-line px-3.5 py-2.5">
+                    <div className="mt-3 border-t border-line pt-3">
                       <button
                         type="button"
                         role="switch"
@@ -393,13 +444,8 @@ export function ModelPicker({
                         onClick={() => onThinkingVisibleChange(!thinkingVisible)}
                         className="flex w-full items-center justify-between gap-3 text-left"
                       >
-                        <span>
-                          <span className="text-sm font-medium text-foreground">
-                            Thinking
-                          </span>
-                          <span className="block text-[11px] text-faint">
-                            Think deeper on hard builds — uses more tokens
-                          </span>
+                        <span className="text-sm font-medium text-foreground">
+                          Thinking
                         </span>
                         <span
                           className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
