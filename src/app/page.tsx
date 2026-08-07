@@ -4,10 +4,9 @@ import { AnthropicWordmark, RobloxMark } from "@/components/BrandMarks";
 import { ChatApp } from "@/components/ChatApp";
 import { DailyReward } from "@/components/DailyReward";
 import { HistoryMenu } from "@/components/HistoryMenu";
-import { Landing } from "@/components/Landing";
+import { LandingPage } from "@/components/landing/LandingPage";
 import { Sidebar } from "@/components/Sidebar";
 import { BRAND } from "@/lib/brand";
-import { getPublicStats } from "@/server/public-stats";
 import { tokenWindowUsage, unmeteredWindowUsage } from "@/server/token-usage";
 import {
   RECOMMENDED_MODEL_IDS,
@@ -253,25 +252,13 @@ export default async function Home({
         />
       );
     }
-    const landingModels = (
-      await db.query.modelPricing.findMany({
-        where: eq(schema.modelPricing.enabled, true),
-        orderBy: [asc(schema.modelPricing.sort)],
-      })
-    ).map((m) => ({
-      id: m.modelId,
-      name: m.displayName,
-      provider: m.provider,
-      description: m.description,
-      tier: m.tier,
-      reserve: m.maxCreditsPerRequest,
-      isDefault: m.isDefault,
-      proOnly: m.proOnly,
-      minPlan: m.minPlan,
-      locked: m.minPlan !== "free",
-      recommended: RECOMMENDED_MODEL_IDS.has(m.modelId),
-    }));
-    return <Landing models={landingModels} stats={await getPublicStats()} />;
+    // The marketing surface. Reads nothing from the database — its figures
+    // come from the catalog module, so it cannot drift from the limits the
+    // product actually enforces, and it renders without a query.
+    //
+    // The previous landing is still in components/Landing.tsx; swapping this
+    // line back restores it.
+    return <LandingPage />;
   }
 
   if (site.maintenance && !isAdminRole(user.role)) {

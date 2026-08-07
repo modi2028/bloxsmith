@@ -850,3 +850,167 @@ body {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Landing page (marketing surface only — not used inside the app shell)
+   --------------------------------------------------------------------------- */
+
+/* Glassmorphic card: blur what is behind, hairline border, soft inner glow. */
+.glass-card {
+  background: color-mix(in srgb, var(--surface-raised) 55%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 20px 50px -30px rgba(0, 0, 0, 0.9);
+}
+
+/* Ambient hero wash. Sits behind the canvas so the metal has something to
+   sit against; drifts slowly to keep the frame alive when the logo is still. */
+.hero-wash {
+  background:
+    radial-gradient(
+      ellipse 60% 50% at 50% 40%,
+      rgba(96, 165, 250, 0.1),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 45% 40% at 70% 60%,
+      rgba(167, 139, 250, 0.09),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 50% 45% at 30% 65%,
+      rgba(245, 158, 11, 0.07),
+      transparent 70%
+    );
+  animation: hero-wash-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes hero-wash-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1.05);
+  }
+  to {
+    transform: translate3d(1.5%, 1.5%, 0) scale(1.12);
+  }
+}
+
+/* The canvas fades in once it is ready, so its arrival is never a pop. */
+.scene-fade {
+  animation: scene-fade-in 1.1s ease-out both;
+}
+
+@keyframes scene-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Thin-film gradient echoing the hero material, so the type belongs to the
+   same world as the logo. */
+.iridescent-text {
+  background: linear-gradient(
+    100deg,
+    #bfdbfe 0%,
+    #a78bfa 32%,
+    #f0abfc 52%,
+    #fbbf24 78%,
+    #bfdbfe 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: iridescent-shift 9s ease-in-out infinite alternate;
+}
+
+@keyframes iridescent-shift {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-wash,
+  .iridescent-text,
+  .scene-fade {
+    animation: none;
+  }
+}
+
+/* Cursor-reactive card: leans toward the pointer, lit where the pointer is.
+   Driven entirely by custom properties written from JS, so a mousemove costs
+   one composite instead of a React render. */
+.tilt-card {
+  --mx: 50%;
+  --my: 50%;
+  --rx: 0deg;
+  --ry: 0deg;
+  --glow-opacity: 0;
+  position: relative;
+  isolation: isolate;
+  transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));
+  transform-style: preserve-3d;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.tilt-card__glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--glow-opacity);
+  transition: opacity 0.4s ease;
+  background: radial-gradient(
+    260px circle at var(--mx) var(--my),
+    var(--tilt-accent),
+    transparent 70%
+  );
+}
+
+.tilt-card__inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+}
+
+/* Blinking caret for the typing demo. */
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--ember);
+  animation: caret-blink 1.05s steps(1) infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tilt-card {
+    transform: none;
+    transition: none;
+  }
+  .caret {
+    animation: none;
+  }
+}
