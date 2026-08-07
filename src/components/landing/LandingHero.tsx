@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { HERO_SPAN, scrollProgress } from "./scroll-progress";
+import { SplitHeadline } from "./SplitHeadline";
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
@@ -69,16 +70,20 @@ export function LandingHero() {
           ref={copyRef}
           className="hero-copy hero-legible relative z-10 mt-[14vh] flex flex-col items-center text-center will-change-transform"
         >
-        <span className="mb-6 rounded-full border border-line px-3.5 py-1.5 text-[11px] uppercase tracking-[0.2em] text-muted backdrop-blur-sm">
-          AI pair-builder for Roblox Studio
-        </span>
-
-        <h1 className="max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-6xl md:text-7xl lg:text-8xl">
-          Build Roblox
-          <br />
-          experiences{" "}
-          <span className="iridescent-text">with AI</span>
-        </h1>
+        <SplitHeadline
+          className="max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-6xl md:text-7xl lg:text-8xl"
+          pieces={[
+            { word: "Build", gradient: false },
+            { word: " ", gradient: false },
+            { word: "Roblox", gradient: false },
+            { word: " ", gradient: false },
+            { word: "experiences", gradient: false },
+            { word: " ", gradient: false },
+            { word: "with", gradient: true },
+            { word: " ", gradient: true },
+            { word: "AI", gradient: true },
+          ]}
+        />
 
         </div>
 
