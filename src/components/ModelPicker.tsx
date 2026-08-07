@@ -55,6 +55,13 @@ const PAD = 4;
 const THUMB = 26;
 const TRAVEL = `calc(100% - ${PAD * 2 + THUMB}px)`;
 
+/* While a drag is live the thumb and the fill must track the finger exactly —
+   easing their position there would make the control feel like it is lagging
+   behind the pointer. The easing is only for the settle after release. */
+const MOVE_EASE =
+  "left 0.3s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, box-shadow 0.3s ease";
+const COLOR_ONLY = "background-color 0.3s ease, box-shadow 0.3s ease";
+
 /**
  * The effort track: a groove with a stop per tier and a thumb you drag.
  *
@@ -155,6 +162,22 @@ function EffortTrack({
         />
       ))}
 
+      {/* The energised part of the track: a fine dot matrix that drifts and
+          twinkles, running from the left edge to the thumb. It is painted
+          AFTER the stop markers, so the stops show only in the stretch you
+          have not reached yet and the matrix swallows the ones behind. */}
+      <span
+        aria-hidden
+        className={`effort-fill absolute rounded-lg ${atTop ? "is-max" : ""}`}
+        style={{
+          top: PAD,
+          left: PAD,
+          height: THUMB,
+          width: `calc(${THUMB / 2}px + ${frac} * ${TRAVEL})`,
+          transition: dragFrac == null ? MOVE_EASE : COLOR_ONLY,
+        }}
+      />
+
       <span
         aria-hidden
         className={`effort-thumb absolute top-1/2 -translate-y-1/2 rounded-lg ${
@@ -164,10 +187,7 @@ function EffortTrack({
           width: THUMB,
           height: THUMB,
           left: `calc(${PAD}px + ${frac} * ${TRAVEL})`,
-          transition:
-            dragFrac == null
-              ? "left 0.28s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, box-shadow 0.3s ease"
-              : "background-color 0.3s ease, box-shadow 0.3s ease",
+          transition: dragFrac == null ? MOVE_EASE : COLOR_ONLY,
         }}
       />
     </div>

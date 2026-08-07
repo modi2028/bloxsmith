@@ -22,7 +22,7 @@ import { CheckpointMenu } from "./CheckpointMenu";
 import { ImageLoader } from "./ImageLoader";
 import { ShowcaseButton } from "./ShowcaseButton";
 import { TemplatePicker } from "./TemplatePicker";
-import { Thinking } from "./Thinking";
+import { StarSpinner, Thinking } from "./Thinking";
 import { Toast } from "./Toast";
 
 const SUGGESTIONS = [
@@ -1123,7 +1123,19 @@ export function ChatApp({
                 ) : null}
               </div>
             ) : (
-              <div key={i} className="flex flex-col gap-2.5">
+              // The star sits in the gutter of every assistant turn, the way
+              // Claude keeps its symbol beside an answer. It is the SAME
+              // element that spins while the turn is live, so finishing is a
+              // deceleration rather than one indicator being swapped for
+              // another.
+              <div key={i} className="flex gap-3">
+                <StarSpinner
+                  className="mt-1"
+                  state={
+                    busy && i === messages.length - 1 ? "thinking" : "still"
+                  }
+                />
+                <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                 {msg.parts.map((part, j) => {
                   if (part.t === "text") {
                     return <Markdown key={j}>{part.text}</Markdown>;
@@ -1434,6 +1446,7 @@ export function ChatApp({
                         ))}
                     </div>
                   )}
+                </div>
               </div>
             ),
           )}
