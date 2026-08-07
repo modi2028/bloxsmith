@@ -126,6 +126,15 @@ export function ModelPicker({
   const showEffort =
     effort != null && !!onEffortChange && EFFORT_TIERS[current.id] != null;
 
+  // Staff-only rungs are dropped rather than shown locked: a slider stop you
+  // cannot land on is just a broken control. It also makes "top of the track"
+  // mean the same thing for everyone — the furthest YOU can push it, which is
+  // the rung that goes purple.
+  const efforts = effortIdsFor(current.id).filter(
+    (id) => isStaff || !ADMIN_ONLY_EFFORTS.has(id),
+  );
+  const topEffort = efforts.at(-1);
+
   const renderModel = (m: ChatModel) => {
     const selected = m.id === current.id;
     const content = (
@@ -223,8 +232,8 @@ export function ModelPicker({
           {showEffort && (
             <span
               className={
-                current.id === "chatgpt" && effort === "max"
-                  ? "titanium font-semibold"
+                effort === topEffort
+                  ? "text-effort-max font-semibold"
                   : "text-faint"
               }
             >
@@ -259,7 +268,13 @@ export function ModelPicker({
                 <span className="text-sm font-medium text-foreground">
                   Effort
                 </span>
-                <span className="flex items-center gap-1.5 text-xs text-muted">
+                <span
+                  className={`flex items-center gap-1.5 text-xs ${
+                    effort === topEffort
+                      ? "text-effort-max font-semibold"
+                      : "text-muted"
+                  }`}
+                >
                   {EFFORT_LABELS[effort]}
                   <svg viewBox="0 0 12 12" fill="none" className="size-2.5">
                     <path
@@ -279,90 +294,87 @@ export function ModelPicker({
                     Higher effort means bigger, more thorough builds, but takes
                     longer and uses your limits faster.
                   </p>
-                  {effortIdsFor(current.id).map((id) => {
-                    const est = effortTokenBudget(current.id, id);
-                    // Titan is `chatgpt` now — the titanium treatment follows
-                    // the flagship, not the model id it used to live on.
-                    const isTitanMax = current.id === "chatgpt" && id === "max";
-                    const staffOnly = ADMIN_ONLY_EFFORTS.has(id);
-                    const locked = staffOnly && !isStaff;
+                  {(() => {
+                    const ids = efforts;
+                    const index = Math.max(0, ids.indexOf(effort));
+                    // The top rung reads purple: it is the "as far as this
+                    // model goes" setting, and it should not look like just
+                    // another notch on an ember track.
+                    const atTop = effort === topEffort;
+                    const pct =
+                      ids.length > 1 ? (index / (ids.length - 1)) * 100 : 0;
+
                     return (
-                      <button
-                        key={id}
-                        type="button"
-                        disabled={locked}
-                        title={
-                          locked
-                            ? "Staff only — builds without the usual content limits"
-                            : undefined
-                        }
-                        onClick={() => {
-                          if (locked) return;
-                          onEffortChange?.(id);
-                          setEffortOpen(false);
-                        }}
-                        className={`flex w-full items-center gap-2 px-3.5 py-2 text-left transition ${
-                          locked ? "cursor-not-allowed" : "hover:bg-hover"
-                        }`}
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span
-                            className={`text-sm ${
-                              locked
-                                ? "text-faint"
-                                : staffOnly
-                                  ? "font-semibold text-red-300"
-                                  : isTitanMax
-                                    ? "titanium font-semibold"
-                                    : "text-foreground"
+                      <div className="px-3.5 py-3">
+                        <p
+                          className={`mb-2.5 text-sm font-semibold transition-colors ${
+                            atTop ? "text-effort-max" : "text-foreground"
+                          }`}
+                        >
+                          {EFFORT_LABELS[effort]}
+                        </p>
+
+                        <div className="mb-2 flex items-center justify-between text-[11px]">
+                          <span className="text-faint">Faster</span>
+                          <span className="text-faint">Smarter</span>
+                        </div>
+
+                        <div className="effort-slider relative">
+                          {/* Ticks sit under the track so the notches are
+                              visible through the unfilled portion. */}
+                          <div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-between px-1"
+                          >
+                            {ids.map((id) => (
+                              <span
+                                key={id}
+                                className="size-1 rounded-full bg-white/25"
+                              />
+                            ))}
+                          </div>
+
+                          <div
+                            aria-hidden
+                            className={`pointer-events-none absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full transition-all duration-300 ${
+                              atTop ? "effort-fill-max" : "bg-ember/70"
                             }`}
-                          >
-                            {EFFORT_LABELS[id]}
-                          </span>
-                          {staffOnly ? (
-                            <span className="block text-[10px] text-faint">
-                              No content limits · staff only
-                            </span>
-                          ) : (
-                            est != null && (
-                              <span className="block text-[10px] text-faint">
-                                {budgetPhrase(est)}
-                              </span>
-                            )
-                          )}
-                        </span>
-                        {id === "medium" && (
-                          <span className="rounded-full border border-line-strong px-1.5 py-px text-[10px] text-muted">
-                            Default
-                          </span>
-                        )}
-                        {locked ? (
-                          <svg
-                            viewBox="0 0 16 16"
-                            fill="none"
-                            className="size-3.5 shrink-0 text-faint"
-                          >
-                            <rect
-                              x="3.5"
-                              y="7"
-                              width="9"
-                              height="6.5"
-                              rx="1"
-                              stroke="currentColor"
-                              strokeWidth="1.3"
-                            />
-                            <path
-                              d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"
-                              stroke="currentColor"
-                              strokeWidth="1.3"
-                            />
-                          </svg>
-                        ) : (
-                          id === effort && <Check />
-                        )}
-                      </button>
+                            style={{ width: `calc(${pct}% + 2px)` }}
+                          />
+
+                          <input
+                            type="range"
+                            min={0}
+                            max={Math.max(0, ids.length - 1)}
+                            step={1}
+                            value={index}
+                            aria-label="Effort"
+                            onChange={(e) => {
+                              const next = ids[Number(e.target.value)];
+                              if (next) onEffortChange?.(next);
+                            }}
+                            className={`effort-range relative z-10 w-full ${
+                              atTop ? "is-max" : ""
+                            }`}
+                          />
+                        </div>
+
+                        <p className="mt-3 text-[11px] text-faint">
+                          {ADMIN_ONLY_EFFORTS.has(effort)
+                            ? "No content limits · staff only"
+                            : (() => {
+                                const est = effortTokenBudget(current.id, effort);
+                                return est == null
+                                  ? ""
+                                  : Number.isFinite(est)
+                                    ? `up to ${fmtTokens(est)} tokens per build`
+                                    : "no token limit";
+                              })()}
+                        </p>
+                      </div>
                     );
-                  })}
+                  })()}
+
                   {MODEL_LIMITS[current.id] && (
                     <p className="border-t border-line px-3.5 py-2 text-[10px] text-faint">
                       {current.name}: {MODEL_LIMITS[current.id].contextK}k

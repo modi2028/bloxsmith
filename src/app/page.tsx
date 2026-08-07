@@ -5,6 +5,7 @@ import { ChatApp } from "@/components/ChatApp";
 import { DailyReward } from "@/components/DailyReward";
 import { HistoryMenu } from "@/components/HistoryMenu";
 import { LandingPage } from "@/components/landing/LandingPage";
+import { MaintenanceScreen } from "@/components/landing/MaintenanceScreen";
 import { Sidebar } from "@/components/Sidebar";
 import { BRAND } from "@/lib/brand";
 import { tokenWindowUsage, unmeteredWindowUsage } from "@/server/token-usage";
@@ -18,7 +19,6 @@ import { getSessionUser, type SessionUser } from "@/server/auth/session";
 import { db, schema } from "@/server/db";
 import { getSiteSettings } from "@/server/site-settings";
 import { AnnouncementIsland } from "@/components/AnnouncementIsland";
-import { LogoMark } from "@/components/Logo";
 
 /**
  * Decorative floating cards behind the composer — two brand cards plus a
@@ -174,39 +174,6 @@ function Header({
         </a>
       )}
     </header>
-  );
-}
-
-/**
- * Full-page takeover while maintenance mode is on. `showSignIn` adds a quiet
- * sign-in link for signed-out visitors so admins can get in and turn it off.
- */
-function MaintenanceScreen({
-  announcement,
-  showSignIn = false,
-}: {
-  announcement: string;
-  showSignIn?: boolean;
-}) {
-  return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-      <LogoMark size={44} />
-      <h1 className="mt-5 text-2xl font-semibold tracking-tight">
-        We&apos;ll be right back
-      </h1>
-      <p className="mt-2 max-w-sm text-sm text-muted">
-        {announcement ||
-          `${BRAND.name} is down for maintenance. Check back in a little while.`}
-      </p>
-      {showSignIn && (
-        <a
-          href="/api/auth/roblox/login"
-          className="mt-8 text-xs text-faint underline-offset-2 transition hover:text-muted hover:underline"
-        >
-          Admin sign in
-        </a>
-      )}
-    </div>
   );
 }
 

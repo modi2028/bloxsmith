@@ -13,6 +13,7 @@
   --ember: #f59e0b;
   --ember-strong: #f97316;
   --ember-soft: rgba(245, 158, 11, 0.12);
+  --effort-max: #a78bfa;
   --on-accent: #0c0a09;
   --hover-fill: rgba(255, 255, 255, 0.05);
   --selection: rgba(245, 158, 11, 0.3);
@@ -35,6 +36,7 @@
   --ember: #d4d4d8;
   --ember-strong: #a1a1aa;
   --ember-soft: rgba(212, 212, 216, 0.08);
+  --effort-max: #a78bfa;
   --on-accent: #111113;
   --hover-fill: rgba(255, 255, 255, 0.05);
   --selection: rgba(212, 212, 216, 0.25);
@@ -57,6 +59,7 @@
   --ember: #3f3f46;
   --ember-strong: #27272a;
   --ember-soft: rgba(63, 63, 70, 0.08);
+  --effort-max: #7c3aed;
   --on-accent: #fafafa;
   --hover-fill: rgba(0, 0, 0, 0.04);
   --selection: rgba(63, 63, 70, 0.2);
@@ -78,6 +81,7 @@
   --color-ember-strong: var(--ember-strong);
   --color-ember-soft: var(--ember-soft);
   --color-on-accent: var(--on-accent);
+  --color-effort-max: var(--effort-max);
   --color-hover: var(--hover-fill);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -1275,4 +1279,109 @@ body {
   .step-card:hover {
     transform: none;
   }
+}
+
+/* --- Effort slider ------------------------------------------------------ */
+/* A range input with the native track hidden: the fill and the tick dots are
+   drawn as siblings underneath (see ModelPicker), so all this owns is the
+   groove and the thumb. */
+.effort-slider {
+  display: flex;
+  align-items: center;
+  height: 1.5rem;
+}
+
+.effort-range {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  height: 1.5rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.effort-range::-webkit-slider-runnable-track {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+.effort-range::-moz-range-track {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+
+.effort-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.3125rem; /* centres the thumb on the .375rem track */
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid var(--ember);
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.35);
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.15s ease;
+}
+.effort-range::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid var(--ember);
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.35);
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.15s ease;
+}
+
+.effort-range:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+.effort-range:active::-moz-range-thumb {
+  transform: scale(1.12);
+}
+
+.effort-range:focus-visible {
+  outline: none;
+}
+.effort-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--ember) 30%, transparent);
+}
+.effort-range:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--ember) 30%, transparent);
+}
+
+/* Top rung: the thumb and the fill both go purple and pick up a glow, so the
+   setting reads as "all the way" at a glance. */
+.effort-range.is-max::-webkit-slider-thumb {
+  border-color: var(--effort-max);
+  box-shadow:
+    0 1px 6px rgb(0 0 0 / 0.35),
+    0 0 12px color-mix(in oklab, var(--effort-max) 65%, transparent);
+}
+.effort-range.is-max::-moz-range-thumb {
+  border-color: var(--effort-max);
+  box-shadow:
+    0 1px 6px rgb(0 0 0 / 0.35),
+    0 0 12px color-mix(in oklab, var(--effort-max) 65%, transparent);
+}
+.effort-range.is-max:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--effort-max) 30%, transparent);
+}
+.effort-range.is-max:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--effort-max) 30%, transparent);
+}
+
+.effort-fill-max {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--effort-max) 45%, transparent),
+    var(--effort-max)
+  );
+  box-shadow: 0 0 14px color-mix(in oklab, var(--effort-max) 45%, transparent);
 }
