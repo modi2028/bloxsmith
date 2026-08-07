@@ -95,7 +95,7 @@ export function Finale({ signUpHref }: { signUpHref: string }) {
           // Solid white, not glass. A translucent pill on a near-black page
           // behind a metallic arm was almost invisible — this has to be the
           // brightest thing on screen once the mark is open.
-          className={`signup-cta -mt-40 rounded-full bg-white px-11 py-5 text-base font-bold text-black transition-all duration-500 ${
+          className={`signup-cta -mt-72 rounded-full bg-white px-11 py-5 text-base font-bold text-black transition-all duration-500 ${
             open
               ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
               : "pointer-events-none translate-y-3 scale-90 opacity-0"
