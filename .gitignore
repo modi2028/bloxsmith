@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local scratch files (kept on disk, not in the repo)
+migrate.log
+dbcheck.mjs
