@@ -183,16 +183,29 @@ export function CountUpNumber({
 }
 
 /**
- * Draws an SVG path as it scrolls into view — used for the connector in the
- * "how it works" diagram so the flow reads as a flow.
+ * A gradient rule that draws itself as the section scrolls in.
+ *
+ * Two of these bracket the step cards — one arcing over them, one mirrored
+ * underneath — so the row reads as a channel the flow passes through rather
+ * than three boxes with a line above them.
+ *
+ * A second, short dash chases the same path once drawn: a static rule is
+ * decoration, a moving one reads as direction.
  */
-export function DrawLine({ className = "" }: { className?: string }) {
+export function DrawLine({
+  className = "",
+  flip = false,
+}: {
+  className?: string;
+  /** Mirrors the curve vertically for the rule beneath the cards. */
+  flip?: boolean;
+}) {
   const ref = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     const svg = ref.current;
     if (!svg || REDUCED()) return;
-    const path = svg.querySelector("path");
+    const path = svg.querySelector<SVGPathElement>("[data-draw]");
     if (!path) return;
 
     const len = path.getTotalLength();
@@ -205,8 +218,8 @@ export function DrawLine({ className = "" }: { className?: string }) {
           ease: "none",
           scrollTrigger: {
             trigger: svg,
-            start: "top 85%",
-            end: "bottom 55%",
+            start: "top 90%",
+            end: "bottom 60%",
             scrub: 0.8,
           },
         },
@@ -214,6 +227,11 @@ export function DrawLine({ className = "" }: { className?: string }) {
     }, svg);
     return () => ctx.revert();
   }, []);
+
+  const gradientId = flip ? "flow-grad-b" : "flow-grad-a";
+  const d = flip
+    ? "M0 30 C 220 30, 240 52, 500 52 S 780 8, 1000 30"
+    : "M0 30 C 220 30, 240 8, 500 8 S 780 52, 1000 30";
 
   return (
     <svg
@@ -223,19 +241,45 @@ export function DrawLine({ className = "" }: { className?: string }) {
       preserveAspectRatio="none"
       className={className}
     >
-      <path
-        d="M0 30 C 220 30, 240 8, 500 8 S 780 52, 1000 30"
-        fill="none"
-        stroke="url(#flow-grad)"
-        strokeWidth="1.5"
-      />
       <defs>
-        <linearGradient id="flow-grad" x1="0" x2="1">
-          <stop offset="0%" stopColor="#60a5fa" />
-          <stop offset="50%" stopColor="#a78bfa" />
-          <stop offset="100%" stopColor="#f59e0b" />
+        <linearGradient id={gradientId} x1="0" x2="1">
+          <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.25" />
+          <stop offset="28%" stopColor="#60a5fa" />
+          <stop offset="52%" stopColor="#a78bfa" />
+          <stop offset="78%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.25" />
         </linearGradient>
       </defs>
+
+      {/* Soft under-layer: the glow. Blurring a copy of the stroke is far
+          cheaper than an SVG filter on the real one. */}
+      <path
+        d={d}
+        fill="none"
+        stroke={`url(#${gradientId})`}
+        strokeWidth="6"
+        opacity="0.25"
+        style={{ filter: "blur(6px)" }}
+      />
+      <path
+        data-draw
+        d={d}
+        fill="none"
+        stroke={`url(#${gradientId})`}
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      {/* The chaser. Long gap, short dash, offset animated forever. */}
+      <path
+        className="flow-pulse"
+        d={d}
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth="2"
+        strokeLinecap="round"
+        opacity="0.75"
+        style={flip ? { animationDelay: "-3.5s" } : undefined}
+      />
     </svg>
   );
 }

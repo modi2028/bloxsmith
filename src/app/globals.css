@@ -1220,3 +1220,52 @@ body {
     animation: none;
   }
 }
+
+/* A short dash chasing the flow rules. Long gap, short dash, offset animated
+   the length of the path — a static rule is decoration, a moving one reads as
+   direction of travel. */
+.flow-pulse {
+  stroke-dasharray: 26 1200;
+  animation: flow-chase 7s linear infinite;
+}
+
+@keyframes flow-chase {
+  from {
+    stroke-dashoffset: 1226;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Step cards. The number badge carries the same gradient as the rules, so the
+   row belongs to the flow bracketing it. */
+.step-card {
+  transition:
+    transform 400ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 400ms ease,
+    box-shadow 400ms ease;
+}
+
+.step-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 24px 60px -34px rgba(0, 0, 0, 0.95);
+}
+
+.step-badge {
+  background: linear-gradient(135deg, #60a5fa, #a78bfa 55%, #f59e0b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-pulse {
+    animation: none;
+  }
+  .step-card:hover {
+    transform: none;
+  }
+}

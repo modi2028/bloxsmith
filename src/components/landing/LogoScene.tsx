@@ -222,7 +222,8 @@ function StarMesh({
     // closes with weight. Each arm travels along its OWN axis, which is why
     // the geometry was never centred.
     const target = reducedMotion ? 0 : scrollProgress.starHover;
-    openAmount.current += (target - openAmount.current) * Math.min(1, dt * 3.2);
+    // Slow: the whole point is watching it happen.
+    openAmount.current += (target - openAmount.current) * Math.min(1, dt * 1.35);
     const open = ease(clamp01(openAmount.current));
 
     const step = (Math.PI * 2) / 5;
@@ -236,16 +237,34 @@ function StarMesh({
       // Each arm starts a beat after the last, so the mark unfolds instead of
       // all five leaving at once.
       const local = clamp01((open - i * STAGGER) / span);
-      // easeOutBack: the arm overshoots its resting place and settles back.
-      // That tiny recoil is what makes the break feel like it has weight
-      // rather than like five objects being repositioned.
-      const c1 = 1.9;
-      const c3 = c1 + 1;
-      const t1 = local - 1;
-      const springy =
-        local >= 1 ? 1 : 1 + c3 * t1 * t1 * t1 + c1 * t1 * t1;
 
-      const push = springy * 1.02;
+      // Two phases, because a break is not a slide.
+      //
+      // TENSION: the arm pulls slightly INWARD first and holds — the mark
+      // compresses, resisting. Then it gives, and easeOutBack throws it past
+      // its resting place before it settles. The compression is what sells it
+      // as something snapping apart rather than five pieces being moved.
+      const TENSION = 0.26;
+      let springy: number;
+      if (local < TENSION) {
+        const k = local / TENSION;
+        springy = -0.075 * Math.sin(k * Math.PI);
+      } else {
+        const r = (local - TENSION) / (1 - TENSION);
+        const c1 = 2.2;
+        const c3 = c1 + 1;
+        const t1 = r - 1;
+        springy = r >= 1 ? 1 : 1 + c3 * t1 * t1 * t1 + c1 * t1 * t1;
+      }
+
+      // A short shudder right at the release, decaying fast — the crack.
+      const sinceBreak = clamp01((local - TENSION) / 0.3);
+      const shudder =
+        local > TENSION && sinceBreak < 1
+          ? Math.sin(sinceBreak * Math.PI * 7) * (1 - sinceBreak) * 0.045
+          : 0;
+
+      const push = springy * 1.02 + shudder;
       arm.position.set(
         Math.cos(angle) * push,
         Math.sin(angle) * push,
@@ -256,7 +275,7 @@ function StarMesh({
       // Only a hint of tumble. At half a radian the arms read as unrelated
       // blocks scattered on screen; kept small, the silhouette stays legible
       // as a star coming apart.
-      arm.rotation.z = springy * 0.16 * (i % 2 === 0 ? 1 : -1);
+      arm.rotation.z = (springy * 0.16 + shudder * 1.4) * (i % 2 === 0 ? 1 : -1);
       arm.rotation.x = springy * 0.1;
       // A breath of scale on the way out — reads as release, not ejection.
       const pop = 1 + Math.sin(clamp01(local) * Math.PI) * 0.07;

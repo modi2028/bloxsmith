@@ -96,8 +96,8 @@ export function LandingPage() {
             </h2>
           </Reveal>
 
-          {/* The connector draws itself as you scroll through the section,
-              so the three steps read as one flow rather than three boxes. */}
+          {/* The row is bracketed above and below, so the cards sit inside
+              the flow rather than hanging beneath a single rule. */}
           <DrawLine className="mt-16 hidden h-14 w-full md:block" />
 
           <Reveal
@@ -107,9 +107,9 @@ export function LandingPage() {
             {STEPS.map((s) => (
               <div
                 key={s.n}
-                className="glass-card rounded-2xl border border-line p-7 backdrop-blur-xl backdrop-saturate-150"
+                className="step-card glass-card rounded-2xl border border-line p-7 backdrop-blur-xl backdrop-saturate-150"
               >
-                <span className="flex size-11 items-center justify-center rounded-full border border-line-strong text-xs font-semibold tabular-nums text-muted">
+                <span className="step-badge flex size-11 items-center justify-center rounded-full border text-xs font-semibold tabular-nums">
                   {s.n}
                 </span>
                 <h3 className="mt-5 text-lg font-medium">{s.title}</h3>
@@ -119,6 +119,8 @@ export function LandingPage() {
               </div>
             ))}
           </Reveal>
+
+          <DrawLine flip className="mt-2 hidden h-14 w-full md:block" />
         </div>
       </section>
 
