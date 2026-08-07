@@ -1015,35 +1015,6 @@ body {
   }
 }
 
-/* Ring system — the build-loop diagram.
-   Rotation lives in CSS so four counter-spinning orbits cost no JS per frame.
-   Alternating direction is what stops it reading as one rigid wheel. */
-.ring-system .orbit {
-  animation: orbit-spin 26s linear infinite;
-}
-.ring-system .orbit-1 {
-  animation-duration: 19s;
-  animation-direction: reverse;
-}
-.ring-system .orbit-2 {
-  animation-duration: 14s;
-}
-.ring-system .orbit-3 {
-  animation-duration: 9s;
-  animation-direction: reverse;
-}
-
-@keyframes orbit-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ring-system .orbit {
-    animation: none;
-  }
-}
 
 /* ---------------------------------------------------------------------------
    Liquid glass — the floating topbar material.
@@ -1151,4 +1122,105 @@ body {
   .liquid-glass::before {
     animation: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Wavy glass hover.
+
+   A blur alone reads as frosted plastic. What makes glass look WET is the
+   highlight sliding across it and the edge rippling — so on hover the card
+   picks up a travelling sheen, its border-radius morphs between two uneven
+   shapes, and the backdrop blur deepens. The radius morph is the trick: it
+   is what stops the panel reading as a rigid rectangle.
+   --------------------------------------------------------------------------- */
+.wavy-glass {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition:
+    border-radius 900ms cubic-bezier(0.22, 1, 0.36, 1),
+    backdrop-filter 500ms ease,
+    border-color 500ms ease,
+    box-shadow 500ms ease;
+}
+
+.wavy-glass::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 500ms ease;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(191, 219, 254, 0.16) 55deg,
+    rgba(167, 139, 250, 0.2) 110deg,
+    transparent 190deg,
+    rgba(245, 158, 11, 0.14) 290deg,
+    transparent 360deg
+  );
+  animation: wavy-swirl 7s linear infinite;
+}
+
+.wavy-glass:hover::after,
+.wavy-glass:focus-within::after {
+  opacity: 1;
+}
+
+.wavy-glass:hover,
+.wavy-glass:focus-within {
+  /* Uneven corners, animated between two states — the "liquid" read. */
+  border-radius: 42% 58% 46% 54% / 52% 44% 56% 48%;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 24px 60px -30px rgba(0, 0, 0, 0.9);
+  animation: wavy-morph 6s ease-in-out infinite alternate;
+}
+
+@keyframes wavy-morph {
+  from {
+    border-radius: 42% 58% 46% 54% / 52% 44% 56% 48%;
+  }
+  to {
+    border-radius: 56% 44% 58% 42% / 44% 56% 42% 58%;
+  }
+}
+
+@keyframes wavy-swirl {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Content has to sit above the swirl. */
+.wavy-glass > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wavy-glass,
+  .wavy-glass:hover,
+  .wavy-glass:focus-within {
+    animation: none;
+    border-radius: 1rem;
+  }
+  .wavy-glass::after {
+    animation: none;
+  }
+}
+
+/* Hero copy legibility WITHOUT a scrim.
+   A radial darkening behind the text reads as a visible black ellipse sitting
+   in front of the mark. Shadowing the glyphs themselves separates them from
+   whatever is behind without painting a shape. */
+.hero-legible h1,
+.hero-legible span,
+.hero-legible p {
+  text-shadow:
+    0 2px 18px rgba(0, 0, 0, 0.55),
+    0 1px 3px rgba(0, 0, 0, 0.4);
 }

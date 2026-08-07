@@ -13,7 +13,7 @@ import { LogoMark } from "@/components/Logo";
  * contrast once you scroll off the hero, where there is real content behind
  * it and legibility starts to matter more than transparency.
  */
-export function TopBar({ signInHref }: { signInHref: string }) {
+export function TopBar() {
   const [lifted, setLifted] = useState(false);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export function TopBar({ signInHref }: { signInHref: string }) {
             How it works
           </a>
           <a
-            href={signInHref}
+            href="/login"
             className="liquid-glass-btn rounded-full px-5 py-2 text-[13px] font-semibold text-white transition"
           >
             Log in

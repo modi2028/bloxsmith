@@ -10,6 +10,7 @@ import {
   TOKEN_LIMITS_5H,
   formatTokenLimit,
 } from "@/lib/model-catalog";
+import { setStarFocus } from "./scroll-progress";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -113,7 +114,12 @@ export function TierShowcase() {
       });
     }, el);
 
-    return () => ctx.revert();
+    return () => {
+      ctx.revert();
+      // A card unmounting or the section leaving must not strand the mark
+      // parked over a card that is no longer on screen.
+      setStarFocus(null);
+    };
   }, []);
 
   return (
@@ -147,7 +153,15 @@ export function TierShowcase() {
               <article
                 key={t.name}
                 data-tier
-                className="glass-card group relative overflow-hidden rounded-2xl border border-line p-7"
+                onPointerEnter={(e) => {
+                  // Hand the card's centre to the scene as a -1..1 fraction
+                  // of the viewport; it turns that into a world position.
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const centre = (r.left + r.width / 2) / window.innerWidth;
+                  setStarFocus(centre * 2 - 1, t.accent);
+                }}
+                onPointerLeave={() => setStarFocus(null)}
+                className="glass-card wavy-glass group relative overflow-hidden rounded-2xl border border-line p-7 backdrop-blur-xl backdrop-saturate-150"
                 style={{
                   ["--tier-accent" as string]: t.accent,
                   ["--tier-glow" as string]: t.glow,

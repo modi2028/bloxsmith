@@ -1,55 +1,22 @@
 "use client";
 
 import { BRAND } from "@/lib/brand";
-import {
-  MAX_PLAN,
-  PRO_PLAN,
-  TOKEN_LIMITS_5H,
-  formatTokenLimit,
-} from "@/lib/model-catalog";
 import { LogoMark } from "@/components/Logo";
 import { LandingHero } from "./LandingHero";
 import {
   BuildDemo,
   CountUpNumber,
   DrawLine,
-  MagneticLink,
   TiltCard,
 } from "./Interactive";
+import { Finale } from "./Finale";
 import { Reveal } from "./Reveal";
-import { RingSystem } from "./RingSystem";
 import { SmoothScroll } from "./SmoothScroll";
+import { StarLayer } from "./StarLayer";
 import { TierShowcase } from "./TierShowcase";
 import { TopBar } from "./TopBar";
 
-const SIGN_IN = "/api/auth/roblox/login";
-
-const FEATURES = [
-  {
-    title: "Natural-language scripting",
-    body: "Ask for a round system, a shop, a checkpoint race. It writes complete, runnable Luau — no placeholders, no snippets to glue together.",
-  },
-  {
-    title: "Real Creator Store models",
-    body: "It searches the Creator Store and inserts actual meshes for scenery and props, then wires your logic onto them.",
-  },
-  {
-    title: "Agentic build loops",
-    body: "It inspects your place, makes a change, checks the result and keeps going — a whole build from one instruction, not one edit per prompt.",
-  },
-  {
-    title: "Live inside Studio",
-    body: "Nothing to copy and paste. The plugin applies every change to your open session while you watch, with one-click undo.",
-  },
-];
-
-/** One accent per feature card, echoing the hero material's colour sweep. */
-const FEATURE_ACCENTS = [
-  "rgba(96,165,250,0.13)",
-  "rgba(167,139,250,0.13)",
-  "rgba(245,158,11,0.12)",
-  "rgba(240,171,252,0.12)",
-];
+const SIGN_IN = "/login";
 
 const STEPS = [
   {
@@ -73,49 +40,23 @@ export function LandingPage() {
   return (
     <div className="relative">
       <SmoothScroll />
-      <TopBar signInHref={SIGN_IN} />
+      <TopBar />
+
+      {/* The mark, fixed to the viewport for the whole document. Content
+          sits above it at z-10; the layer itself is z-0 so the body
+          background paints beneath rather than over it. */}
+      <StarLayer />
 
       {/* --- 1. Hero ------------------------------------------------------ */}
-      <LandingHero ctaHref={SIGN_IN} />
+      <LandingHero />
 
-      {/* --- 2. The build loop, as rings — first thing past the hero ------ */}
-      <RingSystem />
-
-      {/* --- 3. What it does --------------------------------------------- */}
-      <section className="relative px-6 py-28">
-        <div className="mx-auto w-full max-w-6xl">
-          <Reveal>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-faint">
-              What it does
-            </p>
-            <h2 className="mt-4 max-w-2xl text-balance text-4xl font-semibold tracking-[-0.02em] sm:text-5xl">
-              An AI that builds, not one that suggests.
-            </h2>
-          </Reveal>
-
-          <div className="mt-14 grid items-start gap-10 lg:grid-cols-2">
-            <Reveal className="grid gap-5" stagger={0.1}>
-              {FEATURES.map((f, i) => (
-                <TiltCard
-                  key={f.title}
-                  accent={FEATURE_ACCENTS[i % FEATURE_ACCENTS.length]!}
-                  className="glass-card rounded-2xl border border-line p-7"
-                >
-                  <h3 className="text-lg font-medium">{f.title}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-muted">
-                    {f.body}
-                  </p>
-                </TiltCard>
-              ))}
-            </Reveal>
-
-            {/* A working mock beats describing it — the prompt types itself
-                and the build steps stream in, on a loop. */}
-            <Reveal className="lg:sticky lg:top-24" y={40}>
-              <BuildDemo />
-            </Reveal>
-          </div>
-        </div>
+      {/* The demo survives the cut: it shows the product working rather
+          than describing it, which was the point of the section it came
+          from. The feature copy and the ring diagram are gone. */}
+      <section className="relative px-6 py-24">
+        <Reveal className="mx-auto w-full max-w-2xl">
+          <BuildDemo />
+        </Reveal>
       </section>
 
       {/* --- Stats strip --------------------------------------------------- */}
@@ -177,7 +118,7 @@ export function LandingPage() {
                 key={s.n}
                 accent="rgba(255,255,255,0.07)"
                 intensity={4}
-                className="glass-card rounded-2xl border border-line p-7"
+                className="glass-card wavy-glass rounded-2xl border border-line p-7 backdrop-blur-xl backdrop-saturate-150"
               >
                 <span className="flex size-11 items-center justify-center rounded-full border border-line-strong text-xs font-semibold tabular-nums text-muted">
                   {s.n}
@@ -192,44 +133,8 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* --- 5. Pricing teaser + final CTA -------------------------------- */}
-      <section className="relative px-6 py-28">
-        <div className="mx-auto w-full max-w-4xl">
-          <Reveal className="glass-card rounded-3xl border border-line p-10 text-center sm:p-16">
-            <div className="mx-auto mb-7 w-fit">
-              <LogoMark size={44} variant="blue" />
-            </div>
-            <h2 className="text-balance text-4xl font-semibold tracking-[-0.02em] sm:text-5xl">
-              Start free. Upgrade when it earns it.
-            </h2>
-            <p className="mx-auto mt-5 max-w-lg text-balance text-muted">
-              {formatTokenLimit(TOKEN_LIMITS_5H.free)} tokens every five hours
-              on the free plan — enough to build something real before you pay
-              anything. Pro is ${PRO_PLAN.priceUsd.toFixed(2)} a month for{" "}
-              {formatTokenLimit(TOKEN_LIMITS_5H.pro)}, Max is $
-              {MAX_PLAN.priceUsd.toFixed(2)} and its flagship model doesn&apos;t
-              draw on your allowance at all.
-            </p>
-            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <MagneticLink
-                href={SIGN_IN}
-                className="shine-btn inline-block rounded-xl bg-gradient-to-br from-ember to-ember-strong px-8 py-4 text-sm font-bold text-on-accent shadow-[0_0_40px_-8px_var(--accent-glow)] transition hover:brightness-110"
-              >
-                Sign in with Roblox
-              </MagneticLink>
-              <a
-                href="/store"
-                className="rounded-xl border border-line px-8 py-4 text-sm font-medium text-muted transition hover:border-line-strong hover:text-foreground"
-              >
-                See full pricing
-              </a>
-            </div>
-            <p className="mt-6 text-xs text-faint">
-              No card required to start.
-            </p>
-          </Reveal>
-        </div>
-      </section>
+      {/* --- Finale: the mark breaks open ------------------------------- */}
+      <Finale signUpHref={SIGN_IN} />
 
       {/* --- 6. Footer ---------------------------------------------------- */}
       <footer className="border-t border-line px-6 py-14">
