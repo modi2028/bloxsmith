@@ -26,38 +26,43 @@ export function Finale({ signUpHref }: { signUpHref: string }) {
 
   return (
     <section className="relative flex min-h-dvh items-center justify-center px-6">
-      <div className="relative flex flex-col items-center">
-        {/* The hotspot. Sized to the star's resting silhouette; focusable so
-            the reveal is reachable without a pointer. */}
-        <div
-          onPointerEnter={engage}
-          onPointerLeave={release}
-          onFocus={engage}
-          onBlur={release}
-          tabIndex={0}
-          role="button"
-          aria-expanded={open}
-          aria-label="Open the mark to reveal sign up"
-          className="relative grid size-[460px] max-w-[85vw] place-items-center rounded-full outline-none"
+      {/*
+        One hover region covering BOTH the star's silhouette and the button
+        beneath it. If the button sat outside this element, moving the pointer
+        toward it would fire pointerleave, close the star and fade the button
+        out from under the cursor — unclickable.
+      */}
+      <div
+        onPointerEnter={engage}
+        onPointerLeave={release}
+        onFocus={engage}
+        onBlur={release}
+        tabIndex={0}
+        role="button"
+        aria-expanded={open}
+        aria-label="Open the mark to reveal sign up"
+        className="flex flex-col items-center outline-none"
+      >
+        {/* Spacer standing in for the opened mark, which is drawn by the
+            fixed canvas behind. The button clears the arms rather than
+            overlapping one. */}
+        <div aria-hidden className="h-[min(74vh,660px)] w-[min(80vw,660px)]" />
+
+        <a
+          href={signUpHref}
+          tabIndex={open ? 0 : -1}
+          aria-hidden={!open}
+          className={`liquid-glass-btn -mt-24 rounded-full px-9 py-4 text-sm font-semibold text-white transition-all duration-500 ${
+            open
+              ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+              : "pointer-events-none translate-y-2 scale-90 opacity-0"
+          }`}
         >
-          {/* The button lives inside the star. It only becomes reachable once
-              the arms are clear of it. */}
-          <a
-            href={signUpHref}
-            tabIndex={open ? 0 : -1}
-            aria-hidden={!open}
-            className={`liquid-glass-btn mt-28 rounded-full px-9 py-4 text-sm font-semibold text-white transition-all duration-500 ${
-              open
-                ? "pointer-events-auto scale-100 opacity-100"
-                : "pointer-events-none scale-90 opacity-0"
-            }`}
-          >
-            Sign up
-          </a>
-        </div>
+          Sign up
+        </a>
 
         <p
-          className={`mt-8 text-center text-sm transition-all duration-500 ${
+          className={`mt-6 text-center text-sm transition-opacity duration-500 ${
             open ? "opacity-0" : "text-muted opacity-100"
           }`}
         >

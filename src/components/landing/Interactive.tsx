@@ -318,7 +318,7 @@ export function BuildDemo() {
   }, [promptIndex, current, reduced]);
 
   return (
-    <div className="glass-card wavy-glass overflow-hidden rounded-2xl border border-line backdrop-blur-xl backdrop-saturate-150">
+    <div className="glass-card overflow-hidden rounded-2xl border border-line backdrop-blur-xl backdrop-saturate-150">
       <div className="flex items-center gap-2 border-b border-line px-5 py-3">
         <span className="size-2.5 rounded-full bg-red-500/60" />
         <span className="size-2.5 rounded-full bg-amber-500/60" />

@@ -3,12 +3,7 @@
 import { BRAND } from "@/lib/brand";
 import { LogoMark } from "@/components/Logo";
 import { LandingHero } from "./LandingHero";
-import {
-  BuildDemo,
-  CountUpNumber,
-  DrawLine,
-  TiltCard,
-} from "./Interactive";
+import { BuildDemo, CountUpNumber, DrawLine } from "./Interactive";
 import { Finale } from "./Finale";
 import { Reveal } from "./Reveal";
 import { SmoothScroll } from "./SmoothScroll";
@@ -110,11 +105,9 @@ export function LandingPage() {
             stagger={0.14}
           >
             {STEPS.map((s) => (
-              <TiltCard
+              <div
                 key={s.n}
-                accent="rgba(255,255,255,0.07)"
-                intensity={4}
-                className="glass-card wavy-glass rounded-2xl border border-line p-7 backdrop-blur-xl backdrop-saturate-150"
+                className="glass-card rounded-2xl border border-line p-7 backdrop-blur-xl backdrop-saturate-150"
               >
                 <span className="flex size-11 items-center justify-center rounded-full border border-line-strong text-xs font-semibold tabular-nums text-muted">
                   {s.n}
@@ -123,7 +116,7 @@ export function LandingPage() {
                 <p className="mt-2 text-sm leading-relaxed text-muted">
                   {s.body}
                 </p>
-              </TiltCard>
+              </div>
             ))}
           </Reveal>
         </div>

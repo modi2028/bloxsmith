@@ -228,9 +228,11 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
         Math.sin(angle) * push,
         open * 0.25,
       );
-      // A little tumble as they part — pure translation reads as a diagram.
-      arm.rotation.z = open * 0.5 * (i % 2 === 0 ? 1 : -1);
-      arm.rotation.x = open * 0.35;
+      // Only a hint of tumble. At half a radian the arms read as unrelated
+      // blocks scattered on screen; kept small, the silhouette stays legible
+      // as a star coming apart.
+      arm.rotation.z = open * 0.16 * (i % 2 === 0 ? 1 : -1);
+      arm.rotation.x = open * 0.1;
     });
   });
 
@@ -259,7 +261,7 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
             iridescenceThicknessRange={[120, 780]}
             clearcoat={1}
             clearcoatRoughness={0.08}
-            envMapIntensity={3.2}
+            envMapIntensity={1.8}
           />
         </mesh>
       ))}
@@ -351,7 +353,7 @@ function MovingKeyLight({ reducedMotion }: { reducedMotion: boolean }) {
     l.position.set(Math.cos(t) * 4.5, 2.2 + Math.sin(t * 0.7) * 1.4, 4);
   });
   return (
-    <pointLight ref={light} intensity={22} distance={14} color="#ffe6c0" />
+    <pointLight ref={light} intensity={9} distance={14} color="#ffe6c0" />
   );
 }
 
@@ -366,28 +368,28 @@ function Studio() {
     <Environment resolution={256} frames={1}>
       <Lightformer
         form="rect"
-        intensity={14}
+        intensity={5.5}
         color="#bfdbfe"
         position={[-3, 2, 2]}
         scale={[5, 6, 1]}
       />
       <Lightformer
         form="rect"
-        intensity={10}
+        intensity={4}
         color="#a78bfa"
         position={[3, -1, 2]}
         scale={[4, 5, 1]}
       />
       <Lightformer
         form="circle"
-        intensity={11}
+        intensity={4.5}
         color="#f59e0b"
         position={[2, 3, -2]}
         scale={[3, 3, 1]}
       />
       <Lightformer
         form="rect"
-        intensity={6}
+        intensity={2.5}
         color="#ffffff"
         position={[0, -4, 1]}
         scale={[8, 2, 1]}
@@ -401,7 +403,7 @@ function Studio() {
       */}
       <Lightformer
         form="rect"
-        intensity={3.4}
+        intensity={1.5}
         color="#dbeafe"
         position={[0, 0.5, 7]}
         scale={[14, 12, 1]}
@@ -432,10 +434,13 @@ export default function LogoScene({
       <Studio />
       {!reducedMotion && (
         <EffectComposer enableNormalPass={false}>
+          {/* Threshold raised so only genuine speculars bloom. At 0.62 the
+              broad lit faces qualified too, which is what turned the mark
+              into a white silhouette. */}
           <Bloom
-            intensity={0.55}
-            luminanceThreshold={0.62}
-            luminanceSmoothing={0.25}
+            intensity={0.32}
+            luminanceThreshold={0.85}
+            luminanceSmoothing={0.2}
             mipmapBlur
           />
         </EffectComposer>

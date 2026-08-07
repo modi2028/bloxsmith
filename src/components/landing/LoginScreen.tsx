@@ -40,7 +40,7 @@ export function LoginScreen() {
         {/* No scrim behind this. A radial darkening reads as a black ellipse
             sitting on the page — the card's own backdrop blur is what makes
             it legible over the mark. */}
-        <div className="liquid-glass wavy-glass rounded-3xl p-9 backdrop-blur-2xl backdrop-saturate-150 sm:p-11">
+        <div className="liquid-glass rounded-3xl p-9 backdrop-blur-2xl backdrop-saturate-150 sm:p-11">
           <h1 className="text-center text-3xl font-semibold tracking-[-0.02em] text-white">
             Sign in
           </h1>
