@@ -111,17 +111,24 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
     m.rotation.z += (targetZ - m.rotation.z) * Math.min(1, dt * 3.5);
 
     // --- Position and scale ---------------------------------------------
-    // Scroll shrinks it and carries it up and aside; the float keeps it alive
-    // while the page is still.
-    const float = reducedMotion ? 0 : Math.sin(t * 0.62) * 0.055;
+    // The mark sits ABOVE the headline, not behind it. At full size it filled
+    // roughly two thirds of the viewport dead centre, which put a bright,
+    // moving, specular surface directly under the copy — unreadable. It is
+    // now a hero element the text sits beneath.
+    const float = reducedMotion ? 0 : Math.sin(t * 0.62) * 0.05;
     const small = viewport.width < 6;
-    const base = small ? 0.72 : 1;
+    const base = small ? 0.62 : 0.92;
     const scale = base * introScale * (1 - p * 0.6);
-    m.scale.setScalar(Math.max(0.15, scale));
+    m.scale.setScalar(Math.max(0.08, scale));
 
-    // Eases in from below on entry, then rises away as the hero leaves.
-    const entryOffset = reducedMotion ? 0 : (1 - intro) * -1.1;
-    m.position.y = entryOffset + float + p * 1.9;
+    // RESTING_Y lifts it clear of the text block; entry eases up into that
+    // position from below, and scroll carries it further up and aside.
+    // Barely off centre — enough to sit above the headline's optical centre
+    // without clipping the top point off the viewport, which is what a
+    // higher resting position did.
+    const RESTING_Y = small ? 0.22 : 0.16;
+    const entryOffset = reducedMotion ? 0 : (1 - intro) * -1.3;
+    m.position.y = RESTING_Y + entryOffset + float + p * 1.9;
     m.position.x = p * 0.9;
     m.position.z = (1 - intro) * -2.5;
   });
@@ -136,13 +143,13 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
       <meshPhysicalMaterial
         color="#c8ccd4"
         metalness={1}
-        roughness={0.14}
+        roughness={0.2}
         iridescence={1}
         iridescenceIOR={1.9}
         iridescenceThicknessRange={[120, 780]}
         clearcoat={1}
         clearcoatRoughness={0.08}
-        envMapIntensity={1.5}
+        envMapIntensity={3.2}
       />
     </mesh>
   );
@@ -156,17 +163,24 @@ function StarMesh({ reducedMotion }: { reducedMotion: boolean }) {
  * track while the logo itself is turning slowly, which is what stops a slow
  * rotation reading as a stalled page.
  */
+/** Kept in step with RESTING_Y in StarMesh so the embers orbit the mark. */
+const EMBER_ORBIT_Y = 0.16;
+
 function Embers({ reducedMotion }: { reducedMotion: boolean }) {
   const group = useRef<THREE.Group>(null);
 
   const specs = useMemo(
     () =>
       Array.from({ length: 8 }, (_, i) => ({
-        radius: 1.55 + (i % 4) * 0.32,
+        // Sized against the mark's 0.58 scale — the old 1.55+ radii were
+        // tuned for a star twice this size and would orbit out into the copy.
+        radius: 1.15 + (i % 4) * 0.16,
         speed: 0.22 + (i % 5) * 0.055,
         phase: (i / 8) * Math.PI * 2,
-        tilt: (i % 2 === 0 ? 1 : -1) * (0.25 + (i % 3) * 0.18),
-        size: 0.021 + (i % 3) * 0.009,
+        // Flattened orbits. A steeper tilt swings the embers down through
+        // the headline, which is the collision the mark was raised to avoid.
+        tilt: (i % 2 === 0 ? 1 : -1) * (0.18 + (i % 3) * 0.11),
+        size: 0.012 + (i % 3) * 0.005,
         color: ["#bfdbfe", "#a78bfa", "#f59e0b"][i % 3]!,
       })),
     [],
@@ -186,6 +200,9 @@ function Embers({ reducedMotion }: { reducedMotion: boolean }) {
         Math.sin(a) * s.radius,
       );
     });
+    // Ride with the mark. Left at the origin these orbited through the
+    // headline, which is exactly the collision the mark was moved to avoid.
+    g.position.y = EMBER_ORBIT_Y + p * 1.9;
     // Fade out with the hero rather than trailing into the next section.
     g.scale.setScalar(Math.max(0.001, 1 - p * 1.4));
   });
@@ -198,7 +215,14 @@ function Embers({ reducedMotion }: { reducedMotion: boolean }) {
         <mesh key={i}>
           <sphereGeometry args={[s.size, 10, 10]} />
           {/* Emissive so bloom picks them up as genuine points of light. */}
-          <meshBasicMaterial color={s.color} toneMapped={false} />
+          <meshBasicMaterial
+            color={s.color}
+            toneMapped={false}
+            transparent
+            opacity={0.85}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
         </mesh>
       ))}
     </group>
@@ -230,28 +254,28 @@ function Studio() {
     <Environment resolution={256} frames={1}>
       <Lightformer
         form="rect"
-        intensity={6}
+        intensity={14}
         color="#bfdbfe"
         position={[-3, 2, 2]}
         scale={[5, 6, 1]}
       />
       <Lightformer
         form="rect"
-        intensity={4}
+        intensity={10}
         color="#a78bfa"
         position={[3, -1, 2]}
         scale={[4, 5, 1]}
       />
       <Lightformer
         form="circle"
-        intensity={5}
+        intensity={11}
         color="#f59e0b"
         position={[2, 3, -2]}
         scale={[3, 3, 1]}
       />
       <Lightformer
         form="rect"
-        intensity={2}
+        intensity={6}
         color="#ffffff"
         position={[0, -4, 1]}
         scale={[8, 2, 1]}

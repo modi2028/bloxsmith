@@ -112,9 +112,18 @@ export function LandingHero({ ctaHref }: { ctaHref: string }) {
           )}
         </div>
 
+        {/* Scrim. The mark is now big and centred, so the copy sits directly
+            over polished metal — without this the headline competes with a
+            moving specular surface and loses. Radial so it never reads as a
+            box, just as the star falling into shadow behind the words. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-[4] bg-[radial-gradient(ellipse_46%_38%_at_50%_58%,var(--background)_45%,transparent_78%)]"
+        />
+
         <div
           ref={copyRef}
-          className="hero-copy relative z-10 flex flex-col items-center text-center will-change-transform"
+          className="hero-copy relative z-10 mt-[14vh] flex flex-col items-center text-center will-change-transform"
         >
         <span className="mb-6 rounded-full border border-line px-3.5 py-1.5 text-[11px] uppercase tracking-[0.2em] text-muted backdrop-blur-sm">
           AI pair-builder for Roblox Studio
