@@ -1,5 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
+import { repairToolPairing } from "./tool-pairing";
 import type {
   ModelResponse,
   ModelToolUse,
@@ -25,7 +26,7 @@ type CanonicalBlock = {
   source?: { type?: string; media_type?: string; data?: string };
 };
 
-function toOpenAIMessages(
+export function toOpenAIMessages(
   system: string,
   messages: ProviderMessage[],
   supportsImages: boolean,
@@ -165,10 +166,12 @@ export async function streamOpenAICompatibleResponse(
   const stream = await client.chat.completions.create(
     {
       model: params.modelId,
-      messages: toOpenAIMessages(
-        params.system,
-        params.messages,
-        opts.supportsImages !== false,
+      messages: repairToolPairing(
+        toOpenAIMessages(
+          params.system,
+          params.messages,
+          opts.supportsImages !== false,
+        ),
       ),
       tools: [
         ...params.tools.map((t) => ({
