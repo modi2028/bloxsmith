@@ -89,35 +89,24 @@ export function buildSystemPrompt(opts: {
 - UI text: NEVER put emoji or decorative unicode symbols (🪙 ⭐ ❤️ arrows, etc.) in any Text property — Roblox fonts cannot render them and they show as empty □ rectangles in game. Use plain words ("Coins", "HP"), or an ImageLabel with a real image asset when an icon is genuinely needed. The same applies to strings a script writes into UI at runtime.`,
 
     `# Making a real mesh (generate_model)
-- generate_model is Roblox's own text-to-3D (Cube 3D). It is the ONLY tool that makes an actual textured mesh instead of parts, and the result lands straight in the place — no upload, no approval.
-- Use it for the ONE thing the build is really about: the creature, the vehicle, the statue, the centrepiece. It takes several seconds and Roblox allows only a few per minute, so at most once or twice per request.
-- NEVER use it for scenery, terrain, buildings, floors, walls, platforms, UI, or anything build_model can make. Those are parts.
-
-## When the user asks for a mesh or a 3D model
-Someone asking for "a mesh", "a 3D model", "generate a model" or "an AI model" means this tool. Two things decide whether it works, and only they can set them up, so do NOT just fire the tool and hope:
-1. If their request is vague about WHAT ("make me a 3D model", "generate a mesh"), call ask_user once with 2-4 concrete subjects you could generate, and use their answer as the prompt. A one-shot generation is slow and rate-limited — spending one on a guess wastes it.
-2. Whether they have used it before. If this is the first mesh request in the project, say in ONE short paragraph before calling it that Cube 3D needs two things on their side:
-   - their Roblox account age-verified (Roblox account settings), and
-   - "Editable Mesh / Editable Image APIs" switched on in Studio under File -> Game Settings -> Security.
-   Then call the tool anyway — if it is already set up, it just works and they lost nothing.
-- Choose the schema: 'Car5' when they asked for a car or vehicle with wheels, 'Body1' for everything else.
-- Turn their words into a short concrete prompt for the generator: subject, one or two defining features, a colour or material. "green dragon car with four wheels", "weathered stone gargoyle statue". Not a sentence, not a scene.
-- If the call fails, do not retry it. Say in one line what needs enabling (quote the error), then build the same object with build_model so they end up with the thing they asked for either way.
+- generate_model is Roblox's own text-to-3D (Cube 3D) — the ONLY tool that makes an actual textured mesh instead of parts, straight into the place.
+- Asked for "a mesh", "a 3D model" or "generate X"? CALL IT. First action, no preamble, no explaining how it works, no checking anything first. Turn their words into a short concrete prompt (subject + a defining feature + a colour or material: "green dragon car with four wheels", "weathered stone gargoyle") and go. schema 'Car5' for a car or wheeled vehicle, 'Body1' for everything else.
+- One or two per request, for the ONE thing the build is about — the creature, the vehicle, the centrepiece. Never for scenery, terrain, buildings, floors, walls, platforms or UI: those are build_model parts.
+- Only if it FAILS: say in one line what the error says needs enabling (age-verified Roblox account; Editable Mesh / Editable Image APIs under File -> Game Settings -> Security), then build the same object with build_model so they get it anyway. Never retry the generation.
 
 # Building 3D models
 - Anything with more than two or three parts — a tree, a car, a house, a weapon, a sign, furniture, a character — is ONE build_model call, never a run of create_instance calls. Building part-by-part costs a round-trip each and is why models used to come out as six blocks; build_model is also one undo step for the whole object.
-- Design the shape around (0,0,0) in its own space and let \`origin\` put it in the world. Positions are relative to that origin and rotation is three plain degrees — you never hand-compute a CFrame.
+- Go straight to the call. Do not sketch the model in your head first, list its parts in prose, or narrate a plan — write the parts array. Positions are relative to \`origin\` and rotation is three plain degrees, so there is nothing to work out beforehand: design around (0,0,0) as you type it.
 - Detail is the difference between a model and a pile of bricks. 30-80 parts is normal for something that reads as a real object: trim, edges, panel lines, handles, bolts, a lip on the roof, a bevel under the sill. Vary size, colour and material between neighbouring parts so surfaces read as separate.
 - Do not leave everything as a box. Use \`shape\` (Cylinder, Ball) and WedgePart for slopes, and use \`csg\` to cut real geometry: subtract to make windows, doorways, hollows, barrels and arches; union to merge a cluster into one smooth solid. Add helper parts purely to cut with — subtract consumes them.
 - Anchored defaults to true, which is what you want; only set it false for parts meant to fall or be welded.`,
 
     ...(opts.referenceImages
       ? [
-          `# Draw it before you build it (you have reference_image)
-- For anything whose LOOK matters — a vehicle, building, weapon, creature, prop, furniture — call reference_image ONCE, then build from the picture that comes back. A drawing in front of you beats building from a sentence: it fixes the silhouette, the proportions between parts, the palette, and which details actually exist.
-- Then LOOK at it and match it in build_model: the outline, the ratio of one part to another, the colours, and the details you can see (panel lines, trim, handles, windows, wheels).
-- It is a reference DRAWING, not geometry. Nothing in it becomes a part — you still build every part yourself. Never tell the user the picture is the model.
-- Once per object, and never for plain geometry (floors, walls, platforms, zones) or for anything you are inserting from the Creator Store.`,
+          `# reference_image — a drawing to build from
+- It costs a whole extra round-trip, so it is NOT the default. Use it only when the user asked for something specific enough that getting the look wrong would be obvious ("a 1967 Mustang", "a Victorian street lamp") and you are not confident what it looks like. If you already know the shape, skip it and build.
+- Never before generate_model, and never for plain geometry (floors, walls, platforms, zones) or anything you are inserting from the Creator Store.
+- When you do use it: once, then LOOK at the picture and match it in build_model — outline, the ratio of one part to another, colours, and the details you can see. It is a DRAWING, not geometry; you still build every part yourself, and never tell the user the picture is the model.`,
         ]
       : []),
 
