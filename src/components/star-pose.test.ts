@@ -77,12 +77,12 @@ test("once open it holds steady rather than breathing", () => {
   const b = spreads(9, 1);
   a.forEach((v, i) => assert.ok(Math.abs(v - b[i]!) < 1e-9));
   // And fully open means fully open: the travel constant, not some fraction.
-  for (const v of a) assert.ok(Math.abs(v - 8.6) < 1e-5);
+  for (const v of a) assert.ok(Math.abs(v - 13.5) < 1e-5);
 });
 
 test("travel stays inside the mark's own radius", () => {
   for (let elapsed = 0; elapsed < 12; elapsed += 0.07) {
-    for (const v of spreads(elapsed, 1)) assert.ok(v <= 8.6 + 1e-5);
+    for (const v of spreads(elapsed, 1)) assert.ok(v <= 13.5 + 1e-5);
   }
 });
 
@@ -101,4 +101,26 @@ test("closing walks the spread to zero and the angle to upright", () => {
       assert.equal(angle % 360, 0);
     }
   }
+});
+
+test("a fully open point still fits the frame it is drawn in", () => {
+  // The <svg> clips to its viewport. Raising DRIFT without widening the
+  // viewBox silently cuts the tips off, which looks like a rendering bug
+  // rather than a constant being out of range.
+  const VIEWBOX = { x: -14, y: -13, w: 92, h: 92 };
+  const CX = 32;
+  const CY = 33;
+  const TIP_RADIUS = 30; // centre (32,33) to the tip at (32,3)
+
+  const reach = Math.max(...spreads(9, 1)) + TIP_RADIUS;
+  const margin = Math.min(
+    CX - VIEWBOX.x,
+    VIEWBOX.x + VIEWBOX.w - CX,
+    CY - VIEWBOX.y,
+    VIEWBOX.y + VIEWBOX.h - CY,
+  );
+  assert.ok(
+    reach <= margin,
+    `open star reaches ${reach} but the frame only allows ${margin}`,
+  );
 });

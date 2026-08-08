@@ -56,8 +56,15 @@ const ARMS = [
 const DARK = "#83838C";
 const LIGHT = "#EDEDF1";
 
-/** How far a point travels when fully open, in viewBox units (the box is 64). */
-const DRIFT = 8.6;
+/**
+ * How far a point travels when fully open, in viewBox units.
+ *
+ * The mark's own radius is 30 (centre 32,33 to a tip at 32,3), so a fully
+ * open point reaches 43.5 from centre — well outside the original 0..64 box.
+ * An <svg> clips to its viewport, so the box below is widened to match; raise
+ * this and the frame has to grow with it or the tips get cut off.
+ */
+const DRIFT = 13.5;
 /** Degrees per second while thinking. */
 const SPIN = 78;
 /** How long one point takes to reach full travel, in seconds. */
@@ -112,7 +119,7 @@ const run = { angle: 0, elapsed: 0 };
 
 export function StarSpinner({
   state = "thinking",
-  size = 18,
+  size = 34,
   className = "",
 }: {
   /**
@@ -201,13 +208,14 @@ export function StarSpinner({
       ref={svgRef}
       width={size}
       height={size}
-      viewBox="0 0 64 64"
+      // Centred on the mark's real centre (32,33) with 46 units of margin all
+      // round — enough for a 30-unit arm plus DRIFT, with a little air.
+      viewBox="-14 -13 92 92"
       fill="none"
       aria-hidden
       className={`shrink-0 ${className}`}
-      // 51.5% of 64 is 32.96 — the mark's real centre, which sits a whisker
-      // below the box's.
-      style={{ transformOrigin: "50% 51.5%" }}
+      // The widened viewBox puts the mark's centre exactly at the box's.
+      style={{ transformOrigin: "50% 50%" }}
     >
       {ARMS.map((arm, i) => (
         <g

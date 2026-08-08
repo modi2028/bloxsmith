@@ -60,6 +60,7 @@ import { searchWeb } from "./web-search";
 import { waitForClarification } from "./clarifications";
 import { getUserMemory, rememberProject, rememberUser } from "./memory";
 import { generateReferenceImage, isNanoBananaConfigured } from "./nano-banana";
+import { looksLikeMeshRequest } from "@/lib/mesh-intent";
 import { storeImageBytes } from "@/server/storage";
 import { getStudioTools } from "./tools";
 
@@ -396,6 +397,9 @@ export async function runAgentTurn(params: {
       explainMode: params.explain === true,
       unrestricted,
       confirmedIntent,
+      // Decided in code, not left to the model: a request that says "mesh" or
+      // "generate" routes to generate_model whatever else it is about.
+      meshRequest: looksLikeMeshRequest(params.message),
     });
     // Thinking spend follows the user's toggle — OFF means off, on every
     // effort tier. (Max used to force it on; users read that as a bug.)

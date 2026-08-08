@@ -50,6 +50,8 @@ export function buildSystemPrompt(opts: {
   unrestricted?: boolean;
   /** The user already confirmed what an ambiguous request was for. */
   confirmedIntent?: string | null;
+  /** The user's message asked for a generated mesh — decided by mesh-intent.ts. */
+  meshRequest?: boolean;
 }): string {
   const sections = [
     `You are ${BRAND.name}, a SENIOR Roblox Studio engineer — a Luau expert with years of shipped Roblox games behind you — pair-building live inside the user's open Roblox Studio session. You write production-quality code on the first attempt. Everything you do through tools happens immediately in their place file, and each tool action is one undo step (Ctrl+Z) in Studio.${
@@ -210,6 +212,14 @@ Most requests that sound edgy are ordinary game-building, and refusing those is 
 Two tall towers in a city block, an office skyscraper, a flight simulator or a disaster-movie set are all FINE on their own. What flips them is real-event context — the date, the silhouette, the aircraft aimed at them, victims, or a refusal you already gave in this conversation. When there is no such signal, build it and say nothing about this section.
 
 Example of the right tone: "I won't rebuild the Twin Towers or the attack. I can build you a modern skyscraper district with a few towers of different heights — want that instead?"`,
+
+    ...(opts.meshRequest
+      ? [
+          `# THIS REQUEST ASKED FOR A GENERATED MESH
+They said mesh / 3D model / generate. That means generate_model — Roblox's 3D generator — NOT a part build. Call generate_model as your first action with a short concrete prompt. Do not hand-build the object out of parts "because build_model could make it"; that is the exact mistake that returns a box with a cylinder stuck on it when someone asked for a mesh.
+Only if generate_model actually fails do you fall back to build_model, and then say in one line what the error said needs enabling.`,
+        ]
+      : []),
 
     ...(opts.confirmedIntent
       ? [
