@@ -60,6 +60,15 @@ export const RECOMMENDED_MODEL_IDS = new Set(["glm-5.2", "chatgpt"]);
 // in the lineup is billed per token now, so every model is metered.
 export const UNMETERED_MODEL_IDS = new Set<string>([]);
 
+/**
+ * Models that reason long enough that a build genuinely takes minutes, so the
+ * chat warns the user rather than letting it look hung. A set of ids, not a
+ * name written into the UI: the last version of this had "Sol" hardcoded
+ * against glm-5.2, and when glm-5.2 became Titan the app started telling
+ * people they were using a model they had not picked.
+ */
+export const DEEP_THINKING_MODEL_IDS = new Set<string>(["glm-5.2", "glm-4.7"]);
+
 export function isUnmeteredModel(modelId: string): boolean {
   return UNMETERED_MODEL_IDS.has(modelId);
 }
@@ -177,9 +186,9 @@ export const EFFORT_TIERS: Record<
     max: { maxTokens: UNLIMITED_SESSION_TOKENS },
     unrestricted: { maxTokens: UNLIMITED_SESSION_TOKENS },
   },
-  // Vega (Gemini 2.5 Flash) — free rung. Sized by the FREE plan window, not
+  // Vega (Gemini 3.5 Flash) — free rung. Sized by the FREE plan window, not
   // the model's context: it has 1M, a free session may spend 26k of it.
-  "gemini-2.5-flash": {
+  "gemini-3.5-flash": {
     low: { maxTokens: 8_000 },
     medium: { maxTokens: 14_000 },
     high: { maxTokens: 20_000 },
@@ -246,8 +255,8 @@ export const MODEL_LIMITS: Record<string, { contextK: number }> = {
   "glm-5": { contextK: 200 },
   "glm-5.2": { contextK: 200 },
   "glm-4.7": { contextK: 200 },
-  // Gemini 2.5 Flash really does take 1M; a free session may spend 26k of it.
-  "gemini-2.5-flash": { contextK: 1000 },
+  // Gemini Flash really does take 1M; a free session may spend 26k of it.
+  "gemini-3.5-flash": { contextK: 1000 },
   // Real Codex ceiling. The picker advertising more context than the model
   // accepts would surface as a mystery failure mid-build.
   chatgpt: { contextK: 400 },
@@ -498,11 +507,11 @@ export const MODEL_CATALOG: CatalogModel[] = [
     sort: 40,
   },
   {
-    // Vega — the free rung. Gemini 2.5 Flash: cheap, fast, 1M context, and on
-    // a provider we hold our own key for, which is the point. The rung it
-    // replaces sat on a pooled Codex OAuth session that could be cut off
-    // without notice, and was.
-    modelId: "gemini-2.5-flash",
+    // Vega — the free rung, on a provider we hold our own key for. NOT 2.5
+    // Flash: every 2.x Flash returns "no longer available to new users" on a
+    // key issued today, so it is listed by the models endpoint and refuses
+    // every call. Listing is not availability — check with a real request.
+    modelId: "gemini-3.5-flash",
     provider: "google",
     displayName: "Vega",
     description: "Fast and free — quick tweaks and small builds",
@@ -516,6 +525,27 @@ export const MODEL_CATALOG: CatalogModel[] = [
     enabled: true,
     isDefault: true,
     sort: 10,
+  },
+  {
+    // Retired: every 2.x Flash returns "no longer available to new users" on
+    // a key issued today. Kept as a disabled row rather than deleted, because
+    // apply:catalog only turns OFF what it can see — renaming the modelId in
+    // place left the old row live AND still flagged default, so the picker
+    // showed two Vegas.
+    modelId: "gemini-2.5-flash",
+    provider: "google",
+    displayName: "Vega (2.5)",
+    description: "Fast and free — quick tweaks and small builds",
+    tier: "fast",
+    inputCreditsPer1k: 0.001,
+    outputCreditsPer1k: 0.008,
+    baseCost: 0.001,
+    maxCreditsPerRequest: 0.25,
+    proOnly: false,
+    minPlan: "free",
+    enabled: false,
+    isDefault: false,
+    sort: 97,
   },
   {
     // Sol — Pro's model. GLM-4.7: most of 5.2's build quality at roughly

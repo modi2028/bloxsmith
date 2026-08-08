@@ -10,6 +10,7 @@ import {
   EFFORT_IDS,
   effortIdsFor,
   type EffortId,
+  DEEP_THINKING_MODEL_IDS,
 } from "@/lib/model-catalog";
 import { CoinStack, PoweredByBanner } from "./BrandMarks";
 import { ChatComposer } from "./ChatComposer";
@@ -1170,8 +1171,13 @@ export function ChatApp({
                     to a new message cannot make the old one play a closing
                     animation. The star closes when the WORK finishes, not
                     when a new bubble appears. */}
+                {/* A fixed 24px slot the same height as a line of body text,
+                    with the (larger) star centred in it. The star cannot take
+                    translate utilities — it writes transform imperatively
+                    every frame and would overwrite them — so the centring
+                    lives on this wrapper. */}
+                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center">
                 <StarSpinner
-                  className="mt-1"
                   state={
                     i !== messages.length - 1
                       ? "static"
@@ -1180,6 +1186,7 @@ export function ChatApp({
                         : "still"
                   }
                 />
+                </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                 {msg.parts.map((part, j) => {
                   if (part.t === "text") {
@@ -1491,10 +1498,16 @@ export function ChatApp({
                         <CountUp value={liveUsage.output} /> out
                       </p>
                     )}
-                    {modelId === "glm-5.2" && !runningTool && (
+                    {/* Named from the catalog, not written here. This line
+                        said "Sol" against a hardcoded glm-5.2 — then glm-5.2
+                        became Titan and the app started telling people they
+                        were on a model they had not picked. */}
+                    {DEEP_THINKING_MODEL_IDS.has(modelId) && !runningTool && (
                       <p className="mt-1 text-[11px] text-faint">
-                        Sol is a deep-thinking model — complex builds can take
-                        a few minutes. The result is worth it.
+                        {models.find((m) => m.id === modelId)?.name ??
+                          "This model"}{" "}
+                        is a deep-thinking model — complex builds can take a
+                        few minutes. The result is worth it.
                       </p>
                     )}
                     {showThinking && (

@@ -163,9 +163,10 @@ export async function runAgentTurn(params: {
     return;
   }
 
-  // Tool tiers: Creator Store models on both paid rungs — Sol (glm-5.2) and
-  // Titan (chatgpt).
-  const assetTools = ["glm-5.2", "chatgpt"].includes(modelId);
+  // Creator Store models on both paid rungs — Sol (glm-4.7) and Titan
+  // (glm-5.2). Listed by id because the ids move between names: glm-5.2 was
+  // Sol and is now Titan.
+  const assetTools = ["glm-4.7", "glm-5.2", "chatgpt"].includes(modelId);
   // Web search is OUR tool, on EVERY model. A user who asks "search the web
   // for ideas" gets a search whichever rung they are on, and every search is
   // a visible tool call rather than something happening off-screen.
