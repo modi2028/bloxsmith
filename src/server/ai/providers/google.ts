@@ -49,12 +49,17 @@ type CanonicalBlock = {
   tool_use_id?: string;
   content?: unknown;
   source?: { type?: string; media_type?: string; data?: string };
+  /** Gemini 3 only — see the functionCall branch below. */
+  thoughtSignature?: string;
 };
 
 type GeminiPart =
   | { text: string }
   | { inlineData: { mimeType: string; data: string } }
-  | { functionCall: { name: string; args: Record<string, unknown> } }
+  | {
+      functionCall: { name: string; args: Record<string, unknown> };
+      thoughtSignature?: string;
+    }
   | { functionResponse: { name: string; response: Record<string, unknown> } };
 
 /**
@@ -83,8 +88,10 @@ function toGeminiContents(
           parts.push({ text: b.text });
         } else if (b.type === "tool_use" && b.id && b.name) {
           idToName.set(b.id, b.name);
+          const sig = (b as { thoughtSignature?: string }).thoughtSignature;
           parts.push({
             functionCall: { name: b.name, args: b.input ?? {} },
+            ...(sig ? { thoughtSignature: sig } : {}),
           });
         }
         // thinking blocks are model-internal — skipped
@@ -155,6 +162,8 @@ export const streamGoogleResponse: ProviderAdapter = async (params) => {
 
   let text = "";
   const toolUses: ModelToolUse[] = [];
+  /** tool_use id -> Gemini's thought signature for that call. */
+  const signatures = new Map<string, string>();
   let sawFinish = false;
   let usage = { inputTokens: 0, outputTokens: 0 };
 
@@ -201,11 +210,20 @@ export const streamGoogleResponse: ProviderAdapter = async (params) => {
           name: string;
           args?: Record<string, unknown>;
         };
+        // Gemini 3 signs every function call and REQUIRES the signature back
+        // when the call is replayed in history. Without it the second turn of
+        // any tool-using build is rejected outright — which is what surfaced
+        // as "the build hit an error partway through": turn one succeeded and
+        // spent tokens, turn two 400'd. It rides on the part, not the call.
+        const sig =
+          (part as { thoughtSignature?: string }).thoughtSignature ??
+          (part as { thought_signature?: string }).thought_signature;
         toolUses.push({
           id: `call_${randomUUID().slice(0, 12)}`,
           name: fc.name,
           input: fc.args ?? {},
         });
+        if (sig) signatures.set(toolUses[toolUses.length - 1]!.id, sig);
       }
     }
     if (candidate?.finishReason) sawFinish = true;
@@ -243,7 +261,16 @@ export const streamGoogleResponse: ProviderAdapter = async (params) => {
   const content: unknown[] = [];
   if (text) content.push({ type: "text", text });
   for (const tu of toolUses) {
-    content.push({ type: "tool_use", id: tu.id, name: tu.name, input: tu.input });
+    const sig = signatures.get(tu.id);
+    content.push({
+      type: "tool_use",
+      id: tu.id,
+      name: tu.name,
+      input: tu.input,
+      // Persisted with the block: the whole point is that it comes back on
+      // the NEXT request. Other adapters ignore the extra field.
+      ...(sig ? { thoughtSignature: sig } : {}),
+    });
   }
 
   const response: ModelResponse = {
