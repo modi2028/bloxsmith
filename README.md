@@ -132,6 +132,25 @@ fail with an "offline" notice and every other model keeps working.
 | `CHATGPT_OAUTH_BASE`   | `http://127.0.0.1:10531/v1` | Where the proxy listens               |
 | `CHATGPT_OAUTH_MODEL`  | `gpt-5.6-sol`               | Upstream model actually requested     |
 
+### Reference images (Nano Banana)
+
+Before building anything whose appearance matters, the agent can draw the
+object with Google's Gemini image model and then look at its own drawing while
+it builds. It produces a **picture, not geometry** — nothing in it becomes a
+part; the value is that the builder works from a concrete silhouette,
+proportion and palette instead of from a sentence.
+
+The `reference_image` tool is only offered to the model when `GOOGLE_API_KEY`
+is set, so an unconfigured server never advertises a tool that cannot run.
+
+| Env var             | Default                  | What it does                          |
+| ------------------- | ------------------------ | ------------------------------------- |
+| `GOOGLE_API_KEY`    | —                        | Enables the tool. Unset = tool hidden |
+| `NANO_BANANA_MODEL`  | `gemini-2.5-flash-image` | Which image model to call             |
+
+Swap `NANO_BANANA_MODEL` to `gemini-3-pro-image-preview` for the Pro variant —
+a better draughtsman, more expensive per call.
+
 Which models an account can reach depends on its ChatGPT plan and changes over
 time, so `CHATGPT_OAUTH_MODEL` is config, not code — our catalog id
 (`chatgpt`) is deliberately decoupled from it. Run `npm run chatgpt:models` to

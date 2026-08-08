@@ -59,6 +59,8 @@ import { searchRobloxAssets } from "./asset-search";
 import { searchWeb } from "./web-search";
 import { waitForClarification } from "./clarifications";
 import { getUserMemory, rememberProject, rememberUser } from "./memory";
+import { generateReferenceImage, isNanoBananaConfigured } from "./nano-banana";
+import { storeImageBytes } from "@/server/storage";
 import { getStudioTools } from "./tools";
 
 // Tool-loop depth scales with the chosen effort — a big Max budget is
@@ -376,8 +378,12 @@ export async function runAgentTurn(params: {
   try {
     // --- Assemble context ---------------------------------------------------
     const apiKey = await getProviderApiKey(pricing.provider as ProviderId);
-    const tools = getStudioTools({ assetTools, webSearchTool });
+    // Only offered when the key is actually configured — a tool the model can
+    // see but never successfully call is worse than no tool at all.
+    const referenceImages = isNanoBananaConfigured();
+    const tools = getStudioTools({ assetTools, webSearchTool, referenceImages });
     const system = buildSystemPrompt({
+      referenceImages,
       projectMemory: chatSession.projectMemory,
       userMemory: await getUserMemory(user.id).catch(() => null),
       userNickname: user.nickname ?? user.displayName ?? user.username,
@@ -708,6 +714,12 @@ export async function runAgentTurn(params: {
 
       // Execute every requested tool through the Studio queue.
       const resultBlocks: unknown[] = [];
+      // Images cannot ride inside a tool_result — neither provider accepts one
+      // there. They are appended to the SAME user message after every
+      // tool_result block, which is the shape both adapters already translate
+      // for user-attached images. Collected separately so a second tool call
+      // in the same turn cannot land its result after the image.
+      const imageBlocks: unknown[] = [];
       for (const toolUse of response.toolUses) {
         throwIfStopped();
         const validated = validateToolArgs(toolUse.name, toolUse.input);
@@ -863,6 +875,76 @@ export async function runAgentTurn(params: {
           continue;
         }
         // Live web search — also server-side, never touches Studio.
+        if (toolUse.name === "reference_image") {
+          const subject = (validated.args as { subject: string }).subject;
+          await onEvent({
+            type: "tool_call",
+            id: toolUse.id,
+            tool: toolUse.name,
+            args: validated.args,
+          });
+          await onEvent({ type: "reference_image", id: toolUse.id, subject });
+          try {
+            const img = await generateReferenceImage(subject, signal);
+            throwIfStopped();
+
+            const stored = await persistReferenceImage({
+              userId: user.id,
+              chatSessionId: chatSession.id,
+              subject,
+              data: img.data,
+              mediaType: img.mediaType,
+            }).catch(() => null);
+
+            imageBlocks.push({
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: img.mediaType,
+                data: img.data,
+              },
+            });
+            resultBlocks.push(
+              toolResultBlock(
+                toolUse.id,
+                `Reference drawing of "${subject}" is attached below. Build to match it: silhouette, the proportions between parts, the colours, and every detail you can see. It is a picture, not geometry — build the parts yourself with build_model.`,
+                false,
+              ),
+            );
+            await onEvent({
+              type: "reference_image",
+              id: toolUse.id,
+              subject,
+              url: stored ?? undefined,
+              ok: true,
+            });
+            await onEvent({ type: "tool_result", id: toolUse.id, ok: true });
+          } catch (err) {
+            const message =
+              err instanceof Error ? err.message : "Reference image failed";
+            resultBlocks.push(
+              toolResultBlock(
+                toolUse.id,
+                `reference_error: ${message}. Build from your own knowledge instead — do not call this again this turn.`,
+                true,
+              ),
+            );
+            await onEvent({
+              type: "reference_image",
+              id: toolUse.id,
+              subject,
+              ok: false,
+              error: message,
+            });
+            await onEvent({
+              type: "tool_result",
+              id: toolUse.id,
+              ok: false,
+              error: message,
+            });
+          }
+          continue;
+        }
         if (toolUse.name === "web_search") {
           await onEvent({
             type: "tool_call",
@@ -1089,13 +1171,17 @@ export async function runAgentTurn(params: {
         }
       }
 
+      // Images last: Anthropic requires every tool_result at the head of the
+      // message, and the OpenAI translator splits tool results out before it
+      // reads the rest either way.
+      const turnBlocks = [...resultBlocks, ...imageBlocks];
       await db.insert(schema.chatMessages).values({
         sessionId: chatSession.id,
         role: "user",
-        content: resultBlocks,
+        content: turnBlocks,
         textContent: null,
       });
-      messages.push({ role: "user", content: resultBlocks });
+      messages.push({ role: "user", content: turnBlocks });
     }
 
     // --- Close out the request ----------------------------------------------
@@ -1218,6 +1304,27 @@ function outdatedPluginError(tool: string): string {
     `Build the object from parts instead, and tell the user (in one short line) to update the Bloxsmith plugin — ` +
     `download the newest Bloxsmith.lua from the dashboard's Install page, replace the old file in their Plugins folder, then restart Studio.`
   );
+}
+
+/**
+ * Put a reference drawing somewhere the browser can load it.
+ *
+ * Best-effort on purpose: the model already has the image inline, so a
+ * storage failure costs the user the thumbnail and nothing else. It must not
+ * take the build down with it.
+ */
+async function persistReferenceImage(params: {
+  userId: string;
+  chatSessionId: string;
+  subject: string;
+  data: string;
+  mediaType: string;
+}): Promise<string | null> {
+  const bytes = Buffer.from(params.data, "base64");
+  const view = new Uint8Array(
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  ) as Uint8Array<ArrayBuffer>;
+  return storeImageBytes(view, params.mediaType, params.userId);
 }
 
 function toolResultBlock(

@@ -35,6 +35,16 @@ export type AgentEvent =
       /** Percent (0-100) of the rolling 5-hour token allowance now used. */
       windowUsedPct?: number;
     }
+  | {
+      // A Nano Banana reference drawing: emitted once when it starts, again
+      // when it lands (or fails), so the chat can show a placeholder first.
+      type: "reference_image";
+      id: string;
+      subject: string;
+      url?: string;
+      ok?: boolean;
+      error?: string;
+    }
   | { type: "needs_plugin" }
   // The AI wants to insert a Creator Store asset it hasn't used before in
   // this project — the user approves once per asset id.

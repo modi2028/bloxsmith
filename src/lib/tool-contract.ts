@@ -212,6 +212,13 @@ export const toolArgSchemas = {
       csg: z.array(csgOpSchema).max(40).optional(),
     })
     .strict(),
+  // Server-side: draw a reference picture the model then looks at. Never
+  // reaches the plugin.
+  reference_image: z
+    .object({
+      subject: z.string().trim().min(3).max(200),
+    })
+    .strict(),
   // reaches the plugin.
   remember: z
     .object({

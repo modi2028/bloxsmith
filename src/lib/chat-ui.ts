@@ -27,6 +27,10 @@ export type UiPart =
   | {
       // In-chat image generation (the /image command).
       t: "image";
+      /** Set when the picture is an agent reference drawing rather than a
+       *  /image result — it labels differently and is matched by tool-use id
+       *  across the two events that create it. */
+      refId?: string;
       prompt: string;
       status: "generating" | "done" | "error";
       url?: string;

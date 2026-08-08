@@ -595,6 +595,29 @@ export function ChatApp({
             }
             break;
           }
+          case "reference_image": {
+            // Two events per drawing: the first opens a placeholder, the
+            // second fills it in. Matched on the tool-use id.
+            const idx = parts.findIndex(
+              (p) => p.t === "image" && p.refId === event.id,
+            );
+            const part: UiPart = {
+              t: "image",
+              refId: event.id,
+              prompt: event.subject,
+              status:
+                event.ok === true
+                  ? "done"
+                  : event.ok === false
+                    ? "error"
+                    : "generating",
+              url: event.url,
+              error: event.error,
+            };
+            if (idx === -1) parts.push(part);
+            else parts[idx] = part;
+            break;
+          }
           case "asset_approval":
             parts.push({
               t: "approval",
@@ -1211,8 +1234,51 @@ export function ChatApp({
                     );
                   }
                   if (part.t === "image") {
+                    // A reference drawing is working material, not something
+                    // the user asked for — it gets a caption saying what it is
+                    // for, so nobody mistakes the picture for the build.
+                    const isReference = !!part.refId;
                     return (
                       <div key={j} className="max-w-md">
+                        {isReference && (
+                          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] text-faint">
+                            <svg
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              className="size-3.5 shrink-0"
+                            >
+                              <rect
+                                x="2.5"
+                                y="2.5"
+                                width="11"
+                                height="11"
+                                rx="1.5"
+                                stroke="currentColor"
+                                strokeWidth="1.3"
+                              />
+                              <path
+                                d="m4.5 10.5 2.5-2.5 2 2 2.5-3"
+                                stroke="currentColor"
+                                strokeWidth="1.3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                            <span
+                              className={
+                                part.status === "generating"
+                                  ? "shimmer-text"
+                                  : ""
+                              }
+                            >
+                              {part.status === "generating"
+                                ? `Drawing a reference — ${part.prompt}`
+                                : part.status === "error"
+                                  ? "Reference drawing failed — building from knowledge instead"
+                                  : `Reference · ${part.prompt}`}
+                            </span>
+                          </div>
+                        )}
                         {part.status === "generating" && (
                           <div className="flex aspect-[16/9] w-full items-center justify-center rounded-xl border border-line bg-surface-raised">
                             <ImageLoader />
@@ -1241,12 +1307,16 @@ export function ChatApp({
                             />
                           </a>
                         )}
-                        {part.status === "error" && (
+                        {/* A failed reference is not the user's problem — the
+                            build carries on without it and the caption above
+                            already says so. Only a picture they actually asked
+                            for gets the red box. */}
+                        {part.status === "error" && !isReference && (
                           <p className="rounded-lg border border-red-900/60 bg-red-950/30 px-3.5 py-2 text-sm text-red-300">
                             {part.error}
                           </p>
                         )}
-                        {part.status === "done" && (
+                        {part.status === "done" && !isReference && (
                           <p className="mt-1.5 text-[11px] text-faint">
                             Click to open full size. Wanted this built in
                             Studio instead? Ask again and say build.

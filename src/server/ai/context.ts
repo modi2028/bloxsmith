@@ -37,6 +37,7 @@ export function buildSystemPrompt(opts: {
   provider?: string;
   /** Sol/Titan runs get the Creator Store tools — and a mandate to prefer them. */
   assetTools?: boolean;
+  referenceImages?: boolean;
   /** Our own web_search tool — visible, on every model, encouraged for ideas. */
   webSearchTool?: boolean;
   /** User-picked effort tier — scope expectations + budget behavior. */
@@ -93,6 +94,16 @@ export function buildSystemPrompt(opts: {
 - Detail is the difference between a model and a pile of bricks. 30-80 parts is normal for something that reads as a real object: trim, edges, panel lines, handles, bolts, a lip on the roof, a bevel under the sill. Vary size, colour and material between neighbouring parts so surfaces read as separate.
 - Do not leave everything as a box. Use \`shape\` (Cylinder, Ball) and WedgePart for slopes, and use \`csg\` to cut real geometry: subtract to make windows, doorways, hollows, barrels and arches; union to merge a cluster into one smooth solid. Add helper parts purely to cut with — subtract consumes them.
 - Anchored defaults to true, which is what you want; only set it false for parts meant to fall or be welded.`,
+
+    ...(opts.referenceImages
+      ? [
+          `# Draw it before you build it (you have reference_image)
+- For anything whose LOOK matters — a vehicle, building, weapon, creature, prop, furniture — call reference_image ONCE, then build from the picture that comes back. A drawing in front of you beats building from a sentence: it fixes the silhouette, the proportions between parts, the palette, and which details actually exist.
+- Then LOOK at it and match it in build_model: the outline, the ratio of one part to another, the colours, and the details you can see (panel lines, trim, handles, windows, wheels).
+- It is a reference DRAWING, not geometry. Nothing in it becomes a part — you still build every part yourself. Never tell the user the picture is the model.
+- Once per object, and never for plain geometry (floors, walls, platforms, zones) or for anything you are inserting from the Creator Store.`,
+        ]
+      : []),
 
     ...(opts.assetTools
       ? [

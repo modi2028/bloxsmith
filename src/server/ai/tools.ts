@@ -37,7 +37,11 @@ const propertyValue = {
 };
 
 export function getStudioTools(
-  opts: { assetTools?: boolean; webSearchTool?: boolean } = {},
+  opts: {
+    assetTools?: boolean;
+    webSearchTool?: boolean;
+    referenceImages?: boolean;
+  } = {},
 ): ModelToolDef[] {
   const tools: ModelToolDef[] = [
     {
@@ -369,6 +373,28 @@ export function getStudioTools(
         },
       },
     );
+  }
+
+  // Nano Banana reference images: the agent draws the thing, looks at it, then
+  // builds from it. Gated on the key being present so the tool is never
+  // offered when it cannot run.
+  if (opts.referenceImages) {
+    tools.push({
+      name: "reference_image",
+      description:
+        "Draw a reference picture of what you are about to build, then LOOK at it and build to match. Call this ONCE before a build_model call for anything whose appearance matters — a vehicle, building, weapon, creature, prop, piece of furniture. The picture comes back in your next turn and you build from it: match the silhouette, the proportions between parts, the colours, and the details you can see (panel lines, trim, handles, windows). It is a reference drawing, NOT geometry — nothing in it becomes a part, you still build every part yourself with build_model. Describe the object only, in a few words ('rusty 1950s pickup truck', 'stone wizard tower with wooden balcony'), no scene or camera direction.",
+      input_schema: {
+        type: "object",
+        properties: {
+          subject: {
+            type: "string",
+            description: "The object, in a few words. No scene, no camera.",
+          },
+        },
+        required: ["subject"],
+        additionalProperties: false,
+      },
+    });
   }
 
   // Live web search, run server-side by us (see web-search.ts). Offered as a
