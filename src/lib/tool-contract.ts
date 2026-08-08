@@ -314,6 +314,48 @@ function stringValueError(name: string): string {
   );
 }
 
+/**
+ * Un-stringify property wrappers the model double-encoded.
+ *
+ * Models are told to write {"$type":"Enum","enum":"Material","item":"Neon"}
+ * and a good fraction of the time they write that object as a JSON STRING
+ * instead. Postgres, the queue and zod all pass it along happily —
+ * propertyValueSchema accepts strings, because plenty of properties really
+ * are strings — and it dies in Studio as `Invalid value "{"$type": "Enum"...`.
+ * The model then retries the identical call, because nothing told it what was
+ * wrong, and burns the budget doing it. That is the loop in the screenshot.
+ *
+ * The intent is unambiguous, so this repairs rather than rejects: a string
+ * that parses to an object carrying `$type` was meant to be that object.
+ * Anything else is left exactly as it is — a genuine string property must
+ * survive untouched.
+ */
+function repairWrappers(value: unknown): unknown {
+  if (typeof value === "string") {
+    const t = value.trim();
+    if (!t.startsWith('{"$type"') && !t.startsWith("{ \"$type\"")) return value;
+    try {
+      const parsed: unknown = JSON.parse(t);
+      if (parsed && typeof parsed === "object" && "$type" in parsed) {
+        return parsed;
+      }
+    } catch {
+      // Not JSON after all; it was just a string that looked like it.
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(repairWrappers);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+        k,
+        repairWrappers(v),
+      ]),
+    );
+  }
+  return value;
+}
+
 /** Validate model-produced args for a tool; returns a friendly error string. */
 export function validateToolArgs(
   tool: string,
@@ -321,7 +363,10 @@ export function validateToolArgs(
 ): { ok: true; args: Record<string, unknown> } | { ok: false; error: string } {
   const schema = toolArgSchemas[tool as ToolName];
   if (!schema) return { ok: false, error: `Unknown tool: ${tool}` };
-  const parsed = schema.safeParse(args);
+  // Before validation, not after: a double-encoded wrapper is valid against
+  // the schema (it is a string), so there is no later point at which it can
+  // be caught.
+  const parsed = schema.safeParse(repairWrappers(args));
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)

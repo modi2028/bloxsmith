@@ -330,9 +330,31 @@ local function setProperty(inst: Instance, name: string, rawValue: unknown)
 		end
 	end
 
+	-- The advice has to match the failure. Telling a model to "use the wrapper
+	-- format" when the property does not exist on the class sends it round the
+	-- loop trying different wrappers forever — which is exactly what happened
+	-- when it put ParticleEmitter properties (Rate, LightEmission, Texture) on
+	-- a PointLight and retried each one.
+	local message = tostring(err)
+	if string.find(message, "not a valid member", 1, true) then
+		toolError(
+			"invalid_args",
+			"Could not set "
+				.. name
+				.. ": "
+				.. message
+				.. ". Do NOT retry this — "
+				.. name
+				.. " does not exist on a "
+				.. inst.ClassName
+				.. ", so no value will work. You are on the wrong instance: create the class that actually has this property "
+				.. "(Rate/Lifetime/Texture/LightEmission belong to ParticleEmitter, not PointLight) and set it there."
+		)
+	end
+
 	toolError(
 		"invalid_args",
-		"Could not set " .. name .. ": " .. tostring(err)
+		"Could not set " .. name .. ": " .. message
 			.. '. Use the wrapper format, e.g. {"$type":"Vector3","value":[x,y,z]} or {"$type":"CFrame","value":[12 numbers]}.'
 	)
 end

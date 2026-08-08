@@ -183,3 +183,92 @@ describe("generate_model", () => {
     );
   });
 });
+
+describe("double-encoded property wrappers", () => {
+  it("repairs the exact failure seen in Studio: Material as a JSON string", () => {
+    const r = validateToolArgs("set_property", {
+      target: "ref:i_abc",
+      name: "Material",
+      value: '{"$type": "Enum", "enum": "Material", "item": "Neon"}',
+    });
+    assert.equal(r.ok, true);
+    assert.deepEqual(r.ok === true ? r.args.value : null, {
+      $type: "Enum",
+      enum: "Material",
+      item: "Neon",
+    });
+  });
+
+  it("repairs them inside create_instance properties", () => {
+    const r = validateToolArgs("create_instance", {
+      className: "Part",
+      parent: "ref:workspace",
+      properties: {
+        Size: '{"$type":"Vector3","value":[1,2,3]}',
+        Name: "Blade",
+      },
+    });
+    assert.equal(r.ok, true);
+    const props = r.ok === true
+      ? (r.args.properties as Record<string, unknown>)
+      : {};
+    assert.deepEqual(props.Size, { $type: "Vector3", value: [1, 2, 3] });
+    // A property that really is a string must come through untouched.
+    assert.equal(props.Name, "Blade");
+  });
+
+  it("repairs them deep inside a build_model parts array", () => {
+    const r = validateToolArgs("build_model", {
+      name: "Sword",
+      parent: "ref:workspace",
+      parts: [
+        {
+          name: "Blade",
+          size: [1, 8, 0.2],
+          position: [0, 4, 0],
+          properties: {
+            Material: '{"$type":"Enum","enum":"Material","item":"Metal"}',
+          },
+        },
+      ],
+    });
+    assert.equal(r.ok, true);
+    const parts = r.ok === true
+      ? (r.args.parts as { properties: Record<string, unknown> }[])
+      : [];
+    assert.deepEqual(parts[0]!.properties.Material, {
+      $type: "Enum",
+      enum: "Material",
+      item: "Metal",
+    });
+  });
+
+  it("leaves ordinary strings and near-misses alone", () => {
+    for (const value of [
+      "Neon",
+      "{not json at all",
+      '{"type":"Enum"}',
+      '{"$typo":"Enum"}',
+      "",
+    ]) {
+      const r = validateToolArgs("set_property", {
+        target: "ref:i_abc",
+        name: "Text",
+        value,
+      });
+      assert.equal(r.ok, true, JSON.stringify(value));
+      assert.equal(r.ok === true ? r.args.value : null, value);
+    }
+  });
+
+  it("still catches a geometric property that is a plain string", () => {
+    // The repair must not accidentally launder the mistake the existing
+    // guard exists to catch.
+    const r = validateToolArgs("set_property", {
+      target: "ref:i_abc",
+      name: "Position",
+      value: "0, 5, 0",
+    });
+    assert.equal(r.ok, false);
+  });
+});
