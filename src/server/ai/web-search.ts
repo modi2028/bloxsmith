@@ -42,7 +42,13 @@ export async function searchWeb(params: {
   const apiKey = await getProviderApiKey("zai");
   const limit = Math.min(Math.max(params.limit ?? 5, 1), 10);
 
-  const res = await fetch(SEARCH_URL, {
+  // 429 is the normal failure here, not an exceptional one: the whole site
+  // shares one z.ai key, so several builds searching at once trip the rate
+  // limit routinely. It is also entirely transient — waiting a second fixes
+  // it — so it is retried rather than reported as "web search failed", which
+  // is what the user was seeing mid-build.
+  const attempt = async (): Promise<Response> =>
+    fetch(SEARCH_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -62,8 +68,26 @@ export async function searchWeb(params: {
     signal: AbortSignal.timeout(25_000),
   });
 
+  let res = await attempt();
+  // Three tries, backing off. Retrying a 5xx too: those are the provider
+  // having a moment, and the cost of one extra request is nothing next to
+  // losing the search a build was about to use.
+  for (let i = 0; i < 2 && (res.status === 429 || res.status >= 500); i++) {
+    await new Promise((r) => setTimeout(r, 900 * (i + 1)));
+    res = await attempt();
+  }
+
   if (!res.ok) {
-    throw new Error(`web search failed (${res.status})`);
+    // The message reaches the model, so it has to say what to DO. Without
+    // this it retried the same search and lost the round again.
+    if (res.status === 429) {
+      throw new Error(
+        "web search is rate-limited right now (429) — do not search again this turn; build from what you already know",
+      );
+    }
+    throw new Error(
+      `web search failed (${res.status}) — build from what you already know rather than searching again`,
+    );
   }
 
   const body = (await res.json()) as { search_result?: RawHit[] };

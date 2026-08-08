@@ -188,11 +188,15 @@ export const EFFORT_TIERS: Record<
   },
   // Vega (Gemini 3.5 Flash) — free rung. Sized by the FREE plan window, not
   // the model's context: it has 1M, a free session may spend 26k of it.
+  // Vega. Every rung must fit the 25k free 5-hour window, and at 7.8k of
+  // fixed overhead per round, low is one round and max is three. That is what
+  // the free tier can afford; a bigger number would just be a promise the
+  // window breaks.
   "gemini-3.5-flash": {
-    low: { maxTokens: 8_000 },
-    medium: { maxTokens: 14_000 },
-    high: { maxTokens: 20_000 },
-    max: { maxTokens: 26_000 },
+    low: { maxTokens: 10_000 },
+    medium: { maxTokens: 16_000 },
+    high: { maxTokens: 21_000 },
+    max: { maxTokens: 25_000 },
   },
   // Sol (GLM-4.7) — Pro. Inside both its own 200k context and the 200k Pro
   // 5-hour window.
@@ -200,7 +204,9 @@ export const EFFORT_TIERS: Record<
     low: { maxTokens: 20_000 },
     medium: { maxTokens: 50_000 },
     high: { maxTokens: 100_000 },
-    max: { maxTokens: 150_000 },
+    // Inside the 175k Pro window, so a max-effort session can finish rather
+    // than being cut off by the window it is running in.
+    max: { maxTokens: 170_000 },
   },
   // Sol (glm-5.2) — Pro's model. Previously ran to 800k, which was FOUR TIMES
   // its own 200k context: those sessions could not physically complete. Now
@@ -210,11 +216,14 @@ export const EFFORT_TIERS: Record<
   // an uncapped session cost us nothing. On GLM-5.2 every token is billed, so
   // max is capped at what its own 200k context can physically complete.
   "glm-5.2": {
-    low: { maxTokens: 25_000 },
-    medium: { maxTokens: 60_000 },
-    high: { maxTokens: 110_000 },
-    max: { maxTokens: 160_000 },
-    unrestricted: { maxTokens: 160_000 },
+    low: { maxTokens: 30_000 },
+    medium: { maxTokens: 80_000 },
+    high: { maxTokens: 150_000 },
+    // 200k is the model's own context, so nothing above it can complete
+    // anyway; 195k also sits inside the 300k Max window, leaving room for a
+    // second shorter session before the window resets.
+    max: { maxTokens: 195_000 },
+    unrestricted: { maxTokens: 195_000 },
   },
 };
 
@@ -297,16 +306,45 @@ export const MODEL_LIMITS: Record<string, { contextK: number }> = {
  * headline model (Titan) costs us nothing, so the metered allowance only ever
  * needed to cover Sol.
  */
+/*
+ * MEASURED, not guessed. Every round of the tool loop re-sends the system
+ * prompt and the whole tool schema set, and the session budget counts INPUT
+ * as well as output, so the fixed cost per round is what actually sets these:
+ *
+ *   free  3.6k system + 4.2k tools = 7.8k tokens per round
+ *   pro   4.3k + 4.5k              = 8.8k
+ *   max   4.5k + 4.5k              = 9.0k
+ *
+ * On top of that the history is replayed every round, so a long session grows
+ * quadratically. The per-session effort ceiling is the thing that stops that
+ * running away; the windows below cap how many sessions a plan gets.
+ *
+ * Sized so the WORST case — a user who spends the whole weekly window at a
+ * pessimistic 30% output mix — costs at most a quarter of what they pay:
+ *
+ *   Max   1.2M/wk x $2.30/1M (glm-5.2)  = $2.76/wk = $12/mo of $49.99 = 24%
+ *   Pro   700k/wk x $1.08/1M (glm-4.7)  = $0.76/wk =  $3/mo of $19.99 = 16%
+ *   Free   80k/wk x $0.96/1M (3.5-flash)=              $0.33/mo, all cost
+ *
+ * A realistic agent mix is far more input-heavy than 30% output, so the
+ * expected cost is roughly a third of those figures. The 25% target is what
+ * leaves room for Stripe (~3% + 30c), the image and search calls that do not
+ * pass through this meter, and actual profit.
+ *
+ * Previously Max ran 2M/week against an UNMETERED flagship — the flagship
+ * rode a flat-rate subscription, so the metered window only ever had to cover
+ * Sol. Every model is billed per token now, so that headroom is gone.
+ */
 export const TOKEN_LIMITS_5H: Record<PlanTier, number> = {
-  free: 30_000,
-  pro: 200_000,
-  max: 400_000,
+  free: 25_000,
+  pro: 175_000,
+  max: 300_000,
 };
 
 export const TOKEN_LIMITS_WEEK: Record<PlanTier, number> = {
-  free: 120_000,
-  pro: 750_000,
-  max: 2_000_000,
+  free: 80_000,
+  pro: 700_000,
+  max: 1_200_000,
 };
 
 /** 5000 -> "5k", 200000 -> "200k", 1000000 -> "1M". */

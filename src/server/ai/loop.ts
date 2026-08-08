@@ -382,7 +382,10 @@ export async function runAgentTurn(params: {
     const apiKey = await getProviderApiKey(pricing.provider as ProviderId);
     // Only offered when the key is actually configured — a tool the model can
     // see but never successfully call is worse than no tool at all.
-    const referenceImages = isNanoBananaConfigured();
+    // Paid rungs only. Every call is a billed image generation on our Google
+    // key, and it does not pass through the token meter at all — so on free
+    // it is spend with no ceiling on it.
+    const referenceImages = isNanoBananaConfigured() && assetTools;
     const tools = getStudioTools({ assetTools, webSearchTool, referenceImages });
     const system = buildSystemPrompt({
       referenceImages,

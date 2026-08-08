@@ -1160,34 +1160,7 @@ export function ChatApp({
                 ) : null}
               </div>
             ) : (
-              // The star sits in the gutter of every assistant turn, the way
-              // Claude keeps its symbol beside an answer. It is the SAME
-              // element that spins while the turn is live, so finishing is a
-              // deceleration rather than one indicator being swapped for
-              // another.
-              <div key={i} className="flex gap-3">
-                {/* Only the message being worked on animates. Earlier ones
-                    are `static` — a star that never runs the loop, so moving
-                    to a new message cannot make the old one play a closing
-                    animation. The star closes when the WORK finishes, not
-                    when a new bubble appears. */}
-                {/* A fixed 24px slot the same height as a line of body text,
-                    with the (larger) star centred in it. The star cannot take
-                    translate utilities — it writes transform imperatively
-                    every frame and would overwrite them — so the centring
-                    lives on this wrapper. */}
-                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center">
-                <StarSpinner
-                  state={
-                    i !== messages.length - 1
-                      ? "static"
-                      : busy
-                        ? "thinking"
-                        : "still"
-                  }
-                />
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+              <div key={i} className="flex flex-col gap-2.5">
                 {msg.parts.map((part, j) => {
                   if (part.t === "text") {
                     return <Markdown key={j}>{part.text}</Markdown>;
@@ -1484,8 +1457,12 @@ export function ChatApp({
                             ? "Click to see what the AI is thinking"
                             : "Thoughts appear here once the model starts reasoning"
                       }
-                      className="flex items-center transition hover:brightness-125"
+                      className="flex items-center gap-2 transition hover:brightness-125"
                     >
+                      {/* The star belongs WITH the working line. Parked in
+                          the gutter it sat at the top of the turn while the
+                          work scrolled away beneath it. */}
+                      <StarSpinner state="thinking" size={30} />
                       <Thinking
                         label={
                           runningTool ? "Building in Studio…" : "Thinking…"
@@ -1551,7 +1528,6 @@ export function ChatApp({
                         ))}
                     </div>
                   )}
-                </div>
               </div>
             ),
           )}
