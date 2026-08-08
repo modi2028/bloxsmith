@@ -109,7 +109,7 @@ export function Finale({ signUpHref }: { signUpHref: string }) {
             open ? "opacity-0" : "text-muted opacity-100"
           }`}
         >
-          {atBottom ? "Hover the mark" : "Scroll to the end"}
+          {atBottom ? "Hover over the star" : "Scroll to the end"}
         </p>
       </div>
     </section>
