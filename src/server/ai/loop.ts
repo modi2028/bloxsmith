@@ -783,6 +783,14 @@ export async function runAgentTurn(params: {
           resultBlocks.push(
             toolResultBlock(toolUse.id, outdatedPluginError(toolUse.name), true),
           );
+          // Say it ourselves rather than trusting the model to pass it on.
+          // When mesh generation is unavailable the model falls back to
+          // parts, and a user who asked for a mesh just sees grey boxes with
+          // no idea why.
+          await onEvent({
+            type: "notice",
+            text: `Your Studio plugin is too old for ${toolUse.name} — update Bloxsmith.lua from the Install page and restart Studio. Building from parts instead.`,
+          });
           await onEvent({
             type: "tool_result",
             id: toolUse.id,
@@ -1158,6 +1166,10 @@ export async function runAgentTurn(params: {
             ok: false,
             error: "Plugin outdated — update the Bloxsmith plugin in Studio",
           });
+          await onEvent({
+            type: "notice",
+            text: `Your Studio plugin is too old for ${toolUse.name} — update Bloxsmith.lua from the Install page and restart Studio. Building from parts instead.`,
+          });
         } else {
           resultBlocks.push(
             toolResultBlock(
@@ -1172,6 +1184,15 @@ export async function runAgentTurn(params: {
             ok: false,
             error: result.error.message,
           });
+          // Mesh generation failing is always something only the user can
+          // fix, and the fallback (parts) looks like the AI simply did a bad
+          // job. Put the reason in the transcript.
+          if (toolUse.name === "generate_model") {
+            await onEvent({
+              type: "notice",
+              text: `3D generation didn't run: ${result.error.message}`,
+            });
+          }
         }
       }
 

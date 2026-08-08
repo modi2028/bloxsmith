@@ -54,7 +54,11 @@ export const RECOMMENDED_MODEL_IDS = new Set(["glm-5.2", "chatgpt"]);
  * "Unmetered" means unmetered BY US, not unlimited: the upstream account has
  * its own real rate limits, which UNMETERED_TOKENS_5H below protects.
  */
-export const UNMETERED_MODEL_IDS = new Set(["chatgpt"]);
+// Empty since Titan moved to GLM-5.2. The concept stays because it is what
+// made an unmetered flagship possible: a model on a flat-rate subscription
+// costs nothing per token, so it need not draw on the allowance. Every model
+// in the lineup is billed per token now, so every model is metered.
+export const UNMETERED_MODEL_IDS = new Set<string>([]);
 
 export function isUnmeteredModel(modelId: string): boolean {
   return UNMETERED_MODEL_IDS.has(modelId);
@@ -173,14 +177,35 @@ export const EFFORT_TIERS: Record<
     max: { maxTokens: UNLIMITED_SESSION_TOKENS },
     unrestricted: { maxTokens: UNLIMITED_SESSION_TOKENS },
   },
+  // Vega (Gemini 2.5 Flash) — free rung. Sized by the FREE plan window, not
+  // the model's context: it has 1M, a free session may spend 26k of it.
+  "gemini-2.5-flash": {
+    low: { maxTokens: 8_000 },
+    medium: { maxTokens: 14_000 },
+    high: { maxTokens: 20_000 },
+    max: { maxTokens: 26_000 },
+  },
+  // Sol (GLM-4.7) — Pro. Inside both its own 200k context and the 200k Pro
+  // 5-hour window.
+  "glm-4.7": {
+    low: { maxTokens: 20_000 },
+    medium: { maxTokens: 50_000 },
+    high: { maxTokens: 100_000 },
+    max: { maxTokens: 150_000 },
+  },
   // Sol (glm-5.2) — Pro's model. Previously ran to 800k, which was FOUR TIMES
   // its own 200k context: those sessions could not physically complete. Now
   // capped at 160k, inside both the 200k context and the 200k Pro window.
+  // Titan (glm-5.2) — Max. NOT unlimited any more, and that is deliberate:
+  // Titan used to be unmetered because it rode a flat-rate subscription, so
+  // an uncapped session cost us nothing. On GLM-5.2 every token is billed, so
+  // max is capped at what its own 200k context can physically complete.
   "glm-5.2": {
     low: { maxTokens: 25_000 },
     medium: { maxTokens: 60_000 },
     high: { maxTokens: 110_000 },
     max: { maxTokens: 160_000 },
+    unrestricted: { maxTokens: 160_000 },
   },
 };
 
@@ -220,6 +245,9 @@ export const MODEL_LIMITS: Record<string, { contextK: number }> = {
   "glm-5-turbo": { contextK: 128 },
   "glm-5": { contextK: 200 },
   "glm-5.2": { contextK: 200 },
+  "glm-4.7": { contextK: 200 },
+  // Gemini 2.5 Flash really does take 1M; a free session may spend 26k of it.
+  "gemini-2.5-flash": { contextK: 1000 },
   // Real Codex ceiling. The picker advertising more context than the model
   // accepts would surface as a mystery failure mid-build.
   chatgpt: { contextK: 400 },
@@ -282,7 +310,7 @@ export function formatTokenLimit(n: number): string {
 }
 
 export const MODEL_CATALOG: CatalogModel[] = [
-  // ---- Live lineup: Luna -> Vega -> Sol -> Titan -----------------------------
+  // ---- Live lineup: Vega (free) -> Sol (pro) -> Titan (max) ------------------
   {
     // Luna — the free rung, now on ChatGPT 5.5 through the same Codex OAuth
     // proxy as Titan. Zero rates because a subscription-backed call costs us
@@ -295,7 +323,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     // that in proportion.
     modelId: "chatgpt-5.5",
     provider: "chatgpt",
-    displayName: "Luna",
+    displayName: "Luna (ChatGPT)",
     description: "Fast and free — quick tweaks and small builds",
     tier: "fast",
     inputCreditsPer1k: 0,
@@ -304,8 +332,10 @@ export const MODEL_CATALOG: CatalogModel[] = [
     maxCreditsPerRequest: 0,
     proOnly: false,
     minPlan: "free",
-    enabled: true,
-    isDefault: true,
+    // Retired: the Codex proxy proved too unreliable to sit under the free
+    // tier. Vega (Gemini 2.5 Flash) takes the rung.
+    enabled: false,
+    isDefault: false,
     sort: 10,
   },
   {
@@ -330,7 +360,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     // Retired: the lineup is Luna -> Sol -> Titan, three rungs, one per plan.
     modelId: "glm-5-turbo",
     provider: "zai",
-    displayName: "Vega",
+    displayName: "Vega (GLM)",
     description: "Balanced everyday building, free for everyone",
     tier: "balanced",
     inputCreditsPer1k: 0.002,
@@ -357,7 +387,7 @@ export const MODEL_CATALOG: CatalogModel[] = [
     // without hurting real users: the flagship doesn't draw on it.
     modelId: "chatgpt",
     provider: "chatgpt",
-    displayName: "Titan",
+    displayName: "Titan (ChatGPT)",
     description:
       "The flagship — biggest context, Creator Store, free of your allowance",
     tier: "flagship",
@@ -367,7 +397,8 @@ export const MODEL_CATALOG: CatalogModel[] = [
     maxCreditsPerRequest: 0,
     proOnly: true,
     minPlan: "max",
-    enabled: true,
+    // Retired: Titan is GLM-5.2 now.
+    enabled: false,
     // Never the default: it depends on a third-party proxy and an account
     // that can be cut off without notice, so a signed-out visitor's first
     // build must not land on it. (It is also Max-gated, so it could not be
@@ -453,13 +484,52 @@ export const MODEL_CATALOG: CatalogModel[] = [
     // top rung, and Pro's allowance is sized around this model's cost.
     modelId: "glm-5.2",
     provider: "zai",
-    displayName: "Sol",
-    description: "Deep thinking, web search, and Creator Store models",
-    tier: "balanced",
+    displayName: "Titan",
+    description: "The flagship — deep thinking, web search, Creator Store",
+    tier: "flagship",
     inputCreditsPer1k: 0.0045,
     outputCreditsPer1k: 0.0135,
     baseCost: 0.004,
     maxCreditsPerRequest: 0.5,
+    proOnly: true,
+    minPlan: "max",
+    enabled: true,
+    isDefault: false,
+    sort: 40,
+  },
+  {
+    // Vega — the free rung. Gemini 2.5 Flash: cheap, fast, 1M context, and on
+    // a provider we hold our own key for, which is the point. The rung it
+    // replaces sat on a pooled Codex OAuth session that could be cut off
+    // without notice, and was.
+    modelId: "gemini-2.5-flash",
+    provider: "google",
+    displayName: "Vega",
+    description: "Fast and free — quick tweaks and small builds",
+    tier: "fast",
+    inputCreditsPer1k: 0.001,
+    outputCreditsPer1k: 0.008,
+    baseCost: 0.001,
+    maxCreditsPerRequest: 0.25,
+    proOnly: false,
+    minPlan: "free",
+    enabled: true,
+    isDefault: true,
+    sort: 10,
+  },
+  {
+    // Sol — Pro's model. GLM-4.7: most of 5.2's build quality at roughly
+    // 40% of the token cost, which is what lets Pro's 750k weekly window
+    // stay where it is.
+    modelId: "glm-4.7",
+    provider: "zai",
+    displayName: "Sol",
+    description: "Strong builds with web search and Creator Store models",
+    tier: "balanced",
+    inputCreditsPer1k: 0.0019,
+    outputCreditsPer1k: 0.007,
+    baseCost: 0.002,
+    maxCreditsPerRequest: 0.4,
     proOnly: true,
     minPlan: "pro",
     enabled: true,

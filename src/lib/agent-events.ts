@@ -45,6 +45,12 @@ export type AgentEvent =
       ok?: boolean;
       error?: string;
     }
+  | {
+      // Something the USER has to act on, surfaced in the transcript rather
+      // than left to the model to remember to mention.
+      type: "notice";
+      text: string;
+    }
   | { type: "needs_plugin" }
   // The AI wants to insert a Creator Store asset it hasn't used before in
   // this project — the user approves once per asset id.

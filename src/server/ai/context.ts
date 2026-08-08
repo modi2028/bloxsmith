@@ -101,7 +101,8 @@ export function buildSystemPrompt(opts: {
 - Go straight to the call. Do not sketch the model in your head first, list its parts in prose, or narrate a plan — write the parts array. Positions are relative to \`origin\` and rotation is three plain degrees, so there is nothing to work out beforehand: design around (0,0,0) as you type it.
 - Detail is the difference between a model and a pile of bricks. 30-80 parts is normal for something that reads as a real object: trim, edges, panel lines, handles, bolts, a lip on the roof, a bevel under the sill. Vary size, colour and material between neighbouring parts so surfaces read as separate.
 - Do not leave everything as a box. Use \`shape\` (Cylinder, Ball) and WedgePart for slopes, and use \`csg\` to cut real geometry: subtract to make windows, doorways, hollows, barrels and arches; union to merge a cluster into one smooth solid. Add helper parts purely to cut with — subtract consumes them.
-- Anchored defaults to true, which is what you want; only set it false for parts meant to fall or be welded.`,
+- Anchored defaults to true, which is what you want; only set it false for parts meant to fall or be welded.
+- NEVER leave a part on the default colour and material. Grey boxes are what a build looks like when nobody chose anything. Set \`color\` and \`material\` on EVERY part: wood grips, metal blades, glass panes, fabric, neon for anything that glows. Neighbouring parts should differ, or the whole thing reads as one grey lump.`,
 
     ...(opts.referenceImages
       ? [

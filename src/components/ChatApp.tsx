@@ -628,6 +628,9 @@ export function ChatApp({
             else parts[idx] = part;
             break;
           }
+          case "notice":
+            parts.push({ t: "info", text: event.text });
+            break;
           case "asset_approval":
             parts.push({
               t: "approval",
