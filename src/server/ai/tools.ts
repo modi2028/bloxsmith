@@ -239,6 +239,40 @@ export function getStudioTools(
       },
     },
     {
+      name: "generate_model",
+      description:
+        "Generate a REAL textured 3D mesh from a text description using Roblox's own AI (Cube 3D), and place it in the game. This is the only tool that produces an actual mesh rather than parts — use it for the ONE hero object a build is really about: the creature, the vehicle, the statue, the centrepiece prop. " +
+        "It is slow (several seconds) and Roblox rate-limits it to a few per minute, so call it at most once or twice per build and NEVER for scenery, terrain, buildings, floors or anything you can make with build_model. " +
+        "schema 'Body1' gives a single object (default, use this almost always); 'Car5' gives a car with a separate body and four wheels. " +
+        "Describe the object in a few concrete words ('green dragon car with four wheels', 'stone gargoyle statue'). If it fails, it is a Studio setup problem — relay what the error says and build the thing with build_model instead.",
+      input_schema: {
+        type: "object",
+        properties: {
+          prompt: {
+            type: "string",
+            description: "The object, in a few concrete words.",
+          },
+          schema: {
+            type: "string",
+            enum: ["Body1", "Car5"],
+            description:
+              "'Body1' = one object (default). 'Car5' = car body plus four wheels.",
+          },
+          parent: { ...ref, description: "Parent (default ref:workspace)." },
+          name: { type: "string", description: "Name for the result." },
+          position: {
+            type: "array",
+            items: { type: "number" },
+            minItems: 3,
+            maxItems: 3,
+            description: "[x,y,z] world position to pivot it to.",
+          },
+        },
+        required: ["prompt"],
+        additionalProperties: false,
+      },
+    },
+    {
       name: "set_property",
       description:
         "Set one property on an existing instance. For several properties on a NEW instance, prefer create_instance's properties field.",

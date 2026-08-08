@@ -661,6 +661,104 @@ handlers.build_model = function(args)
 	}
 end
 
+-- Roblox's own text-to-3D (Cube 3D), through the engine rather than Open Cloud.
+--
+-- This is the one path that produces a real textured mesh and drops it
+-- straight into the place: no API key, no manual upload, no moderation queue,
+-- because the generation happens inside Studio and the result is already an
+-- Instance. GenerateModelAsync yields for several seconds and Roblox rate
+-- limits it to a handful per minute, so it is for the ONE hero object in a
+-- build, not for scenery.
+--
+-- The documented return is a (success, model, metadata) tuple, but Roblox's
+-- own example unpacks it as though the model comes first. Rather than bet on
+-- one reading, both are accepted below — this cannot be tested from outside
+-- Studio, and guessing wrong would break the feature silently.
+handlers.generate_model = function(args)
+	local service = game:FindService("GenerationService") or game:GetService("GenerationService")
+	if not service then
+		toolError(
+			"internal",
+			"This Studio version has no GenerationService — 3D generation needs a recent Roblox Studio."
+		)
+	end
+
+	local prompt = tostring(args.prompt)
+	local schemaName = if args.schema == "Car5" then "Car5" else "Body1"
+
+	local ok, a, b = pcall(function()
+		return (service :: any):GenerateModelAsync({ TextPrompt = prompt }, { PredefinedSchema = schemaName })
+	end)
+
+	if not ok then
+		local msg = tostring(a)
+		-- The common failures are all setup, not code: the beta is gated on an
+		-- age-verified account and on the Editable Mesh/Image APIs being
+		-- switched on for the place. Say that, because the raw error does not.
+		toolError(
+			"internal",
+			"3D generation failed: "
+				.. msg
+				.. " — check that your Roblox account is age-verified and that Editable Mesh / Editable Image APIs "
+				.. "are enabled in File -> Game Settings -> Security. Roblox also limits generations to a few per minute."
+		)
+	end
+
+	-- Tolerate both documented shapes.
+	local result: any = a
+	if typeof(a) == "boolean" then
+		if not a then
+			toolError("internal", "3D generation was refused: " .. tostring(b))
+		end
+		result = b
+	end
+
+	if typeof(result) ~= "Instance" then
+		toolError("internal", "3D generation returned nothing usable for '" .. prompt .. "'")
+	end
+
+	local model = result :: Instance
+	if args.name then
+		model.Name = tostring(args.name)
+	end
+	model.Parent = if args.parent then resolveRef(args.parent) else workspace
+
+	-- Position it, and anchor it: a generated model arrives unanchored and
+	-- falls through the world the moment the user presses play.
+	local meshes = 0
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			(d :: BasePart).Anchored = true
+			meshes += 1
+		end
+	end
+	if model:IsA("BasePart") then
+		(model :: BasePart).Anchored = true
+		meshes += 1
+	end
+
+	local pos = args.position
+	if typeof(pos) == "table" then
+		local target = CFrame.new(pos[1], pos[2], pos[3])
+		if model:IsA("Model") then
+			local m = model :: Model
+			if not m.PrimaryPart then
+				for _, d in m:GetDescendants() do
+					if d:IsA("BasePart") then
+						m.PrimaryPart = d :: BasePart
+						break
+					end
+				end
+			end
+			m:PivotTo(target)
+		elseif model:IsA("BasePart") then
+			(model :: BasePart).CFrame = target
+		end
+	end
+
+	return { ref = mintRef(model), className = model.ClassName, parts = meshes }
+end
+
 handlers.delete_instance = function(args)
 	local inst = resolveRef(args.target)
 	if WELL_KNOWN[args.target] then
@@ -781,6 +879,7 @@ end
 local MUTATING: { [string]: boolean } = {
 	create_instance = true,
 	build_model = true,
+	generate_model = true,
 	set_property = true,
 	write_script = true,
 	delete_instance = true,

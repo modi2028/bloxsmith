@@ -212,6 +212,17 @@ export const toolArgSchemas = {
       csg: z.array(csgOpSchema).max(40).optional(),
     })
     .strict(),
+  // Roblox's own text-to-3D (Cube 3D), run inside Studio by the plugin.
+  generate_model: z
+    .object({
+      prompt: z.string().trim().min(3).max(200),
+      // Roblox only ships two predefined schemas today.
+      schema: z.enum(["Body1", "Car5"]).optional(),
+      parent: refSchema.optional(),
+      name: z.string().min(1).max(60).optional(),
+      position: z.array(z.number()).length(3).optional(),
+    })
+    .strict(),
   // Server-side: draw a reference picture the model then looks at. Never
   // reaches the plugin.
   reference_image: z

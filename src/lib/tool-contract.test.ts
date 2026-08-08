@@ -149,3 +149,37 @@ it("build_model rejects colour channels outside 0-1", () => {
   assert.equal(r.ok, false);
 });
 });
+
+describe("generate_model", () => {
+  it("accepts a bare prompt", () => {
+    assert.equal(
+      validateToolArgs("generate_model", { prompt: "stone gargoyle statue" }).ok,
+      true,
+    );
+  });
+
+  it("only allows the two schemas Roblox actually ships", () => {
+    for (const schema of ["Body1", "Car5"]) {
+      assert.equal(
+        validateToolArgs("generate_model", { prompt: "a car", schema }).ok,
+        true,
+      );
+    }
+    // A hallucinated schema would fail inside Studio seconds later with a
+    // useless message; reject it here instead.
+    assert.equal(
+      validateToolArgs("generate_model", { prompt: "a car", schema: "Car4" }).ok,
+      false,
+    );
+  });
+
+  it("rejects a position that is not three numbers", () => {
+    assert.equal(
+      validateToolArgs("generate_model", {
+        prompt: "a car",
+        position: [0, 5],
+      }).ok,
+      false,
+    );
+  });
+});

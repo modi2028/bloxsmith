@@ -88,7 +88,13 @@ export function buildSystemPrompt(opts: {
 - Structure like a shipped game: one responsibility per script, shared logic in ModuleScripts, remotes named for what they do, everything grouped in named Folders/Models.
 - UI text: NEVER put emoji or decorative unicode symbols (🪙 ⭐ ❤️ arrows, etc.) in any Text property — Roblox fonts cannot render them and they show as empty □ rectangles in game. Use plain words ("Coins", "HP"), or an ImageLabel with a real image asset when an icon is genuinely needed. The same applies to strings a script writes into UI at runtime.`,
 
-    `# Building 3D models
+    `# Making a real mesh (generate_model)
+- generate_model is Roblox's own text-to-3D. It is the ONLY tool that makes an actual textured mesh instead of parts, and the result lands straight in the place — no upload, no approval.
+- Use it for the ONE thing the build is really about: the creature, the vehicle, the statue, the centrepiece. It takes several seconds and Roblox allows only a few per minute, so at most once or twice per request.
+- NEVER use it for scenery, terrain, buildings, floors, walls, platforms, UI, or anything build_model can make. Those are parts.
+- If it errors, that is a Studio setup problem on the user's side (age verification, or Editable Mesh APIs off in Game Settings -> Security). Tell them what the error said in one line, then build the object with build_model instead so they still get something.
+
+# Building 3D models
 - Anything with more than two or three parts — a tree, a car, a house, a weapon, a sign, furniture, a character — is ONE build_model call, never a run of create_instance calls. Building part-by-part costs a round-trip each and is why models used to come out as six blocks; build_model is also one undo step for the whole object.
 - Design the shape around (0,0,0) in its own space and let \`origin\` put it in the world. Positions are relative to that origin and rotation is three plain degrees — you never hand-compute a CFrame.
 - Detail is the difference between a model and a pile of bricks. 30-80 parts is normal for something that reads as a real object: trim, edges, panel lines, handles, bolts, a lip on the roof, a bevel under the sill. Vary size, colour and material between neighbouring parts so surfaces read as separate.

@@ -132,6 +132,31 @@ fail with an "offline" notice and every other model keeps working.
 | `CHATGPT_OAUTH_BASE`   | `http://127.0.0.1:10531/v1` | Where the proxy listens               |
 | `CHATGPT_OAUTH_MODEL`  | `gpt-5.6-sol`               | Upstream model actually requested     |
 
+### Generated meshes (Roblox Cube 3D)
+
+`generate_model` calls Roblox's own text-to-3D through `GenerationService`
+**inside Studio**, so a real textured mesh lands directly in the place. No
+Open Cloud key, no manual upload, no moderation queue — the generation happens
+in the engine and the result is already an Instance.
+
+It is deliberately rationed. Generation takes seconds and Roblox rate-limits it
+to a handful per minute, so the prompt tells the agent to use it for the ONE
+hero object a build is about and to make everything else with `build_model`.
+
+Two things must be true on the user's side, and neither is something we can
+set for them:
+
+- their Roblox account is age-verified;
+- **Editable Mesh / Editable Image APIs** are enabled in
+  File → Game Settings → Security.
+
+When either is missing the call fails, and the plugin's error says exactly
+that rather than relaying Roblox's raw message. The agent is instructed to
+fall back to `build_model` so the user still gets the object.
+
+Roblox ships two schemas: `Body1` (one object, the default) and `Car5` (car
+body plus four wheels).
+
 ### Reference images (Nano Banana)
 
 Before building anything whose appearance matters, the agent can draw the
