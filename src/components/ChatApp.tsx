@@ -153,6 +153,16 @@ function toolLabel(part: UiToolPart): string {
   switch (part.tool) {
     case "create_instance":
       return `Creating ${a.className}${a.name ? ` “${a.name}”` : ""}`;
+    case "build_model":
+      return `Building ${a.name ? `“${a.name}”` : "a model"}${
+        Array.isArray((part.args as { parts?: unknown[] }).parts)
+          ? ` — ${(part.args as { parts: unknown[] }).parts.length} parts`
+          : ""
+      }`;
+    case "generate_model":
+      return `Generating a 3D mesh${a.prompt ? ` — “${a.prompt}”` : ""}`;
+    case "reference_image":
+      return `Drawing a reference${a.subject ? ` — “${a.subject}”` : ""}`;
     case "set_property":
       return `Setting ${a.name ?? "a property"}`;
     case "write_script":
@@ -1152,10 +1162,19 @@ export function ChatApp({
               // deceleration rather than one indicator being swapped for
               // another.
               <div key={i} className="flex gap-3">
+                {/* Only the message being worked on animates. Earlier ones
+                    are `static` — a star that never runs the loop, so moving
+                    to a new message cannot make the old one play a closing
+                    animation. The star closes when the WORK finishes, not
+                    when a new bubble appears. */}
                 <StarSpinner
                   className="mt-1"
                   state={
-                    busy && i === messages.length - 1 ? "thinking" : "still"
+                    i !== messages.length - 1
+                      ? "static"
+                      : busy
+                        ? "thinking"
+                        : "still"
                   }
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-2.5">

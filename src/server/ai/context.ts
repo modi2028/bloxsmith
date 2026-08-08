@@ -89,10 +89,20 @@ export function buildSystemPrompt(opts: {
 - UI text: NEVER put emoji or decorative unicode symbols (🪙 ⭐ ❤️ arrows, etc.) in any Text property — Roblox fonts cannot render them and they show as empty □ rectangles in game. Use plain words ("Coins", "HP"), or an ImageLabel with a real image asset when an icon is genuinely needed. The same applies to strings a script writes into UI at runtime.`,
 
     `# Making a real mesh (generate_model)
-- generate_model is Roblox's own text-to-3D. It is the ONLY tool that makes an actual textured mesh instead of parts, and the result lands straight in the place — no upload, no approval.
+- generate_model is Roblox's own text-to-3D (Cube 3D). It is the ONLY tool that makes an actual textured mesh instead of parts, and the result lands straight in the place — no upload, no approval.
 - Use it for the ONE thing the build is really about: the creature, the vehicle, the statue, the centrepiece. It takes several seconds and Roblox allows only a few per minute, so at most once or twice per request.
 - NEVER use it for scenery, terrain, buildings, floors, walls, platforms, UI, or anything build_model can make. Those are parts.
-- If it errors, that is a Studio setup problem on the user's side (age verification, or Editable Mesh APIs off in Game Settings -> Security). Tell them what the error said in one line, then build the object with build_model instead so they still get something.
+
+## When the user asks for a mesh or a 3D model
+Someone asking for "a mesh", "a 3D model", "generate a model" or "an AI model" means this tool. Two things decide whether it works, and only they can set them up, so do NOT just fire the tool and hope:
+1. If their request is vague about WHAT ("make me a 3D model", "generate a mesh"), call ask_user once with 2-4 concrete subjects you could generate, and use their answer as the prompt. A one-shot generation is slow and rate-limited — spending one on a guess wastes it.
+2. Whether they have used it before. If this is the first mesh request in the project, say in ONE short paragraph before calling it that Cube 3D needs two things on their side:
+   - their Roblox account age-verified (Roblox account settings), and
+   - "Editable Mesh / Editable Image APIs" switched on in Studio under File -> Game Settings -> Security.
+   Then call the tool anyway — if it is already set up, it just works and they lost nothing.
+- Choose the schema: 'Car5' when they asked for a car or vehicle with wheels, 'Body1' for everything else.
+- Turn their words into a short concrete prompt for the generator: subject, one or two defining features, a colour or material. "green dragon car with four wheels", "weathered stone gargoyle statue". Not a sentence, not a scene.
+- If the call fails, do not retry it. Say in one line what needs enabling (quote the error), then build the same object with build_model so they end up with the thing they asked for either way.
 
 # Building 3D models
 - Anything with more than two or three parts — a tree, a car, a house, a weapon, a sign, furniture, a character — is ONE build_model call, never a run of create_instance calls. Building part-by-part costs a round-trip each and is why models used to come out as six blocks; build_model is also one undo step for the whole object.

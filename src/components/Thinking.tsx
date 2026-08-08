@@ -59,7 +59,7 @@ const LIGHT = "#EDEDF1";
 /** How far a point travels when fully open, in viewBox units (the box is 64). */
 const DRIFT = 8.6;
 /** Degrees per second while thinking. */
-const SPIN = 48;
+const SPIN = 78;
 /** How long one point takes to reach full travel, in seconds. */
 const OPEN_SECS = 0.5;
 /** Delay between neighbouring points starting to open, in seconds. */
@@ -95,30 +95,47 @@ export function starPose(
   };
 }
 
+/**
+ * The run's rotation and how long the star has been open, at MODULE level
+ * rather than per component.
+ *
+ * This is the fix for the pulse. The star lives in the gutter of the last
+ * assistant message, so when a build produces a new message the old spinner
+ * unmounts and a new one mounts. With the pose held per instance, the old one
+ * settled shut and the new one opened from zero — a close followed by an open,
+ * which is exactly the pulse it was not supposed to do. Shared here, the new
+ * spinner picks up mid-rotation and already open, and the handover is
+ * invisible. Only one star is ever thinking at a time, so there is nothing to
+ * contend over.
+ */
+const run = { angle: 0, elapsed: 0 };
+
 export function StarSpinner({
   state = "thinking",
   size = 18,
   className = "",
 }: {
-  state?: "thinking" | "still";
+  /**
+   * `thinking` opens and holds open while turning. `still` closes it — and is
+   * only ever passed when the WORK is finished. `static` is a star that never
+   * animates at all: earlier messages in the thread, whose turn is long over.
+   */
+  state?: "thinking" | "still" | "static";
   size?: number;
   className?: string;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const armRefs = useRef<(SVGGElement | null)[]>([]);
-  // Kept across state flips so the settle can start from wherever the star
-  // actually is rather than snapping to a known pose first.
-  const angle = useRef(0);
-  /** Seconds the star has been open. Survives state flips so the close starts
-   *  from the pose actually on screen. */
-  const elapsed = useRef(0);
+  /** Whether THIS instance ever ran the loop — a star that never span has
+   *  nothing to settle from and should just paint shut. */
+  const spun = useRef(false);
 
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
 
     const paint = (deg: number, amp: number) => {
-      const pose = starPose(deg, elapsed.current, amp);
+      const pose = starPose(deg, run.elapsed, amp);
       svg.style.transform = `rotate(${pose.rotate}deg)`;
       pose.arms.forEach((a, i) => {
         const g = armRefs.current[i];
@@ -130,10 +147,7 @@ export function StarSpinner({
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    // Nothing to animate: hold the assembled mark.
-    if (reduce || (state === "still" && angle.current === 0)) {
-      angle.current = 0;
-      elapsed.current = 0;
+    if (state === "static" || reduce || (state === "still" && !spun.current)) {
       paint(0, 0);
       return;
     }
@@ -141,7 +155,7 @@ export function StarSpinner({
     let raf = 0;
     let prev = 0;
     let settled = 0;
-    const fromAngle = angle.current;
+    const fromAngle = run.angle;
     // Coast to the nearest upright rather than stopping at whatever angle the
     // response happened to finish on — a mark left askew beside the answer
     // reads as broken, not as motion that ended.
@@ -152,25 +166,28 @@ export function StarSpinner({
       prev = now;
 
       if (state === "thinking") {
-        angle.current += SPIN * dt;
-        elapsed.current += dt;
-        paint(angle.current, 1);
+        spun.current = true;
+        run.angle += SPIN * dt;
+        run.elapsed += dt;
+        paint(run.angle, 1);
         raf = requestAnimationFrame(tick);
         return;
       }
 
       settled = Math.min(1, settled + (dt * 1000) / SETTLE_MS);
       const e = 1 - Math.pow(1 - settled, 3);
-      angle.current = fromAngle + (toAngle - fromAngle) * e;
+      run.angle = fromAngle + (toAngle - fromAngle) * e;
       // elapsed is left where it is: every piece is already fully out, so the
       // close is `amp` alone and the points come in together.
-      paint(angle.current, 1 - e);
+      paint(run.angle, 1 - e);
 
       if (settled < 1) {
         raf = requestAnimationFrame(tick);
       } else {
-        angle.current = 0;
-        elapsed.current = 0;
+        // The run is over — the next build starts from a closed star.
+        run.angle = 0;
+        run.elapsed = 0;
+        spun.current = false;
         paint(0, 0);
       }
     };
