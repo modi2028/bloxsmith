@@ -5,83 +5,91 @@ import { useEffect, useRef } from "react";
 /**
  * The star is the assistant's face, in two states.
  *
- * Thinking: it turns slowly while its five points drift out from the centre
- * and back, each on its own phase, so the mark breathes apart instead of
- * pulsing as one block. Finished: the same star, still and whole.
+ * Thinking: the five points push out from the centre — one after another, not
+ * all at once — and then HOLD there while the whole mark turns. It is open
+ * for as long as the work is running; the spin is what says it is alive, not
+ * a pulse. Finished: the points close back up and the rotation stops.
  *
- * Both states are the SAME element — the transition is a deceleration, not a
- * swap. When the answer lands the drift eases to zero and the rotation coasts
- * to the nearest upright, which is why this is driven by a rAF loop rather
- * than CSS keyframes: keyframes cannot be talked down from where they happen
- * to be when the state changes.
+ * Both states are the SAME element — finishing is a deceleration, not a swap.
+ * The pieces ease shut while the rotation coasts to the nearest upright,
+ * which is why this is a rAF loop rather than CSS keyframes: keyframes cannot
+ * be talked down from wherever they happen to be when the state changes.
  */
 
 /** Facet pairs from the brand mark, one entry per point, plus that point's
- *  outward axis (unit vector from the centre at 32,33 to the tip). */
+ *  outward axis. Unit vectors to six places: rounded to three they are off by
+ *  enough (point 2 came out at 1.000113 long) that a "fully open" piece
+ *  overshot the travel constant. */
 const ARMS = [
   {
     dark: "M32 33 L25.06 23.45 L32 3 Z",
     light: "M32 33 L32 3 L38.94 23.45 Z",
-    ux: 0,
-    uy: -1,
+    ux: 0.0,
+    uy: -1.0,
   },
   {
     dark: "M32 33 L38.94 23.45 L60.53 23.73 Z",
     light: "M32 33 L60.53 23.73 L43.22 36.65 Z",
-    ux: 0.951,
-    uy: -0.309,
+    ux: 0.951056,
+    uy: -0.309018,
   },
   {
     dark: "M32 33 L43.22 36.65 L49.63 57.27 Z",
     light: "M32 33 L49.63 57.27 L32 44.8 Z",
-    ux: 0.588,
-    uy: 0.809,
+    ux: 0.587716,
+    uy: 0.809068,
   },
   {
     dark: "M32 33 L32 44.8 L14.37 57.27 Z",
     light: "M32 33 L14.37 57.27 L20.78 36.65 Z",
-    ux: -0.588,
-    uy: 0.809,
+    ux: -0.587716,
+    uy: 0.809068,
   },
   {
     dark: "M32 33 L20.78 36.65 L3.47 23.73 Z",
     light: "M32 33 L3.47 23.73 L25.06 23.45 Z",
-    ux: -0.951,
-    uy: -0.309,
+    ux: -0.951056,
+    uy: -0.309018,
   },
 ];
 
 const DARK = "#83838C";
 const LIGHT = "#EDEDF1";
 
-/** How far a point travels at full spread, in viewBox units (the box is 64). */
-const DRIFT = 5.4;
-/** Degrees per second while thinking. Calm on purpose. */
-const SPIN = 26;
-/** Radians per second of the breathe cycle. */
-const BREATHE = 1.5;
-/** Stagger between neighbouring points, in seconds of breathe phase. */
-const STAGGER = 0.17;
-/** How long the star takes to come to rest once the answer lands. */
-const SETTLE_MS = 800;
+/** How far a point travels when fully open, in viewBox units (the box is 64). */
+const DRIFT = 8.6;
+/** Degrees per second while thinking. */
+const SPIN = 48;
+/** How long one point takes to reach full travel, in seconds. */
+const OPEN_SECS = 0.5;
+/** Delay between neighbouring points starting to open, in seconds. */
+const STAGGER = 0.08;
+/** How long the star takes to close and come to rest once the answer lands. */
+const SETTLE_MS = 700;
 
 /**
- * Where every piece sits for a given rotation, breathe phase and spread.
+ * Where every piece sits.
+ *
+ * `elapsed` is seconds since the star started opening, and it only matters
+ * until the last point has finished travelling — after that every piece is
+ * simply out, which is the whole point: it opens and stays open rather than
+ * breathing. `amp` scales the lot, so closing is nothing more than walking it
+ * from 1 down to 0 while the angle walks to a multiple of 360.
  *
  * Pulled out of the render loop so the geometry is testable without a
- * compositor: `amp` 0 is the assembled mark, 1 is full travel, and the settle
- * is nothing more than walking `amp` down to 0 while the angle walks to a
- * multiple of 360.
+ * compositor.
  */
 export function starPose(
   angleDeg: number,
-  phase: number,
+  elapsed: number,
   amp: number,
 ): { rotate: number; arms: { x: number; y: number }[] } {
   return {
     rotate: angleDeg,
     arms: ARMS.map((arm, i) => {
-      const s = amp * 0.5 * (1 - Math.cos((phase - i * STAGGER) * BREATHE));
+      const t = Math.min(1, Math.max(0, (elapsed - i * STAGGER) / OPEN_SECS));
+      // Ease-out: the piece leaves the centre quickly and arrives gently.
+      const s = amp * (1 - Math.pow(1 - t, 3));
       return { x: arm.ux * DRIFT * s, y: arm.uy * DRIFT * s };
     }),
   };
@@ -101,14 +109,16 @@ export function StarSpinner({
   // Kept across state flips so the settle can start from wherever the star
   // actually is rather than snapping to a known pose first.
   const angle = useRef(0);
-  const phase = useRef(0);
+  /** Seconds the star has been open. Survives state flips so the close starts
+   *  from the pose actually on screen. */
+  const elapsed = useRef(0);
 
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
 
     const paint = (deg: number, amp: number) => {
-      const pose = starPose(deg, phase.current, amp);
+      const pose = starPose(deg, elapsed.current, amp);
       svg.style.transform = `rotate(${pose.rotate}deg)`;
       pose.arms.forEach((a, i) => {
         const g = armRefs.current[i];
@@ -123,7 +133,7 @@ export function StarSpinner({
     // Nothing to animate: hold the assembled mark.
     if (reduce || (state === "still" && angle.current === 0)) {
       angle.current = 0;
-      phase.current = 0;
+      elapsed.current = 0;
       paint(0, 0);
       return;
     }
@@ -143,7 +153,7 @@ export function StarSpinner({
 
       if (state === "thinking") {
         angle.current += SPIN * dt;
-        phase.current += dt;
+        elapsed.current += dt;
         paint(angle.current, 1);
         raf = requestAnimationFrame(tick);
         return;
@@ -152,15 +162,15 @@ export function StarSpinner({
       settled = Math.min(1, settled + (dt * 1000) / SETTLE_MS);
       const e = 1 - Math.pow(1 - settled, 3);
       angle.current = fromAngle + (toAngle - fromAngle) * e;
-      // The breathe slows with the spin instead of being cut off mid-stride.
-      phase.current += dt * (1 - e);
+      // elapsed is left where it is: every piece is already fully out, so the
+      // close is `amp` alone and the points come in together.
       paint(angle.current, 1 - e);
 
       if (settled < 1) {
         raf = requestAnimationFrame(tick);
       } else {
         angle.current = 0;
-        phase.current = 0;
+        elapsed.current = 0;
         paint(0, 0);
       }
     };
