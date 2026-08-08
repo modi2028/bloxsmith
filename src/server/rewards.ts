@@ -62,29 +62,57 @@ export function utcDayString(d: Date): string {
  * null when the (unauthenticated, public) Roblox API can't be reached — the
  * caller must treat that as "unverified", never as "old enough".
  */
+/**
+ * When the Roblox account was made.
+ *
+ * Cached on the user row after the first successful lookup, because this is
+ * the only thing standing between the daily reward and an alt farm — and
+ * because the lookup is the fragile part. users.roblox.com rate-limits
+ * datacenter IPs hard, and this runs on Railway, so a single 429 used to mean
+ * "Couldn't verify your Roblox account age" for every claim, forever. The
+ * reward simply never worked in production.
+ *
+ * Retried, then fallen back to OUR OWN signup date rather than failing shut.
+ * That still bites on the case the gate exists for — a fresh alt has a fresh
+ * Bloxsmith account too — while a real user with months of history can
+ * collect even when Roblox will not answer us.
+ */
 async function getRobloxCreatedAt(user: {
   id: string;
   robloxUserId: number;
   robloxCreatedAt: Date | null;
+  createdAt?: Date | null;
 }): Promise<Date | null> {
   if (user.robloxCreatedAt) return user.robloxCreatedAt;
-  try {
-    const res = await fetch(
-      `https://users.roblox.com/v1/users/${user.robloxUserId}`,
-      { signal: AbortSignal.timeout(5000), cache: "no-store" },
-    );
-    if (!res.ok) return null;
-    const body = (await res.json()) as { created?: string };
-    const created = body.created ? new Date(body.created) : null;
-    if (!created || isNaN(created.getTime())) return null;
-    await db
-      .update(schema.users)
-      .set({ robloxCreatedAt: created })
-      .where(eq(schema.users.id, user.id));
-    return created;
-  } catch {
-    return null;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(
+        `https://users.roblox.com/v1/users/${user.robloxUserId}`,
+        { signal: AbortSignal.timeout(5000), cache: "no-store" },
+      );
+      if (res.status === 429 || res.status >= 500) {
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+        continue;
+      }
+      if (!res.ok) break;
+      const body = (await res.json()) as { created?: string };
+      const created = body.created ? new Date(body.created) : null;
+      if (!created || isNaN(created.getTime())) break;
+      await db
+        .update(schema.users)
+        .set({ robloxCreatedAt: created })
+        .where(eq(schema.users.id, user.id));
+      return created;
+    } catch {
+      // Timeout or network error — same treatment as a 429.
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
   }
+
+  // Roblox is not answering. Deliberately NOT persisted: the real date should
+  // still replace this the moment the lookup succeeds.
+  return user.createdAt ?? null;
 }
 
 export type RewardStatus = {
