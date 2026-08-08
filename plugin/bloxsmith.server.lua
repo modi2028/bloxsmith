@@ -471,6 +471,196 @@ handlers.write_script = function(args)
 	return { ref = mintRef(script), lineCount = lineCount }
 end
 
+-- Build a whole model in one call.
+--
+-- This exists because building a model through repeated create_instance calls
+-- costs one network round-trip per part, and a model that reads as a real
+-- object is 30-80 parts. The agent ran out of budget long before the shape was
+-- finished, which is why builds came out blocky. Here the whole hierarchy
+-- arrives at once, and because executeCall wraps a mutating tool in a single
+-- ChangeHistoryService recording, the user's undo removes the model as one
+-- thing rather than eighty.
+--
+-- Part positions are model-relative and rotations are degrees; the CFrame is
+-- assembled here rather than by the model, which is the other half of why
+-- hand-built geometry used to drift out of alignment.
+
+local MATERIAL_FALLBACK = Enum.Material.Plastic
+
+local function applyModelPart(spec: { [string]: any }, origin: Vector3, model: Model): BasePart
+	local className = spec.className or "Part"
+	local okNew, made = pcall(Instance.new, className)
+	if not okNew or not (made :: any):IsA("BasePart") then
+		toolError("invalid_args", "Part '" .. tostring(spec.name) .. "' has an unusable className: " .. tostring(className))
+	end
+	local part = made :: BasePart
+	part.Name = tostring(spec.name)
+
+	local sz = spec.size
+	part.Size = Vector3.new(sz[1], sz[2], sz[3])
+
+	local pos = spec.position
+	local cf = CFrame.new(origin + Vector3.new(pos[1], pos[2], pos[3]))
+	local rot = spec.rotation
+	if typeof(rot) == "table" then
+		cf = cf * CFrame.fromOrientation(math.rad(rot[1]), math.rad(rot[2]), math.rad(rot[3]))
+	end
+	part.CFrame = cf
+
+	-- Anchored by default: an un-anchored build collapses the instant the user
+	-- presses play, which reads as the AI having made something broken.
+	part.Anchored = if spec.anchored == nil then true else spec.anchored == true
+
+	if typeof(spec.color) == "table" then
+		local c = spec.color
+		part.Color = Color3.new(c[1], c[2], c[3])
+	end
+	if typeof(spec.transparency) == "number" then
+		part.Transparency = spec.transparency
+	end
+	if typeof(spec.material) == "string" then
+		-- An unknown material name is not worth failing a whole model over.
+		local okMat, mat = pcall(function()
+			return (Enum.Material :: any)[spec.material]
+		end)
+		part.Material = if okMat and mat then mat else MATERIAL_FALLBACK
+	end
+	if typeof(spec.shape) == "string" and part:IsA("Part") then
+		local okShape, shape = pcall(function()
+			return (Enum.PartType :: any)[spec.shape]
+		end)
+		if okShape and shape then
+			(part :: Part).Shape = shape
+		end
+	end
+
+	if typeof(spec.properties) == "table" then
+		for name, rawValue in spec.properties :: { [string]: unknown } do
+			setProperty(part, name, rawValue)
+		end
+	end
+
+	part.Parent = model
+	return part
+end
+
+handlers.build_model = function(args)
+	local parent = resolveRef(args.parent)
+	local specs = args.parts
+	if typeof(specs) ~= "table" or #specs == 0 then
+		toolError("invalid_args", "build_model needs at least one part")
+	end
+
+	local o = args.origin
+	local origin = if typeof(o) == "table" then Vector3.new(o[1], o[2], o[3]) else Vector3.zero
+
+	local model = Instance.new("Model")
+	model.Name = tostring(args.name)
+
+	-- Built by name so csg can address parts the model has not seen a ref for.
+	local byName: { [string]: BasePart } = {}
+	for _, spec in specs :: { { [string]: any } } do
+		local part = applyModelPart(spec, origin, model)
+		byName[part.Name] = part
+	end
+
+	-- Parent before CSG: UnionAsync and SubtractAsync need the parts to be in
+	-- the DataModel, and they yield.
+	model.Parent = parent
+
+	local unions = 0
+	local csgFailures: { string } = {}
+	if typeof(args.csg) == "table" then
+		for _, step in args.csg :: { { [string]: any } } do
+			local names = step.parts
+			if typeof(names) ~= "table" or #names == 0 then
+				continue
+			end
+
+			local others: { BasePart } = {}
+			for _, n in names :: { string } do
+				local p = byName[tostring(n)]
+				-- Silently skipping a missing name would produce a model that
+				-- is subtly wrong; say which name did not resolve.
+				if not p or not p.Parent then
+					table.insert(csgFailures, "unknown part '" .. tostring(n) .. "'")
+					others = {}
+					break
+				end
+				table.insert(others, p)
+			end
+			if #others == 0 then
+				continue
+			end
+
+			local base: BasePart? = nil
+			if step.action == "subtract" then
+				base = byName[tostring(step.base)]
+				if not base or not (base :: BasePart).Parent then
+					table.insert(csgFailures, "subtract needs a valid base, got '" .. tostring(step.base) .. "'")
+					continue
+				end
+			else
+				-- union: the first named part is the one the rest merge into.
+				base = table.remove(others, 1)
+				if #others == 0 then
+					continue
+				end
+			end
+
+			local okCsg, result = pcall(function()
+				if step.action == "subtract" then
+					return (base :: any):SubtractAsync(others)
+				end
+				return (base :: any):UnionAsync(others)
+			end)
+
+			if not okCsg or not result then
+				-- CSG is genuinely refusable (too many faces, degenerate
+				-- geometry). Leave the loose parts in place — a slightly
+				-- blockier model beats a destroyed one — and report it.
+				table.insert(csgFailures, tostring(step.action) .. " failed: " .. tostring(result))
+				continue
+			end
+
+			local union = result :: BasePart
+			union.Name = if typeof(step.name) == "string" then step.name else (base :: BasePart).Name
+			union.Parent = model;
+			(base :: BasePart):Destroy()
+			for _, p in others do
+				p:Destroy()
+			end
+			byName[union.Name] = union
+			unions += 1
+		end
+	end
+
+	-- A model with no PrimaryPart cannot be moved or pivoted as a unit, which
+	-- is the first thing anyone tries to do with it.
+	if not model.PrimaryPart then
+		for _, d in model:GetChildren() do
+			if d:IsA("BasePart") then
+				model.PrimaryPart = d :: BasePart
+				break
+			end
+		end
+	end
+
+	local parts = 0
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			parts += 1
+		end
+	end
+
+	return {
+		ref = mintRef(model),
+		parts = parts,
+		unions = unions,
+		warnings = if #csgFailures > 0 then csgFailures else nil,
+	}
+end
+
 handlers.delete_instance = function(args)
 	local inst = resolveRef(args.target)
 	if WELL_KNOWN[args.target] then
@@ -590,6 +780,7 @@ end
 
 local MUTATING: { [string]: boolean } = {
 	create_instance = true,
+	build_model = true,
 	set_property = true,
 	write_script = true,
 	delete_instance = true,
@@ -623,7 +814,16 @@ local function executeCall(call: { [string]: any }): { [string]: any }
 		return finish(false, { __toolError = true, code = "unsupported_version", message = "Plugin update required" })
 	end
 	if not handler then
-		return finish(false, { __toolError = true, code = "internal", message = "Unknown tool " .. tostring(call.tool) })
+		-- Almost always an old plugin against a newer backend: the server has
+		-- learned a tool this build does not implement. Say so, rather than
+		-- reporting it as an internal fault.
+		return finish(false, {
+			__toolError = true,
+			code = "internal",
+			message = "This Bloxsmith plugin is out of date — it does not support '"
+				.. tostring(call.tool)
+				.. "'. Update the plugin in Studio (Plugins -> Manage Plugins -> Bloxsmith) and try again.",
+		})
 	end
 
 	local recording: string? = nil

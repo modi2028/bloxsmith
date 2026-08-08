@@ -75,6 +75,45 @@ export const propertyValueSchema: z.ZodType<unknown> = z.union([
 
 const propertiesRecord = z.record(z.string(), propertyValueSchema);
 
+/**
+ * One part inside a build_model call.
+ *
+ * `position` is relative to the model's origin and `rotation` is degrees on
+ * each axis — both chosen over a raw CFrame because a 12-number matrix is the
+ * single thing models get wrong most often, and getting it wrong means the
+ * build silently falls apart rather than failing loudly.
+ */
+const modelPartSchema = z
+  .object({
+    name: z.string().min(1).max(60),
+    className: z.string().min(1).max(40).optional(),
+    shape: z.enum(["Block", "Ball", "Cylinder", "Wedge", "CornerWedge"]).optional(),
+    size: z.array(z.number()).length(3),
+    position: z.array(z.number()).length(3),
+    rotation: z.array(z.number()).length(3).optional(),
+    color: z.array(z.number().min(0).max(1)).length(3).optional(),
+    material: z.string().max(40).optional(),
+    transparency: z.number().min(0).max(1).optional(),
+    anchored: z.boolean().optional(),
+    // Anything the shorthand above does not cover.
+    properties: propertiesRecord.optional(),
+  })
+  .strict();
+
+/**
+ * A solid-modelling step, run after every part exists. Parts are addressed by
+ * their `name` within the same call — refs do not exist yet at authoring time.
+ */
+const csgOpSchema = z
+  .object({
+    action: z.enum(["union", "subtract"]),
+    // subtract only: the solid being cut.
+    base: z.string().min(1).max(60).optional(),
+    parts: z.array(z.string().min(1).max(60)).min(1).max(20),
+    name: z.string().min(1).max(60).optional(),
+  })
+  .strict();
+
 // --- Per-tool argument schemas (what the model produces) -------------------
 
 export const toolArgSchemas = {
@@ -157,6 +196,22 @@ export const toolArgSchemas = {
     .object({ steps: z.number().int().min(1).max(200) })
     .strict(),
   // Server-side: save a durable note so later sessions know it. Never
+  // Build a whole model in ONE call.
+  //
+  // The point of this tool is that it is bulk AND that it lets the model
+  // think in the shape's own space: every part's position is relative to the
+  // model origin and rotation is three plain degrees, so the model is not
+  // hand-computing world CFrames per part. One call per model also means one
+  // undo waypoint, which is what a user expects "undo the tree" to do.
+  build_model: z
+    .object({
+      name: z.string().min(1).max(60),
+      parent: refSchema,
+      origin: z.array(z.number()).length(3).optional(),
+      parts: z.array(modelPartSchema).min(1).max(150),
+      csg: z.array(csgOpSchema).max(40).optional(),
+    })
+    .strict(),
   // reaches the plugin.
   remember: z
     .object({
@@ -269,6 +324,23 @@ export function validateToolArgs(
     for (const [name, value] of Object.entries(a.properties ?? {})) {
       if (typeof value === "string" && GEOMETRIC_PROP_RE.test(name)) {
         return { ok: false, error: stringValueError(name) };
+      }
+    }
+  }
+
+  // build_model carries the same escape hatch per part, so it can be got
+  // wrong the same way — and there it is worse, because one bad string in a
+  // sixty-part call would land most of the model correctly and one part in
+  // the wrong place.
+  if (tool === "build_model") {
+    const a = parsed.data as unknown as {
+      parts: { name: string; properties?: Record<string, unknown> }[];
+    };
+    for (const part of a.parts) {
+      for (const [name, value] of Object.entries(part.properties ?? {})) {
+        if (typeof value === "string" && GEOMETRIC_PROP_RE.test(name)) {
+          return { ok: false, error: `${part.name}: ${stringValueError(name)}` };
+        }
       }
     }
   }

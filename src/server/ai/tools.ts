@@ -87,7 +87,7 @@ export function getStudioTools(
     {
       name: "create_instance",
       description:
-        "Create a new instance (Part, Model, Folder, RemoteEvent, etc.) under a parent. Use for everything except scripts — scripts are created with write_script. Set properties in the same call when you know them.",
+        "Create ONE instance (Part, Model, Folder, RemoteEvent, etc.) under a parent. Use for single instances and for non-visual objects. To build anything made of several parts — a tree, a vehicle, a building, a prop — use build_model instead; creating a model one part at a time here will exhaust your budget before the model is finished.",
       input_schema: {
         type: "object",
         properties: {
@@ -104,6 +104,133 @@ export function getStudioTools(
           },
         },
         required: ["className", "parent"],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "build_model",
+      description:
+        "Build a complete model in ONE call — this is the RIGHT way to make anything with more than two or three parts (a tree, a car, a house, a weapon, furniture, a character). Do NOT build models by calling create_instance repeatedly; that wastes your budget on round-trips and is why builds come out blocky and unfinished. " +
+        "Every part's position is RELATIVE to the model origin, and rotation is three plain degrees — so design the shape in its own space around (0,0,0) and let origin place it in the world. " +
+        "Spend your detail here: 30-80 parts makes something that reads as a real object, 6 parts makes a pile of bricks. Use small parts for trim, edges, handles and panel lines — those details are what separate a good model from a blocky one. " +
+        "Use csg to cut holes and shape curves: subtract removes the listed parts from base (windows, doorways, barrels, hollows), union merges parts into one smooth solid. Parts consumed by csg disappear, so add helper parts purely to cut with.",
+      input_schema: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Name for the Model." },
+          parent: ref,
+          origin: {
+            type: "array",
+            items: { type: "number" },
+            minItems: 3,
+            maxItems: 3,
+            description:
+              "[x,y,z] world position the model is built around. Default [0,0,0]. Every part's position is measured from here.",
+          },
+          parts: {
+            type: "array",
+            minItems: 1,
+            maxItems: 150,
+            description: "The parts making up the model.",
+            items: {
+              type: "object",
+              properties: {
+                name: {
+                  type: "string",
+                  description:
+                    "Unique within this call. csg refers to parts by this name.",
+                },
+                className: {
+                  type: "string",
+                  description: "Default 'Part'. Use 'WedgePart' for ramps and roof slopes.",
+                },
+                shape: {
+                  type: "string",
+                  enum: ["Block", "Ball", "Cylinder", "Wedge", "CornerWedge"],
+                  description: "Part.Shape. Cylinder and Ball are how you avoid an all-boxes look.",
+                },
+                size: {
+                  type: "array",
+                  items: { type: "number" },
+                  minItems: 3,
+                  maxItems: 3,
+                  description: "[x,y,z] studs.",
+                },
+                position: {
+                  type: "array",
+                  items: { type: "number" },
+                  minItems: 3,
+                  maxItems: 3,
+                  description: "[x,y,z] RELATIVE to origin, part centre.",
+                },
+                rotation: {
+                  type: "array",
+                  items: { type: "number" },
+                  minItems: 3,
+                  maxItems: 3,
+                  description: "[x,y,z] degrees. Omit for none.",
+                },
+                color: {
+                  type: "array",
+                  items: { type: "number" },
+                  minItems: 3,
+                  maxItems: 3,
+                  description: "[r,g,b] as 0-1 floats.",
+                },
+                material: {
+                  type: "string",
+                  description:
+                    "Enum.Material name: Wood, Brick, Metal, Grass, Slate, Neon, Glass, Concrete, Sand, Fabric, Marble, Plastic.",
+                },
+                transparency: { type: "number", minimum: 0, maximum: 1 },
+                anchored: {
+                  type: "boolean",
+                  description: "Default true. Only set false for parts meant to fall or be welded.",
+                },
+                properties: {
+                  type: "object",
+                  description:
+                    "Anything the fields above do not cover, in full property-value form.",
+                  additionalProperties: propertyValue,
+                },
+              },
+              required: ["name", "size", "position"],
+              additionalProperties: false,
+            },
+          },
+          csg: {
+            type: "array",
+            maxItems: 40,
+            description:
+              "Solid modelling, applied once every part exists. Parts are named, not refs.",
+            items: {
+              type: "object",
+              properties: {
+                action: {
+                  type: "string",
+                  enum: ["union", "subtract"],
+                  description:
+                    "'subtract' cuts parts out of base; 'union' merges parts into one solid.",
+                },
+                base: {
+                  type: "string",
+                  description: "subtract only: the part being cut into.",
+                },
+                parts: {
+                  type: "array",
+                  items: { type: "string" },
+                  minItems: 1,
+                  description:
+                    "subtract: the cutters. union: the parts to merge.",
+                },
+                name: { type: "string", description: "Name for the result." },
+              },
+              required: ["action", "parts"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["name", "parent", "parts"],
         additionalProperties: false,
       },
     },
