@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isUnmeteredModel, type EffortId } from "@/lib/model-catalog";
-import { CostPreview } from "./CostPreview";
 import { ModelPicker, type ChatModel } from "./ModelPicker";
 import { StudioStatus } from "./StudioStatus";
 
@@ -269,7 +268,6 @@ export function ChatComposer({
               isStaff={isStaff}
               disabled={busy}
             />
-            {effort && <CostPreview modelId={modelId} effort={effort} />}
             {/* On an unmetered model the plan meter would sit motionless
                 through the whole build, because that model never draws on it.
                 Show that model's own fair-use window instead, so the number
