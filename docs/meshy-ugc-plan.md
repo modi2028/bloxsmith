@@ -109,3 +109,36 @@ Two candidate routes:
 4. The wheel UI and the LOD slider on top of the working pipeline.
 5. Progress animation last — it is polish, and it needs the pipeline stable
    to have anything to animate.
+
+## In-Studio generation staging
+
+Wanted: while a mesh generates, a portal in the workspace — glowing disc on
+the ground, dark ring with a progress arc, the reference picture inside it —
+and the mesh materialising from it when it lands.
+
+Buildable now, no blockers:
+
+- A `Part` disc (cylinder, thin, Neon, tinted) at the target position, with a
+  `SurfaceGui` or dashed edge for the outline.
+- A `BillboardGui` above it holding the ring and the arc. The arc is the
+  `progress` value already streaming from Meshy — the plugin needs it pushed,
+  which means a `mesh_progress` tool call to Studio or a small poll endpoint.
+  A queued tool call is the cheaper route: the transport exists.
+- On completion, fade the staging out and tween the MeshPart up from inside
+  the ring. `build_ugc` already returns the part, so this is a tween on a
+  thing that exists.
+
+Blocked on one thing: **the reference picture itself.**
+
+Roblox only renders `rbxassetid://` in an ImageLabel, so the Supabase URL
+cannot be shown. Same wall as the mesh, same way through: `EditableImage`
+(`AssetService:CreateEditableImage`, then `WritePixelsBuffer`), which needs
+raw pixels sent to the plugin rather than a URL.
+
+Sizing matters here. A 256x256 RGBA thumbnail is 262,144 bytes; as a JSON
+array of numbers that is megabytes and will not go through the tool queue
+sensibly. Downscale to 128x128 server-side and send base64 — ~87KB encoded —
+then decode into a buffer in Lua. Verify the queue's payload limit first.
+
+Order: build the staging without the picture (it is most of the effect), then
+add EditableImage once the pixel path is measured.
