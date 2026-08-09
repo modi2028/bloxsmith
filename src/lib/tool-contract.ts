@@ -251,6 +251,8 @@ export const toolArgSchemas = {
       /** Stamped on the part so the LOD wheel can regenerate it. */
       subject: z.string().max(200).optional(),
       polycount: z.number().int().min(100).max(300_000).optional(),
+      /** Replace this part in place — an LOD change, not a second copy. */
+      replaceRef: refSchema.optional(),
     })
     .strict(),
   // Server-side: draw a reference picture the model then looks at. Never

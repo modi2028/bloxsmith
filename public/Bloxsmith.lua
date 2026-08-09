@@ -18,6 +18,8 @@ local HttpService = game:GetService("HttpService")
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local AssetService = game:GetService("AssetService")
 local Selection = game:GetService("Selection")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
 
 -- The Bloxsmith website URL the plugin talks to.
 --   • For the PUBLISHED plugin, set BASE_URL_DEFAULT to your live domain
@@ -872,15 +874,41 @@ handlers.build_ugc = function(args)
 
 	local part = made :: MeshPart
 	part.Name = tostring(args.name)
+
+	-- An LOD change replaces the mesh rather than adding a second one beside
+	-- it, and inherits its pose so the object does not appear to jump.
+	local replacing: BasePart? = nil
+	if args.replaceRef then
+		local okOld, old = pcall(resolveRef, args.replaceRef)
+		if okOld and typeof(old) == "Instance" and old:IsA("BasePart") then
+			replacing = old :: BasePart
+		end
+	end
+	if replacing then
+		part.CFrame = (replacing :: BasePart).CFrame
+		part.Parent = (replacing :: BasePart).Parent
+	end
 	-- Anchored, like everything else we create: an un-anchored generated mesh
 	-- falls through the world the moment the user presses play.
 	part.Anchored = true
-	part.Parent = if args.parent then resolveRef(args.parent) else workspace
+	if not part.Parent then
+		part.Parent = if args.parent then resolveRef(args.parent) else workspace
+	end
+	if replacing then
+		(replacing :: BasePart):Destroy()
+	end
 
+	-- An explicit position wins; inheriting the old pose is only the default.
 	local pos = args.position
-	if typeof(pos) == "table" then
+	if typeof(pos) == "table" and not replacing then
 		part.CFrame = CFrame.new(pos[1], pos[2], pos[3])
 	end
+
+	-- Stamped on the part so the LOD wheel can re-run the SAME subject at a
+	-- different polycount without asking the user to describe it again. The
+	-- geometry is disposable; the description is the thing worth keeping.
+	part:SetAttribute("BSSubject", tostring(args.subject or args.name))
+	part:SetAttribute("BSPolycount", tonumber(args.polycount) or 0)
 
 	return {
 		ref = mintRef(part),
@@ -1369,3 +1397,379 @@ else
 	widget.Enabled = true
 	autoConnect()
 end
+
+--------------------------------------------------------------------------
+-- The wheel
+--------------------------------------------------------------------------
+--
+-- A radial menu over the viewport for whatever generated mesh is selected.
+-- The actions you want on a generated mesh — change its detail, re-roll it,
+-- delete it — are per-object, and hunting for them in a docked panel while
+-- looking at the object is the wrong shape of interaction.
+--
+-- Segments are data rather than seven hand-placed frames, because the first
+-- design change would have rewritten all of them. They are rounded buttons
+-- pushed out along the ring rather than true pie slices: Roblox does not
+-- hit-test rotated frames, and this keeps every label upright and readable.
+
+local WHEEL_RADIUS = 148
+local WHEEL_INNER = 60
+local MIN_POLY, MAX_POLY = 500, 200000
+
+local SEGMENTS = {
+	{ id = "lod", label = "LOD", accent = true },
+	{ id = "reroll", label = "Re-roll" },
+	{ id = "duplicate", label = "Duplicate" },
+	{ id = "focus", label = "Focus" },
+	{ id = "export", label = "Export" },
+	{ id = "delete", label = "Delete" },
+}
+
+local ACCENT = Color3.fromRGB(120, 230, 130)
+local PANEL = Color3.fromRGB(24, 24, 28)
+local PANEL_HOVER = Color3.fromRGB(36, 36, 42)
+local ACCENT_BG = Color3.fromRGB(28, 44, 30)
+local ACCENT_HOVER = Color3.fromRGB(38, 60, 42)
+
+local wheelGui: ScreenGui? = nil
+local wheelTarget: BasePart? = nil
+
+local function round(frame: Instance, r: number)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r)
+	c.Parent = frame
+end
+
+--- The selected part, but only if WE made it — the wheel's actions all
+--- depend on the stamped description, so anything else is not a target.
+local function selectedMesh(): BasePart?
+	for _, inst in Selection:Get() do
+		if inst:IsA("BasePart") and inst:GetAttribute("BSSubject") then
+			return inst :: BasePart
+		end
+	end
+	return nil
+end
+
+local function closeWheel()
+	if wheelGui then
+		wheelGui:Destroy()
+		wheelGui = nil
+	end
+	wheelTarget = nil
+end
+
+local function toast(message: string)
+	warn("[Bloxsmith] " .. message)
+end
+
+--- Ask the backend for the same subject at a new detail.
+---
+--- The plugin polls for work and cannot push a tool call, so this goes to
+--- /api/plugin/remesh and the geometry comes back through the ordinary queue
+--- as a build_ugc. The subject is read off the part, which is what makes this
+--- a detail dial rather than a fresh prompt.
+local function requestRemesh(part: BasePart, polycount: number)
+	local subject = part:GetAttribute("BSSubject")
+	if typeof(subject) ~= "string" or subject == "" then
+		toast("This mesh has no stored description — regenerate it from chat.")
+		return
+	end
+	if not token then
+		toast("Connect the plugin to Bloxsmith first.")
+		return
+	end
+
+	toast(string.format("Rebuilding at %d triangles — this takes a minute.", polycount))
+	task.spawn(function()
+		local body, err = request("POST", "/api/plugin/remesh", {
+			subject = subject,
+			polycount = polycount,
+			replaceRef = instanceToRef[part],
+			position = { part.Position.X, part.Position.Y, part.Position.Z },
+			name = part.Name,
+		}, token)
+		if err then
+			toast("Re-mesh failed: " .. tostring(err))
+		elseif typeof(body) == "table" and body.error then
+			toast("Re-mesh failed: " .. tostring(body.error))
+		end
+	end)
+end
+
+local function openLodPanel(parent: Instance, part: BasePart)
+	local current = math.clamp(
+		tonumber(part:GetAttribute("BSPolycount")) or 8000,
+		MIN_POLY,
+		MAX_POLY
+	)
+
+	local panel = Instance.new("Frame")
+	panel.Size = UDim2.fromOffset(280, 108)
+	panel.Position = UDim2.new(0.5, -140, 0.5, WHEEL_RADIUS + 20)
+	panel.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+	panel.BorderSizePixel = 0
+	panel.Parent = parent
+	round(panel, 14)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(52, 52, 60)
+	stroke.Parent = panel
+
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, -28, 0, 20)
+	title.Position = UDim2.fromOffset(14, 12)
+	title.BackgroundTransparency = 1
+	title.Font = Enum.Font.GothamMedium
+	title.TextSize = 13
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextColor3 = Color3.fromRGB(235, 235, 240)
+	title.Text = string.format("Detail — %d triangles", current)
+	title.Parent = panel
+
+	local track = Instance.new("Frame")
+	track.Size = UDim2.new(1, -28, 0, 6)
+	track.Position = UDim2.fromOffset(14, 48)
+	track.BackgroundColor3 = Color3.fromRGB(58, 58, 66)
+	track.BorderSizePixel = 0
+	track.Parent = panel
+	round(track, 3)
+
+	local fill = Instance.new("Frame")
+	fill.BackgroundColor3 = ACCENT
+	fill.BorderSizePixel = 0
+	fill.Parent = track
+	round(fill, 3)
+
+	-- Log scale. 500 and 5,000 triangles are a world apart; 195,000 and
+	-- 200,000 are indistinguishable, and a linear slider spends most of its
+	-- travel on the half nobody wants.
+	local logMin, logMax = math.log(MIN_POLY), math.log(MAX_POLY)
+	local function toFraction(p: number): number
+		return (math.log(p) - logMin) / (logMax - logMin)
+	end
+	local function fromFraction(f: number): number
+		local v = math.exp(logMin + f * (logMax - logMin))
+		return math.clamp(math.floor(v / 100 + 0.5) * 100, MIN_POLY, MAX_POLY)
+	end
+
+	local chosen = current
+	fill.Size = UDim2.fromScale(toFraction(chosen), 1)
+
+	local apply = Instance.new("TextButton")
+	apply.Size = UDim2.new(1, -28, 0, 28)
+	apply.Position = UDim2.fromOffset(14, 68)
+	apply.BackgroundColor3 = ACCENT
+	apply.BorderSizePixel = 0
+	apply.Font = Enum.Font.GothamBold
+	apply.TextSize = 12
+	apply.TextColor3 = Color3.fromRGB(12, 12, 14)
+	apply.Text = "Rebuild at this detail"
+	apply.AutoButtonColor = false
+	apply.Parent = panel
+	round(apply, 8)
+
+	local dragging = false
+	local function setFromX(x: number)
+		local left = track.AbsolutePosition.X
+		local width = math.max(1, track.AbsoluteSize.X)
+		local f = math.clamp((x - left) / width, 0, 1)
+		chosen = fromFraction(f)
+		fill.Size = UDim2.fromScale(f, 1)
+		title.Text = string.format("Detail — %d triangles", chosen)
+	end
+
+	track.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			setFromX(input.Position.X)
+		end
+	end)
+	-- Released anywhere, not just over the track: letting go outside it must
+	-- not leave the slider stuck to the pointer.
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			setFromX(input.Position.X)
+		end
+	end)
+
+	apply.MouseButton1Click:Connect(function()
+		requestRemesh(part, chosen)
+		closeWheel()
+	end)
+end
+
+local function runSegment(id: string, gui: ScreenGui, part: BasePart)
+	if id == "lod" then
+		openLodPanel(gui, part)
+		return
+	end
+
+	if id == "reroll" then
+		requestRemesh(part, tonumber(part:GetAttribute("BSPolycount")) or 8000)
+	elseif id == "duplicate" then
+		local recording = ChangeHistoryService:TryBeginRecording("Bloxsmith: duplicate mesh")
+		local copy = part:Clone()
+		copy.Position = part.Position + Vector3.new(part.Size.X + 2, 0, 0)
+		copy.Parent = part.Parent
+		Selection:Set({ copy })
+		if recording then
+			ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)
+		end
+	elseif id == "focus" then
+		local camera = workspace.CurrentCamera
+		if camera then
+			-- Frame it from a three-quarter angle at a distance that scales
+			-- with the object, so a 2-stud prop and a 40-stud statue both fill
+			-- roughly the same amount of the viewport.
+			local dist = math.max(6, part.Size.Magnitude * 2)
+			local dir = Vector3.new(1, 0.55, 1).Unit
+			camera.CFrame = CFrame.lookAt(part.Position + dir * dist, part.Position)
+		end
+	elseif id == "export" then
+		Selection:Set({ part })
+		toast("Selected — use File > Export Selection to save it.")
+	elseif id == "delete" then
+		local recording = ChangeHistoryService:TryBeginRecording("Bloxsmith: delete mesh")
+		part:Destroy()
+		if recording then
+			ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)
+		end
+	end
+	closeWheel()
+end
+
+local function openWheel()
+	closeWheel()
+	local part = selectedMesh()
+	if not part then
+		toast("Select a Bloxsmith-generated mesh first.")
+		return
+	end
+	wheelTarget = part
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "BloxsmithWheel"
+	gui.ResetOnSpawn = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.DisplayOrder = 100
+	gui.Parent = CoreGui
+	wheelGui = gui
+
+	-- Click-away closes. A radial menu you cannot dismiss is a trap.
+	local scrim = Instance.new("TextButton")
+	scrim.Size = UDim2.fromScale(1, 1)
+	scrim.BackgroundColor3 = Color3.new(0, 0, 0)
+	scrim.BackgroundTransparency = 0.5
+	scrim.Text = ""
+	scrim.AutoButtonColor = false
+	scrim.Parent = gui
+	scrim.MouseButton1Click:Connect(closeWheel)
+
+	local ring = Instance.new("Frame")
+	ring.Size = UDim2.fromOffset(WHEEL_RADIUS * 2, WHEEL_RADIUS * 2)
+	ring.Position = UDim2.new(0.5, -WHEEL_RADIUS, 0.5, -WHEEL_RADIUS)
+	ring.BackgroundTransparency = 1
+	ring.Parent = gui
+
+	local step = 360 / #SEGMENTS
+	local mid = (WHEEL_INNER + WHEEL_RADIUS) / 2
+
+	for i, seg in SEGMENTS do
+		local angle = math.rad((i - 1) * step - 90)
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.fromOffset(100, 62)
+		btn.Position = UDim2.new(
+			0.5,
+			math.cos(angle) * mid - 50,
+			0.5,
+			math.sin(angle) * mid - 31
+		)
+		btn.BackgroundColor3 = if seg.accent then ACCENT_BG else PANEL
+		btn.BorderSizePixel = 0
+		btn.Font = Enum.Font.GothamMedium
+		btn.TextSize = 13
+		btn.TextColor3 = if seg.accent then ACCENT else Color3.fromRGB(228, 228, 234)
+		btn.Text = seg.label
+		btn.AutoButtonColor = false
+		btn.Parent = ring
+		round(btn, 14)
+
+		local s = Instance.new("UIStroke")
+		s.Color = if seg.accent then ACCENT else Color3.fromRGB(52, 52, 60)
+		s.Parent = btn
+
+		btn.MouseEnter:Connect(function()
+			btn.BackgroundColor3 = if seg.accent then ACCENT_HOVER else PANEL_HOVER
+		end)
+		btn.MouseLeave:Connect(function()
+			btn.BackgroundColor3 = if seg.accent then ACCENT_BG else PANEL
+		end)
+		btn.MouseButton1Click:Connect(function()
+			runSegment(seg.id, gui, part)
+		end)
+	end
+
+	local hub = Instance.new("TextLabel")
+	hub.Size = UDim2.fromOffset(WHEEL_INNER * 2 - 16, WHEEL_INNER * 2 - 16)
+	hub.Position = UDim2.new(0.5, -(WHEEL_INNER - 8), 0.5, -(WHEEL_INNER - 8))
+	hub.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+	hub.BorderSizePixel = 0
+	hub.Font = Enum.Font.GothamBold
+	hub.TextSize = 12
+	hub.TextWrapped = true
+	hub.TextColor3 = Color3.fromRGB(185, 185, 195)
+	hub.Text = part.Name
+	hub.Parent = ring
+	round(hub, WHEEL_INNER)
+
+	local hubStroke = Instance.new("UIStroke")
+	hubStroke.Color = Color3.fromRGB(52, 52, 60)
+	hubStroke.Parent = hub
+end
+
+local function toggleWheel()
+	if wheelGui then
+		closeWheel()
+	else
+		openWheel()
+	end
+end
+
+local wheelButton = toolbar:CreateButton(
+	"Mesh wheel",
+	"Open the wheel for the selected generated mesh",
+	"rbxassetid://71727317891946"
+)
+wheelButton.ClickableWhenViewportHidden = true
+wheelButton.Click:Connect(toggleWheel)
+
+-- A rebindable action rather than a hardcoded chord: Studio already owns most
+-- modifier combinations, and the user can set this under
+-- File > Advanced > Customize Shortcuts.
+local wheelAction = plugin:CreatePluginAction(
+	"BloxsmithWheel",
+	"Bloxsmith: mesh wheel",
+	"Open the radial menu for the selected generated mesh",
+	"rbxassetid://71727317891946",
+	true
+)
+wheelAction.Triggered:Connect(toggleWheel)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if not processed and input.KeyCode == Enum.KeyCode.Escape and wheelGui then
+		closeWheel()
+	end
+end)
+
+-- The wheel must not outlive the thing it is acting on.
+Selection.SelectionChanged:Connect(function()
+	if wheelGui and wheelTarget and not wheelTarget:IsDescendantOf(game) then
+		closeWheel()
+	end
+end)
