@@ -193,3 +193,42 @@ Everything except the reference image is unblocked and worth doing on its own:
 
 The picture inside the ring stays blocked on EditableImage and a measured
 pixel payload. Build the rest first; it is most of the effect.
+
+## Approve the drawing before modelling it
+
+Wanted: the user SEES the Nano Banana image and can change it before Meshy is
+called at all.
+
+This is worth more than it looks. A generation is a minute or two, real money,
+and one of a capped fifteen a day — and the picture is the single best
+predictor of what comes out, because image-to-3d models the drawing. Letting
+someone spend that on a picture they can already tell is wrong is the most
+expensive failure in the whole pipeline.
+
+The pattern already exists: Creator Store inserts pause mid-run for a
+one-click Allow/Deny (`waitForAssetApproval` in `asset-approvals.ts`, the
+`asset_approval` event, the approval card in `ChatApp`). Copy its shape rather
+than inventing a second one.
+
+Split `generateMesh` so the image step can be awaited on its own:
+
+1. `generateReferenceImage(subject)` — already returns base64.
+2. Persist it (`persistReferenceImage` exists) and emit a `mesh_approval`
+   event carrying the URL, the subject, and an id.
+3. Wait, the way asset approval waits. Three outcomes:
+   - **Approve** → carry on into `image-to-3d` with that exact base64.
+   - **Redraw** → the user edits the subject text; draw again and re-prompt.
+     This is the one that saves the most, and it costs an image rather than a
+     generation.
+   - **Cancel** → return a tool result saying so and build with `build_model`.
+4. Nothing is billed to the mesh quota until approval — the count is on
+   `build_ugc` calls, which only happen after, so this already holds.
+
+The card wants the picture, the subject as an editable field, and three
+buttons. Reuse the reference-image rendering that is already in `ChatApp`;
+the difference is only that it is interactive.
+
+Note the timeout. Asset approval blocks the run until answered; a mesh
+approval should too, but the SSE connection has a keepalive and the user may
+have walked away. Auto-cancel after a few minutes and say so in the transcript
+rather than holding a run open indefinitely.
