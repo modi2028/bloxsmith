@@ -923,12 +923,9 @@ export async function runAgentTurn(params: {
             name?: string;
             position?: number[];
           };
-          await onEvent({
-            type: "tool_call",
-            id: toolUse.id,
-            tool: toolUse.name,
-            args: validated.args,
-          });
+          // No tool_call event: the progress row below says the same thing
+          // and keeps saying it for the two minutes this takes, so emitting
+          // both just prints the subject twice.
 
           // Checked here rather than trusted to the model: a generation bills
           // Meshy credits and a Nano Banana image, and neither passes through
