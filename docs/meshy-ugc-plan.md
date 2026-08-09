@@ -142,3 +142,54 @@ then decode into a buffer in Lua. Verify the queue's payload limit first.
 
 Order: build the staging without the picture (it is most of the effect), then
 add EditableImage once the pixel path is measured.
+
+## Why the meshes come out white
+
+Because only geometry is sent. `parseObj` reads `v` and `f` and throws away
+`vt` (the UV coordinates), and nothing fetches `texture_urls` at all — so the
+EditableMesh is built with positions and triangles and no surface information
+whatsoever. White is exactly what that produces. It is not a texture that
+failed to load; it is a texture that was never asked for.
+
+The fix that avoids the pixel-transfer problem entirely: **sample the texture
+server-side and send per-vertex colours.**
+
+1. `parseObj` also collects `vt` lines and, from each `f v/vt/vn` corner, the
+   vertex to UV mapping. (A vertex can carry more than one UV across faces —
+   take the first; the error is invisible at these polycounts.)
+2. Download `task.texture_urls[0].base_color`.
+3. Decode it with `sharp` — already present in node_modules as a transitive
+   dependency, so make it a DIRECT dependency before relying on it. `.raw()`
+   gives a flat RGB buffer.
+4. For each vertex, sample at its UV (`x = u * width`, `y = (1 - v) * height`
+   — OBJ's V axis points up, image rows point down; getting this backwards
+   flips the texture and is the classic mistake here).
+5. Send `colors: [[r,g,b], …]` alongside `vertices`, same length, 0–1 floats.
+6. Plugin: `mesh:SetVertexColor(id, Color3.new(r, g, b))` in the same loop
+   that calls `AddVertex`.
+
+Cost is one float triple per vertex — the same order as the positions already
+being sent, so nothing about the transport changes. It is not a real texture
+(no normal map, no specular, and detail below the vertex density is lost), but
+it turns a white blob into something recognisably the thing that was drawn,
+and it needs no EditableImage and no pixel payload.
+
+Do this BEFORE the staging. A convincing generation animation that resolves
+into a white blob is worse than no animation.
+
+## Staging, minus the picture
+
+Everything except the reference image is unblocked and worth doing on its own:
+
+- Thin Neon cylinder at the target position, tinted, with a dashed ring.
+- `BillboardGui` above it: dark ring, progress arc driven by the `progress`
+  value already streaming from Meshy, subject name under it.
+- The plugin needs that number pushed. Cheapest route is a queued
+  `mesh_staging` tool call per progress tick — the transport exists and the
+  plugin already polls it — rather than a new endpoint or a socket.
+- On completion, fade the staging and tween the MeshPart up out of the ring.
+  `build_ugc` already returns the part, so this is a tween on something that
+  exists.
+
+The picture inside the ring stays blocked on EditableImage and a measured
+pixel payload. Build the rest first; it is most of the effect.
