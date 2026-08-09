@@ -319,6 +319,20 @@ export function ChatApp({
     if (typeof window === "undefined") return true;
     return localStorage.getItem(THINKING_STORAGE_KEY) !== "0";
   });
+  // A build survives the page going away — the server keeps going and the
+  // "Continue building" banner picks it up — but the transcript on screen does
+  // not, and losing it mid-run reads as the build having been thrown away.
+  // Worth a confirmation prompt on anything that would leave.
+  useEffect(() => {
+    if (!busy) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [busy]);
+
   const changeThinkingPref = (v: boolean) => {
     setThinkingPref(v);
     localStorage.setItem(THINKING_STORAGE_KEY, v ? "1" : "0");

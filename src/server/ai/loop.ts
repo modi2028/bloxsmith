@@ -61,7 +61,12 @@ import { waitForClarification } from "./clarifications";
 import { getUserMemory, rememberProject, rememberUser } from "./memory";
 import { generateReferenceImage, isNanoBananaConfigured } from "./nano-banana";
 import { looksLikeMeshRequest } from "@/lib/mesh-intent";
-import { generateMesh, isMeshyConfigured, parseObj } from "./meshy";
+import {
+  DEFAULT_POLYCOUNT,
+  generateMesh,
+  isMeshyConfigured,
+  parseObj,
+} from "./meshy";
 import { meshQuota } from "./mesh-quota";
 import { storeImageBytes } from "@/server/storage";
 import { getStudioTools } from "./tools";
@@ -990,6 +995,8 @@ export async function runAgentTurn(params: {
                 position: a.position,
                 vertices,
                 triangles,
+                subject: a.subject,
+                polycount: a.polycount ?? DEFAULT_POLYCOUNT,
               },
             });
             await onEvent({

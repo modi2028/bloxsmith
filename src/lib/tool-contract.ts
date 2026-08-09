@@ -248,6 +248,9 @@ export const toolArgSchemas = {
       triangles: z.array(z.array(z.number().int().nonnegative()).length(3)),
       /** Studs along the longest axis. Meshy works in arbitrary units. */
       scale: z.number().positive().max(500).optional(),
+      /** Stamped on the part so the LOD wheel can regenerate it. */
+      subject: z.string().max(200).optional(),
+      polycount: z.number().int().min(100).max(300_000).optional(),
     })
     .strict(),
   // Server-side: draw a reference picture the model then looks at. Never

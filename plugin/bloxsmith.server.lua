@@ -882,6 +882,12 @@ handlers.build_ugc = function(args)
 		part.CFrame = CFrame.new(pos[1], pos[2], pos[3])
 	end
 
+	-- Stamped on the part so the LOD wheel can re-run the SAME subject at a
+	-- different polycount without asking the user to describe it again. The
+	-- geometry is disposable; the description is the thing worth keeping.
+	part:SetAttribute("BSSubject", tostring(args.subject or args.name))
+	part:SetAttribute("BSPolycount", tonumber(args.polycount) or 0)
+
 	return {
 		ref = mintRef(part),
 		triangles = added,
