@@ -160,6 +160,10 @@ function toolLabel(part: UiToolPart): string {
           ? ` — ${(part.args as { parts: unknown[] }).parts.length} parts`
           : ""
       }`;
+    case "generate_ugc":
+      return `Generating a 3D model${a.subject ? ` — “${a.subject}”` : ""}`;
+    case "build_ugc":
+      return `Building ${a.name ? `“${a.name}”` : "the mesh"} in Studio`;
     case "generate_model":
       return `Generating a 3D mesh${a.prompt ? ` — “${a.prompt}”` : ""}`;
     case "reference_image":
@@ -624,6 +628,21 @@ export function ChatApp({
                     : "generating",
               url: event.url,
               error: event.error,
+            };
+            if (idx === -1) parts.push(part);
+            else parts[idx] = part;
+            break;
+          }
+          case "mesh_progress": {
+            const idx = parts.findIndex(
+              (p) => p.t === "mesh" && p.id === event.id,
+            );
+            const part: UiPart = {
+              t: "mesh",
+              id: event.id,
+              subject: event.subject,
+              progress: event.progress,
+              triangles: event.triangles,
             };
             if (idx === -1) parts.push(part);
             else parts[idx] = part;
@@ -1324,6 +1343,34 @@ export function ChatApp({
                             Studio instead? Ask again and say build.
                           </p>
                         )}
+                      </div>
+                    );
+                  }
+                  if (part.t === "mesh") {
+                    const done = part.progress >= 100;
+                    return (
+                      <div
+                        key={j}
+                        className="max-w-md rounded-xl border border-line bg-surface-raised px-3.5 py-2.5"
+                      >
+                        <p className="flex items-center gap-2 text-sm">
+                          <span className={done ? "" : "shimmer-text"}>
+                            {done
+                              ? `Modelled “${part.subject}”`
+                              : `Modelling “${part.subject}”`}
+                          </span>
+                          <span className="ml-auto text-[11px] tabular-nums text-faint">
+                            {done && part.triangles
+                              ? `${part.triangles.toLocaleString()} tris`
+                              : `${Math.round(part.progress)}%`}
+                          </span>
+                        </p>
+                        <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/8">
+                          <div
+                            className="h-full rounded-full bg-ember transition-[width] duration-500"
+                            style={{ width: `${Math.max(4, part.progress)}%` }}
+                          />
+                        </div>
                       </div>
                     );
                   }

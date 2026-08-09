@@ -37,6 +37,15 @@ export type UiPart =
       error?: string;
     }
   | {
+      // A mesh being generated: minutes long, so it gets its own progress
+      // row rather than sitting inside a silent tool call.
+      t: "mesh";
+      id: string;
+      subject: string;
+      progress: number;
+      triangles?: number;
+    }
+  | {
       // Multiple-choice question asked before building (live turns only).
       t: "clarify";
       id: string;

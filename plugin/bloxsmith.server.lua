@@ -16,6 +16,7 @@ end
 
 local HttpService = game:GetService("HttpService")
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
+local AssetService = game:GetService("AssetService")
 local Selection = game:GetService("Selection")
 
 -- The Bloxsmith website URL the plugin talks to.
@@ -781,6 +782,114 @@ handlers.generate_model = function(args)
 	return { ref = mintRef(model), className = model.ClassName, parts = meshes }
 end
 
+-- Build a generated mesh from raw geometry.
+--
+-- Meshy hands back an OBJ on its own CDN, and a plugin cannot make a MeshPart
+-- from an external URL — so the backend parses the OBJ and sends vertex and
+-- triangle lists, and the geometry is rebuilt here as an EditableMesh. No
+-- Open Cloud, no upload, no moderation queue. Same Editable Mesh permission
+-- the user already enables for generate_model.
+--
+-- Meshy works in arbitrary units, so the mesh is normalised to a sensible
+-- stud size on arrival: a model that lands 0.02 studs wide or 4000 studs wide
+-- reads as a broken build, not as a scale setting.
+local DEFAULT_LONGEST_AXIS = 8
+
+handlers.build_ugc = function(args)
+	local verts = args.vertices
+	local tris = args.triangles
+	if typeof(verts) ~= "table" or #verts < 3 then
+		toolError("invalid_args", "build_ugc needs at least 3 vertices")
+	end
+	if typeof(tris) ~= "table" or #tris < 1 then
+		toolError("invalid_args", "build_ugc needs at least 1 triangle")
+	end
+
+	local okCreate, editable = pcall(function()
+		return AssetService:CreateEditableMesh()
+	end)
+	if not okCreate or not editable then
+		toolError(
+			"internal",
+			"Could not create an EditableMesh: "
+				.. tostring(editable)
+				.. " — enable Editable Mesh / Editable Image APIs in File -> Game Settings -> Security, "
+				.. "and make sure your Roblox account is age-verified."
+		)
+	end
+	local mesh = editable :: any
+
+	-- Normalise while adding: one pass over the vertices instead of two.
+	local minX, minY, minZ = math.huge, math.huge, math.huge
+	local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
+	for _, v in verts :: { { number } } do
+		minX = math.min(minX, v[1]); maxX = math.max(maxX, v[1])
+		minY = math.min(minY, v[2]); maxY = math.max(maxY, v[2])
+		minZ = math.min(minZ, v[3]); maxZ = math.max(maxZ, v[3])
+	end
+	local spanX, spanY, spanZ = maxX - minX, maxY - minY, maxZ - minZ
+	local longest = math.max(spanX, math.max(spanY, spanZ))
+	local target = tonumber(args.scale) or DEFAULT_LONGEST_AXIS
+	-- A degenerate span would divide by zero; leave those at 1:1.
+	local k = if longest > 1e-6 then target / longest else 1
+	local cx, cy, cz = (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2
+
+	-- EditableMesh hands back its OWN vertex ids; the OBJ's indices are only
+	-- meaningful as positions in this list, so the two have to be mapped.
+	local ids: { number } = {}
+	for i, v in verts :: { { number } } do
+		ids[i] = mesh:AddVertex(
+			Vector3.new((v[1] - cx) * k, (v[2] - cy) * k, (v[3] - cz) * k)
+		)
+	end
+
+	local added, skipped = 0, 0
+	for _, t in tris :: { { number } } do
+		-- Contract indices are 0-based; Lua tables are 1-based.
+		local a, b, c = ids[t[1] + 1], ids[t[2] + 1], ids[t[3] + 1]
+		if a and b and c then
+			-- A single malformed triangle must not lose the whole mesh.
+			if pcall(function() mesh:AddTriangle(a, b, c) end) then
+				added += 1
+			else
+				skipped += 1
+			end
+		else
+			skipped += 1
+		end
+	end
+
+	if added == 0 then
+		toolError("internal", "None of the triangles could be built — the mesh is unusable.")
+	end
+
+	local okPart, made = pcall(function()
+		return AssetService:CreateMeshPartAsync(Content.fromObject(mesh))
+	end)
+	if not okPart or not made then
+		toolError("internal", "Could not turn the geometry into a MeshPart: " .. tostring(made))
+	end
+
+	local part = made :: MeshPart
+	part.Name = tostring(args.name)
+	-- Anchored, like everything else we create: an un-anchored generated mesh
+	-- falls through the world the moment the user presses play.
+	part.Anchored = true
+	part.Parent = if args.parent then resolveRef(args.parent) else workspace
+
+	local pos = args.position
+	if typeof(pos) == "table" then
+		part.CFrame = CFrame.new(pos[1], pos[2], pos[3])
+	end
+
+	return {
+		ref = mintRef(part),
+		triangles = added,
+		skipped = skipped,
+		size = { part.Size.X, part.Size.Y, part.Size.Z },
+	}
+end
+
 handlers.delete_instance = function(args)
 	local inst = resolveRef(args.target)
 	if WELL_KNOWN[args.target] then
@@ -902,6 +1011,7 @@ local MUTATING: { [string]: boolean } = {
 	create_instance = true,
 	build_model = true,
 	generate_model = true,
+	build_ugc = true,
 	set_property = true,
 	write_script = true,
 	delete_instance = true,

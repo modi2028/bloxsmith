@@ -51,6 +51,15 @@ export type AgentEvent =
       type: "notice";
       text: string;
     }
+  | {
+      // Meshy generation progress, 0-100. Emitted repeatedly for one call —
+      // a two-minute wait with no feedback reads as a hang.
+      type: "mesh_progress";
+      id: string;
+      subject: string;
+      progress: number;
+      triangles?: number;
+    }
   | { type: "needs_plugin" }
   // The AI wants to insert a Creator Store asset it hasn't used before in
   // this project — the user approves once per asset id.

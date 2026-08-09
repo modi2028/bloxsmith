@@ -223,6 +223,33 @@ export const toolArgSchemas = {
       position: z.array(z.number()).length(3).optional(),
     })
     .strict(),
+  // Meshy: a real generated mesh, rebuilt in Studio as an EditableMesh. The
+  // server does the generating and the plugin does the building, so this
+  // schema is what the MODEL writes; build_ugc below is what the plugin gets.
+  generate_ugc: z
+    .object({
+      subject: z.string().trim().min(3).max(200),
+      // The LOD dial. Low numbers are the point — UGC lives on poly budget.
+      polycount: z.number().int().min(100).max(300_000).optional(),
+      parent: refSchema.optional(),
+      name: z.string().min(1).max(60).optional(),
+      position: z.array(z.number()).length(3).optional(),
+    })
+    .strict(),
+  // Plugin-facing: geometry, already parsed. Never written by a model — the
+  // loop synthesises it from Meshy's OBJ, which is why the vertex and
+  // triangle arrays have no practical size limit here.
+  build_ugc: z
+    .object({
+      name: z.string().min(1).max(60),
+      parent: refSchema.optional(),
+      position: z.array(z.number()).length(3).optional(),
+      vertices: z.array(z.array(z.number()).length(3)),
+      triangles: z.array(z.array(z.number().int().nonnegative()).length(3)),
+      /** Studs along the longest axis. Meshy works in arbitrary units. */
+      scale: z.number().positive().max(500).optional(),
+    })
+    .strict(),
   // Server-side: draw a reference picture the model then looks at. Never
   // reaches the plugin.
   reference_image: z

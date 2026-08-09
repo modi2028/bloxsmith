@@ -41,6 +41,7 @@ export function getStudioTools(
     assetTools?: boolean;
     webSearchTool?: boolean;
     referenceImages?: boolean;
+    meshGeneration?: boolean;
   } = {},
 ): ModelToolDef[] {
   const tools: ModelToolDef[] = [
@@ -407,6 +408,45 @@ export function getStudioTools(
         },
       },
     );
+  }
+
+  // Meshy, Max only — gated in loop.ts, not here, so the tool simply does not
+  // exist for anyone else rather than existing and refusing.
+  if (opts.meshGeneration) {
+    tools.push({
+      name: "generate_ugc",
+      description:
+        "Generate a REAL 3D mesh from a description and place it in the game — a proper textured model, not parts. This is the best tool for any single hero object: a creature, vehicle, weapon, statue, item, prop. It draws the thing first and then models the drawing, so describe the OBJECT in a few concrete words with a defining feature and a material ('weathered stone gargoyle', 'red vintage racing helmet'). " +
+        "It takes a minute or two and costs real money per call, so use it ONCE or twice per request for the thing the build is actually about — never for scenery, terrain, buildings, floors, walls, platforms, or anything build_model can make from parts. " +
+        "polycount is the detail dial: leave it out for the UGC-friendly default, lower it (1000-4000) when the user wants something light, raise it (20000+) only when they ask for high detail. If it fails, say what the error said in one line and build the object with build_model instead.",
+      input_schema: {
+        type: "object",
+        properties: {
+          subject: {
+            type: "string",
+            description: "The object, in a few concrete words. No scene.",
+          },
+          polycount: {
+            type: "integer",
+            minimum: 100,
+            maximum: 300000,
+            description:
+              "Triangle budget. Omit for the default (8000). Lower = lighter.",
+          },
+          parent: { ...ref, description: "Parent (default ref:workspace)." },
+          name: { type: "string", description: "Name for the model." },
+          position: {
+            type: "array",
+            items: { type: "number" },
+            minItems: 3,
+            maxItems: 3,
+            description: "[x,y,z] world position to place it at.",
+          },
+        },
+        required: ["subject"],
+        additionalProperties: false,
+      },
+    });
   }
 
   // Nano Banana reference images: the agent draws the thing, looks at it, then

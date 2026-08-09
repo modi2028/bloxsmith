@@ -38,6 +38,7 @@ export function buildSystemPrompt(opts: {
   /** Sol/Titan runs get the Creator Store tools — and a mandate to prefer them. */
   assetTools?: boolean;
   referenceImages?: boolean;
+  meshGeneration?: boolean;
   /** Our own web_search tool — visible, on every model, encouraged for ideas. */
   webSearchTool?: boolean;
   /** User-picked effort tier — scope expectations + budget behavior. */
@@ -103,6 +104,17 @@ export function buildSystemPrompt(opts: {
 - Do not leave everything as a box. Use \`shape\` (Cylinder, Ball) and WedgePart for slopes, and use \`csg\` to cut real geometry: subtract to make windows, doorways, hollows, barrels and arches; union to merge a cluster into one smooth solid. Add helper parts purely to cut with — subtract consumes them.
 - Anchored defaults to true, which is what you want; only set it false for parts meant to fall or be welded.
 - NEVER leave a part on the default colour and material. Grey boxes are what a build looks like when nobody chose anything. Set \`color\` and \`material\` on EVERY part: wood grips, metal blades, glass panes, fabric, neon for anything that glows. Neighbouring parts should differ, or the whole thing reads as one grey lump.`,
+
+    ...(opts.meshGeneration
+      ? [
+          `# generate_ugc — a real generated mesh
+- This is the best tool you have for a single hero object: a creature, vehicle, weapon, statue, item or prop. It produces an actual textured mesh, not parts, and it is what "make me a mesh / a 3D model" means. Call it as your FIRST action for those requests — no preamble, nothing checked first.
+- Describe the OBJECT in a few concrete words with a defining feature and a material: "weathered stone gargoyle", "red vintage racing helmet", "rusted iron treasure chest". Not a scene, not a sentence.
+- polycount is the detail dial. Leave it out for the default. Lower it (1000-4000) if they want something light for UGC or a mobile game; raise it (20000+) only when they explicitly ask for high detail.
+- ONE or two per request, and never for scenery, terrain, buildings, floors, walls, platforms or anything build_model makes from parts. It takes a minute or two and costs real money per call, and there is a daily cap.
+- If it fails, do not retry. Say what the error said in one line and build the same object with build_model — properly, with a colour and material on every part.`,
+        ]
+      : []),
 
     ...(opts.referenceImages
       ? [

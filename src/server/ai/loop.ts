@@ -61,6 +61,8 @@ import { waitForClarification } from "./clarifications";
 import { getUserMemory, rememberProject, rememberUser } from "./memory";
 import { generateReferenceImage, isNanoBananaConfigured } from "./nano-banana";
 import { looksLikeMeshRequest } from "@/lib/mesh-intent";
+import { generateMesh, isMeshyConfigured, parseObj } from "./meshy";
+import { meshQuota } from "./mesh-quota";
 import { storeImageBytes } from "@/server/storage";
 import { getStudioTools } from "./tools";
 
@@ -386,9 +388,21 @@ export async function runAgentTurn(params: {
     // key, and it does not pass through the token meter at all — so on free
     // it is spend with no ceiling on it.
     const referenceImages = isNanoBananaConfigured() && assetTools;
-    const tools = getStudioTools({ assetTools, webSearchTool, referenceImages });
+    // Max only, and only when both halves of the pipeline are configured —
+    // Meshy needs Nano Banana to draw the subject first.
+    const meshGeneration =
+      isMeshyConfigured() &&
+      referenceImages &&
+      hasPlan(user, "max", new Date());
+    const tools = getStudioTools({
+      assetTools,
+      webSearchTool,
+      referenceImages,
+      meshGeneration,
+    });
     const system = buildSystemPrompt({
       referenceImages,
+      meshGeneration,
       projectMemory: chatSession.projectMemory,
       userMemory: await getUserMemory(user.id).catch(() => null),
       userNickname: user.nickname ?? user.displayName ?? user.username,
@@ -520,6 +534,9 @@ export async function runAgentTurn(params: {
       "write_script",
       "delete_instance",
       "insert_asset",
+      "build_model",
+      "generate_model",
+      "build_ugc",
     ]);
     let mutatingCalls = 0;
     let readCalls = 0;
@@ -728,6 +745,13 @@ export async function runAgentTurn(params: {
       // for user-attached images. Collected separately so a second tool call
       // in the same turn cannot land its result after the image.
       const imageBlocks: unknown[] = [];
+      // generate_ugc is answered by the server (it calls Meshy) but BUILT by
+      // the plugin, so the geometry is queued as a build_ugc call once the
+      // generation lands.
+      const queuedMeshBuilds: {
+        toolUseId: string;
+        args: Record<string, unknown>;
+      }[] = [];
       for (const toolUse of response.toolUses) {
         throwIfStopped();
         const validated = validateToolArgs(toolUse.name, toolUse.input);
@@ -891,6 +915,116 @@ export async function runAgentTurn(params: {
           continue;
         }
         // Live web search — also server-side, never touches Studio.
+        if (toolUse.name === "generate_ugc") {
+          const a = validated.args as {
+            subject: string;
+            polycount?: number;
+            parent?: string;
+            name?: string;
+            position?: number[];
+          };
+          await onEvent({
+            type: "tool_call",
+            id: toolUse.id,
+            tool: toolUse.name,
+            args: validated.args,
+          });
+
+          // Checked here rather than trusted to the model: a generation bills
+          // Meshy credits and a Nano Banana image, and neither passes through
+          // the token meter, so nothing else in the system would notice.
+          const quota = await meshQuota(user.id);
+          if (quota.remaining <= 0) {
+            resultBlocks.push(
+              toolResultBlock(
+                toolUse.id,
+                `quota_reached: this account has used all ${quota.limit} mesh generations for today. Do NOT call generate_ugc again this turn — build the object with build_model instead and mention the limit in one line.`,
+                true,
+              ),
+            );
+            await onEvent({
+              type: "notice",
+              text: `Mesh generation limit reached (${quota.limit} a day). Building from parts instead.`,
+            });
+            await onEvent({
+              type: "tool_result",
+              id: toolUse.id,
+              ok: false,
+              error: "Daily mesh limit reached",
+            });
+            continue;
+          }
+
+          try {
+            await onEvent({
+              type: "mesh_progress",
+              id: toolUse.id,
+              subject: a.subject,
+              progress: 0,
+            });
+            const mesh = await generateMesh({
+              subject: a.subject,
+              polycount: a.polycount,
+              signal,
+              onProgress: (p) => {
+                void onEvent({
+                  type: "mesh_progress",
+                  id: toolUse.id,
+                  subject: a.subject,
+                  progress: p.progress,
+                });
+              },
+            });
+            throwIfStopped();
+
+            const { vertices, triangles } = parseObj(mesh.obj);
+            if (vertices.length === 0 || triangles.length === 0) {
+              throw new Error("the generated mesh had no usable geometry");
+            }
+
+            // The geometry goes to Studio as a normal queued tool call, so it
+            // rides the existing plugin transport, undo waypoint and result
+            // plumbing rather than needing a channel of its own.
+            queuedMeshBuilds.push({
+              toolUseId: toolUse.id,
+              args: {
+                name: a.name ?? a.subject.slice(0, 60),
+                parent: a.parent,
+                position: a.position,
+                vertices,
+                triangles,
+              },
+            });
+            await onEvent({
+              type: "mesh_progress",
+              id: toolUse.id,
+              subject: a.subject,
+              progress: 100,
+              triangles: triangles.length,
+            });
+          } catch (err) {
+            const message =
+              err instanceof Error ? err.message : "Mesh generation failed";
+            resultBlocks.push(
+              toolResultBlock(
+                toolUse.id,
+                `mesh_error: ${message}. Do NOT retry — build the object with build_model instead, and say what went wrong in one line.`,
+                true,
+              ),
+            );
+            await onEvent({
+              type: "notice",
+              text: `Mesh generation didn't run: ${message}`,
+            });
+            await onEvent({
+              type: "tool_result",
+              id: toolUse.id,
+              ok: false,
+              error: message,
+            });
+          }
+          continue;
+        }
         if (toolUse.name === "reference_image") {
           const subject = (validated.args as { subject: string }).subject;
           await onEvent({
@@ -1197,6 +1331,58 @@ export async function runAgentTurn(params: {
               text: `3D generation didn't run: ${result.error.message}`,
             });
           }
+        }
+      }
+
+      // Flush the mesh builds. Done after the tool loop rather than inline so
+      // the six-minute generation does not sit inside the same await as the
+      // plugin round trip — by here the geometry exists and Studio only has
+      // to draw it.
+      for (const build of queuedMeshBuilds) {
+        const meshCallId = await enqueueToolCall(db, {
+          aiRequestId: aiRequest.id,
+          sessionId: chatSession.id,
+          userId: user.id,
+          tool: "build_ugc",
+          args: build.args,
+        });
+        toolCallCount++;
+        mutatingCalls++;
+        await onEvent({
+          type: "tool_call",
+          id: meshCallId,
+          tool: "build_ugc",
+          args: { name: build.args.name },
+        });
+        const meshResult = await awaitToolResult(db, meshCallId, { signal });
+        if (meshResult.ok) {
+          undoSteps++;
+          resultBlocks.push(
+            toolResultBlock(
+              build.toolUseId,
+              JSON.stringify(meshResult.value ?? {}),
+              false,
+            ),
+          );
+          await onEvent({ type: "tool_result", id: meshCallId, ok: true });
+        } else {
+          resultBlocks.push(
+            toolResultBlock(
+              build.toolUseId,
+              `mesh_build_failed: ${meshResult.error.message}. The mesh was generated but Studio could not build it. Do NOT retry — build the object with build_model instead.`,
+              true,
+            ),
+          );
+          await onEvent({
+            type: "notice",
+            text: `Studio could not build the mesh: ${meshResult.error.message}`,
+          });
+          await onEvent({
+            type: "tool_result",
+            id: meshCallId,
+            ok: false,
+            error: meshResult.error.message,
+          });
         }
       }
 

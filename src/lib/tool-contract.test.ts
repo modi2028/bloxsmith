@@ -272,3 +272,57 @@ describe("double-encoded property wrappers", () => {
     assert.equal(r.ok, false);
   });
 });
+
+describe("generate_ugc / build_ugc", () => {
+  it("accepts a bare subject", () => {
+    assert.equal(
+      validateToolArgs("generate_ugc", { subject: "weathered stone gargoyle" })
+        .ok,
+      true,
+    );
+  });
+
+  it("holds polycount to what Meshy actually accepts", () => {
+    // Out of range is a 400 from Meshy a minute later; catch it here.
+    assert.equal(
+      validateToolArgs("generate_ugc", { subject: "a chest", polycount: 8000 })
+        .ok,
+      true,
+    );
+    for (const polycount of [99, 300_001, 5000.5]) {
+      assert.equal(
+        validateToolArgs("generate_ugc", { subject: "a chest", polycount }).ok,
+        false,
+        String(polycount),
+      );
+    }
+  });
+
+  it("build_ugc requires well-formed geometry", () => {
+    const ok = validateToolArgs("build_ugc", {
+      name: "Gargoyle",
+      vertices: [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+      triangles: [[0, 1, 2]],
+    });
+    assert.equal(ok.ok, true);
+
+    // A vertex that is not three numbers, or a negative index, would reach
+    // AddVertex/AddTriangle in Studio and take the whole build down.
+    assert.equal(
+      validateToolArgs("build_ugc", {
+        name: "X",
+        vertices: [[0, 0]],
+        triangles: [[0, 1, 2]],
+      }).ok,
+      false,
+    );
+    assert.equal(
+      validateToolArgs("build_ugc", {
+        name: "X",
+        vertices: [[0, 0, 0]],
+        triangles: [[-1, 0, 1]],
+      }).ok,
+      false,
+    );
+  });
+});
