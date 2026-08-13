@@ -61,12 +61,7 @@ import { waitForClarification } from "./clarifications";
 import { getUserMemory, rememberProject, rememberUser } from "./memory";
 import { generateReferenceImage, isNanoBananaConfigured } from "./nano-banana";
 import { looksLikeMeshRequest } from "@/lib/mesh-intent";
-import {
-  DEFAULT_POLYCOUNT,
-  generateMesh,
-  isMeshyConfigured,
-  parseObj,
-} from "./meshy";
+import { DEFAULT_POLYCOUNT, generateMesh, isMeshyConfigured } from "./meshy";
 import { meshQuota } from "./mesh-quota";
 import { storeImageBytes } from "@/server/storage";
 import { getStudioTools } from "./tools";
@@ -979,7 +974,7 @@ export async function runAgentTurn(params: {
             });
             throwIfStopped();
 
-            const { vertices, triangles } = parseObj(mesh.obj);
+            const { vertices, triangles, colors } = mesh;
             if (vertices.length === 0 || triangles.length === 0) {
               throw new Error("the generated mesh had no usable geometry");
             }
@@ -995,6 +990,7 @@ export async function runAgentTurn(params: {
                 position: a.position,
                 vertices,
                 triangles,
+                colors,
                 subject: a.subject,
                 polycount: a.polycount ?? DEFAULT_POLYCOUNT,
               },

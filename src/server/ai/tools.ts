@@ -429,9 +429,9 @@ export function getStudioTools(
           polycount: {
             type: "integer",
             minimum: 100,
-            maximum: 300000,
+            maximum: 50000,
             description:
-              "Triangle budget. Omit for the default (8000). Lower = lighter.",
+              "Triangle budget. Omit for the default (8000). Lower = lighter. Roblox UGC accessories are budgeted in the low thousands, so high numbers are rarely the right answer.",
           },
           parent: { ...ref, description: "Parent (default ref:workspace)." },
           name: { type: "string", description: "Name for the model." },

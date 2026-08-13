@@ -1,5 +1,7 @@
 import "server-only";
 import { generateReferenceImage } from "./nano-banana";
+import { parseObj } from "./obj-parse";
+import { sampleTextureAtUvs, type Rgb } from "./texture-sample";
 export { parseObj } from "./obj-parse";
 
 /**
@@ -27,7 +29,20 @@ const BASE = "https://api.meshy.ai/openapi";
 /** Meshy's own default is 30k. UGC wants far less, and the caller can raise it. */
 export const DEFAULT_POLYCOUNT = 8_000;
 export const MIN_POLYCOUNT = 100;
-export const MAX_POLYCOUNT = 300_000;
+/**
+ * Well below Meshy's own 300,000, for two independent reasons that happen to
+ * agree.
+ *
+ * Transport: the geometry crosses the wire as JSON through the plugin queue,
+ * and now carries a colour per vertex as well. That is ~0.4MB at the 8k
+ * default, 2.2MB here, and 13MB at Meshy's ceiling — which the poll endpoint
+ * would not carry.
+ *
+ * Domain: Roblox UGC accessories are budgeted in the low thousands of
+ * triangles. A 300k mesh is not a detailed accessory, it is one that cannot
+ * be published.
+ */
+export const MAX_POLYCOUNT = 50_000;
 
 /** A generation takes minutes, not seconds. */
 const POLL_INTERVAL_MS = 4_000;
@@ -42,6 +57,15 @@ export type MeshyProgress = {
 export type MeshyResult = {
   /** Raw OBJ text, ready to parse into an EditableMesh. */
   obj: string;
+  /** Geometry, already parsed — the caller has no reason to do it twice. */
+  vertices: [number, number, number][];
+  triangles: [number, number, number][];
+  /**
+   * One colour per vertex, aligned with `vertices`, sampled from the base
+   * colour map. Empty when the model came back untextured, which the plugin
+   * treats as "leave the mesh its default colour".
+   */
+  colors: Rgb[];
   taskId: string;
   thumbnailUrl?: string;
   /** What Meshy billed us. Recorded so the spend ceiling has a real number. */
@@ -140,6 +164,66 @@ async function downloadObj(task: Record<string, unknown>): Promise<string> {
 }
 
 /**
+ * The base colour map, if the task produced one.
+ *
+ * Best effort throughout: a mesh with the wrong colours is a bad model, but a
+ * mesh that never arrives because its texture 404'd is a failed build. Every
+ * failure here falls back to an untextured mesh.
+ */
+async function downloadBaseColor(
+  task: Record<string, unknown>,
+): Promise<Uint8Array | null> {
+  const textures = task.texture_urls as
+    | { base_color?: string }[]
+    | undefined;
+  const url = textures?.[0]?.base_color;
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return new Uint8Array(await res.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Everything after the task succeeds: fetch, parse, and colour.
+ *
+ * Both generation paths end here so they cannot drift — text-to-3d silently
+ * losing colours because only the image path was updated is exactly the kind
+ * of bug that hides for weeks.
+ */
+async function collectResult(
+  task: Record<string, unknown>,
+  taskId: string,
+): Promise<MeshyResult> {
+  const obj = await downloadObj(task);
+  const { vertices, triangles, uvs } = parseObj(obj);
+
+  let colors: Rgb[] = [];
+  const texture = await downloadBaseColor(task);
+  if (texture && uvs.some((uv) => uv != null)) {
+    try {
+      colors = await sampleTextureAtUvs(texture, uvs);
+    } catch {
+      // A decode failure is not worth losing the mesh over.
+      colors = [];
+    }
+  }
+
+  return {
+    obj,
+    vertices,
+    triangles,
+    colors,
+    taskId,
+    thumbnailUrl: task.thumbnail_url as string | undefined,
+    consumedCredits: task.consumed_credits as number | undefined,
+  };
+}
+
+/**
  * Make a mesh.
  *
  * With `referenceImage` (the default) the subject is drawn first and the
@@ -189,12 +273,7 @@ export async function generateMesh(params: {
       params.onProgress,
       params.signal,
     );
-    return {
-      obj: await downloadObj(task),
-      taskId,
-      thumbnailUrl: task.thumbnail_url as string | undefined,
-      consumedCredits: task.consumed_credits as number | undefined,
-    };
+    return collectResult(task, taskId);
   }
 
   // Text path: preview builds the geometry, refine paints it. Two tasks, and
@@ -218,10 +297,5 @@ export async function generateMesh(params: {
     params.signal,
   );
 
-  return {
-    obj: await downloadObj(task),
-    taskId: refineId,
-    thumbnailUrl: task.thumbnail_url as string | undefined,
-    consumedCredits: task.consumed_credits as number | undefined,
-  };
+  return collectResult(task, refineId);
 }

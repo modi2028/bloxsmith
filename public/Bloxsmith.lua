@@ -838,11 +838,26 @@ handlers.build_ugc = function(args)
 
 	-- EditableMesh hands back its OWN vertex ids; the OBJ's indices are only
 	-- meaningful as positions in this list, so the two have to be mapped.
+	--
+	-- Colours are applied in the same pass. They were sampled from the base
+	-- colour map on the server, because Roblox will not load a texture from an
+	-- external URL — one Color3 per vertex is what fits down the wire. On a
+	-- lowpoly mesh that reads as flat shading, which suits Roblox anyway.
+	local colors = if typeof(args.colors) == "table" then args.colors else nil
 	local ids: { number } = {}
 	for i, v in verts :: { { number } } do
-		ids[i] = mesh:AddVertex(
+		local id = mesh:AddVertex(
 			Vector3.new((v[1] - cx) * k, (v[2] - cy) * k, (v[3] - cz) * k)
 		)
+		ids[i] = id
+		local c = if colors then (colors :: { { number } })[i] else nil
+		if c then
+			-- Older Studio builds have no SetVertexColor; an untextured mesh
+			-- is worth far more than an error, so this never propagates.
+			pcall(function()
+				(mesh :: any):SetVertexColor(id, Color3.new(c[1], c[2], c[3]))
+			end)
+		end
 	end
 
 	local added, skipped = 0, 0
@@ -874,6 +889,12 @@ handlers.build_ugc = function(args)
 
 	local part = made :: MeshPart
 	part.Name = tostring(args.name)
+	if colors then
+		-- MeshPart.Color MULTIPLIES the vertex colours. Anything but white
+		-- would tint the whole model, and the default is not white.
+		part.Color = Color3.new(1, 1, 1)
+		part.Material = Enum.Material.SmoothPlastic
+	end
 
 	-- An LOD change replaces the mesh rather than adding a second one beside
 	-- it, and inherits its pose so the object does not appear to jump.
@@ -1414,7 +1435,7 @@ end
 
 local WHEEL_RADIUS = 148
 local WHEEL_INNER = 60
-local MIN_POLY, MAX_POLY = 500, 200000
+local MIN_POLY, MAX_POLY = 500, 50000
 
 local SEGMENTS = {
 	{ id = "lod", label = "LOD", accent = true },

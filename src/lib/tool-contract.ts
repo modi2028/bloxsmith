@@ -230,7 +230,7 @@ export const toolArgSchemas = {
     .object({
       subject: z.string().trim().min(3).max(200),
       // The LOD dial. Low numbers are the point — UGC lives on poly budget.
-      polycount: z.number().int().min(100).max(300_000).optional(),
+      polycount: z.number().int().min(100).max(50_000).optional(),
       parent: refSchema.optional(),
       name: z.string().min(1).max(60).optional(),
       position: z.array(z.number()).length(3).optional(),
@@ -246,11 +246,17 @@ export const toolArgSchemas = {
       position: z.array(z.number()).length(3).optional(),
       vertices: z.array(z.array(z.number()).length(3)),
       triangles: z.array(z.array(z.number().int().nonnegative()).length(3)),
+      /**
+       * One colour per vertex, aligned with `vertices`, 0-1 floats. Omitted
+       * or empty means untextured — the plugin leaves the mesh its default
+       * colour rather than guessing one.
+       */
+      colors: z.array(z.array(z.number().min(0).max(1)).length(3)).optional(),
       /** Studs along the longest axis. Meshy works in arbitrary units. */
       scale: z.number().positive().max(500).optional(),
       /** Stamped on the part so the LOD wheel can regenerate it. */
       subject: z.string().max(200).optional(),
-      polycount: z.number().int().min(100).max(300_000).optional(),
+      polycount: z.number().int().min(100).max(50_000).optional(),
       /** Replace this part in place — an LOD change, not a second copy. */
       replaceRef: refSchema.optional(),
     })

@@ -282,14 +282,22 @@ describe("generate_ugc / build_ugc", () => {
     );
   });
 
-  it("holds polycount to what Meshy actually accepts", () => {
+  it("holds polycount to what the transport and Roblox can carry", () => {
     // Out of range is a 400 from Meshy a minute later; catch it here.
     assert.equal(
       validateToolArgs("generate_ugc", { subject: "a chest", polycount: 8000 })
         .ok,
       true,
     );
-    for (const polycount of [99, 300_001, 5000.5]) {
+    // 50k is OUR ceiling, not Meshy's: the geometry crosses the wire as JSON
+    // and a colour per vertex makes 300k about 13MB. Pin the boundary, not
+    // just some number far past it.
+    assert.equal(
+      validateToolArgs("generate_ugc", { subject: "a chest", polycount: 50_000 })
+        .ok,
+      true,
+    );
+    for (const polycount of [99, 50_001, 300_000, 5000.5]) {
       assert.equal(
         validateToolArgs("generate_ugc", { subject: "a chest", polycount }).ok,
         false,

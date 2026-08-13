@@ -5,7 +5,7 @@ import { getPluginUser } from "@/server/auth/plugin";
 import { enqueueToolCall } from "@/server/bridge/queue-core";
 import { db, schema } from "@/server/db";
 import { hasPlan } from "@/lib/plan";
-import { generateMesh, isMeshyConfigured, parseObj } from "@/server/ai/meshy";
+import { generateMesh, isMeshyConfigured } from "@/server/ai/meshy";
 import { meshQuota } from "@/server/ai/mesh-quota";
 import { rateLimit } from "@/server/security/ratelimit";
 
@@ -22,7 +22,7 @@ import { rateLimit } from "@/server/security/ratelimit";
  */
 const bodySchema = z.object({
   subject: z.string().trim().min(3).max(200),
-  polycount: z.number().int().min(100).max(300_000),
+  polycount: z.number().int().min(100).max(50_000),
   /** The part being replaced, so the plugin can swap it in place. */
   replaceRef: z.string().max(120).optional(),
   position: z.array(z.number()).length(3).optional(),
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       subject: body.subject,
       polycount: body.polycount,
     });
-    const { vertices, triangles } = parseObj(mesh.obj);
+    const { vertices, triangles, colors } = mesh;
     if (vertices.length === 0 || triangles.length === 0) {
       throw new Error("the generated mesh had no usable geometry");
     }
@@ -116,6 +116,7 @@ export async function POST(request: NextRequest) {
         position: body.position,
         vertices,
         triangles,
+        colors,
         subject: body.subject,
         polycount: body.polycount,
         replaceRef: body.replaceRef,
