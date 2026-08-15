@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createWriteStream, mkdirSync, statSync } from "node:fs";
+import { createReadStream, createWriteStream, mkdirSync, statSync } from "node:fs";
 import path from "node:path";
 import type { NextRequest } from "next/server";
 
@@ -13,8 +13,14 @@ import type { NextRequest } from "next/server";
 // the token set in the environment this endpoint refuses everything, so it can
 // never be left accidentally open.
 //
-// The body is piped straight to disk while being hashed, so a 168 MB installer
-// never sits in memory and the response can report the SHA-256 the manifest needs.
+// The body is piped straight to disk, so a large installer never sits in memory.
+//
+// CHUNKED: Cloudflare fronts this domain and rejects request bodies over 100 MB
+// with a 413 before they ever reach the app, so a 168 MB installer cannot be sent
+// in one request. Callers therefore POST sequential chunks:
+//   ?name=X            → create/truncate, write this chunk
+//   ?name=X&append=1   → append this chunk
+//   GET ?name=X        → size + SHA-256 of the assembled file, to verify the join
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const runtime = "nodejs";
@@ -48,15 +54,14 @@ export async function POST(request: NextRequest) {
   }
 
   const full = path.join(RELEASES_DIR, name);
-  const hash = createHash("sha256");
-  const out = createWriteStream(full);
+  const append = request.nextUrl.searchParams.get("append") === "1";
+  const out = createWriteStream(full, { flags: append ? "a" : "w" });
   const reader = request.body.getReader();
 
   try {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      hash.update(value);
       if (!out.write(value)) {
         await new Promise<void>((resolve) => out.once("drain", resolve));
       }
@@ -77,7 +82,41 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const size = statSync(full).size;
+  // Size only — the whole-file hash comes from GET once every chunk has landed.
+  return Response.json({ ok: true, name, appended: append, size: statSync(full).size });
+}
+
+/** Size + SHA-256 of an assembled upload, so the caller can verify the join. */
+export async function GET(request: NextRequest) {
+  const token = process.env.LEVENTIA_UPDATE_TOKEN;
+  const bearer = request.headers
+    .get("authorization")
+    ?.replace(/^Bearer\s+/i, "");
+  if (!token || !bearer || bearer !== token) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const name = request.nextUrl.searchParams.get("name") ?? "";
+  if (!name || name.includes("/") || name.includes("\\") || name.includes("..")) {
+    return Response.json({ error: "Bad or missing ?name=" }, { status: 400 });
+  }
+
+  const full = path.join(RELEASES_DIR, name);
+  let size: number;
+  try {
+    size = statSync(full).size;
+  } catch {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const hash = createHash("sha256");
+  await new Promise<void>((resolve, reject) => {
+    createReadStream(full)
+      .on("data", (c) => hash.update(c))
+      .on("end", () => resolve())
+      .on("error", reject);
+  });
+
   return Response.json({
     ok: true,
     name,
