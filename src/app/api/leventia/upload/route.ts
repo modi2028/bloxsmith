@@ -117,11 +117,14 @@ export async function GET(request: NextRequest) {
       .on("error", reject);
   });
 
+  // APP_URL, not nextUrl.origin — inside the container the request origin is
+  // localhost:8080, which is useless to a client.
+  const base = (process.env.APP_URL ?? request.nextUrl.origin).replace(/\/$/, "");
   return Response.json({
     ok: true,
     name,
     size,
     sha256: hash.digest("hex"),
-    url: `${request.nextUrl.origin}/api/leventia/download/${encodeURIComponent(name)}`,
+    url: `${base}/api/leventia/download/${encodeURIComponent(name)}`,
   });
 }
